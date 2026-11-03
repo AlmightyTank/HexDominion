@@ -1,6 +1,6 @@
 extends Control
 class_name StrategyHUD
-## Slice B: world map camera HUD and inspection-only tile details.
+## World map camera HUD, tile inspection, and movement order feedback.
 
 @onready var header_panel: PanelContainer = $Header
 @onready var controls_panel: PanelContainer = $Controls
@@ -69,6 +69,10 @@ func show_tile_info(tile: Dictionary) -> void:
 	var title: String = site if not site.is_empty() else terrain
 	var axial: Vector2i = tile["axial"]
 	tile_info_label.text = "%s  •  %s  •  (%d,%d)" % [title, location, axial.x, axial.y]
+
+
+func show_command_info(message: String) -> void:
+	tile_info_label.text = message
 
 
 func _layout_for_viewport() -> void:

@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. v0.1 Slice A contains the Godot project shell, controllable camera, placeholder hex grid, HUD, and a small hex math test suite. Territory gameplay begins in later slices.
+> **Status:** Pre-alpha. Slices A–E provide the camera, Earth hex map, squad movement, territory capture, garrisons, faction borders and real-time rifle/tank combat.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -124,9 +124,9 @@ The version milestones and slices below are **planned**, not completed.
 
 - [x] **Slice A:** Godot project setup, main scene, camera pan and zoom, input foundation. (Implemented locally; engine runtime verification remains pending.)
 - [ ] **Slice B:** Earth-inspired hex world, land/ocean masking, basic terrain rendering.
-- [ ] **Slice C:** Unit selection, movement commands, hex pathfinding.
-- [ ] **Slice D:** Territory ownership, capture progress, garrisons, faction borders.
-- [ ] **Slice E:** Rifle squads, tanks, health, damage, and real-time combat.
+- [x] **Slice C:** Unit selection, movement commands, hex pathfinding. (Headless verified; interactive acceptance checklist in [Slice C](docs/SLICE-C.md).)
+- [x] **Slice D:** Territory ownership, capture progress, garrisons, faction borders. (Headless verified; [rules and manual checklist](docs/SLICE-D.md).)
+- [x] **Slice E:** Rifle squads, tanks, health, damage, and real-time combat. (Headless verified; [rules and manual checklist](docs/SLICE-E.md).)
 - [ ] **Slice F:** Headquarters, barracks, factory, basic resource income, training and rally points.
 - [ ] **Slice G:** Basic AI opponent, win/loss conditions, match restart, and save/load baseline.
 
@@ -203,7 +203,7 @@ HexDominion/
 
 ## Getting started
 
-> **v0.1 Slice A** is the runnable camera/input foundation. The temporary hex preview is not an Earth map or a complete strategy game.
+> **v0.1 Slice C** runs on the Earth hex map. Click a teal squad, then right-click reachable land to move it; this is not yet a complete strategy game.
 
 Once the project exists:
 
@@ -211,6 +211,7 @@ Once the project exists:
 2. Clone the repository and open `project.godot` in Godot.
 3. Press **F5** to run the configured main scene, then pan with WASD/arrows or drag and zoom with the mouse wheel. Touch drag and pinch gestures are also supported.
 4. Read [Slice A acceptance criteria](docs/SLICE-A.md), then run the headless test commands documented there.
+5. Try [Slice C selection and movement](docs/SLICE-C.md). Touch: tap a squad, then tap land. Escape clears selection; dragging still pans.
 
 ## Development guidelines
 

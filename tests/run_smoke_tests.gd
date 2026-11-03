@@ -90,5 +90,135 @@ func _run_tests() -> void:
 	_check(climate_preserves_land, "Climate preserves land/ocean classification")
 	_check(tiles[sample] == second_world["tiles"][sample], "Map generation deterministic")
 	_check(world["terrain_counts"] == second_world["terrain_counts"], "Distribution deterministic")
-	print("Hex Dominion v0.1 Slice B: %d passed, %d failed" % [_successes, _failures])
+	_test_movement()
+	_test_territory()
+	_test_combat()
+	var game: Node = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+	_check(game.units.units.size() == 4, "Three starter squads and a rival garrison on the live map")
+	for unit in game.units.units:
+		_check(HexPathfinding.is_walkable(tiles, unit.hex), "Starter squad on land")
+	var victim: UnitState = game.units.units[-1]
+	var attacker: UnitState = game.units.units[0]
+	attacker.hex = victim.hex
+	attacker.health = 100.0
+	victim.health = 1.0
+	game.units.selected = victim
+	game.units._physics_process(0.1)
+	_check(not game.units.units.has(victim) and game.units.selected == null, "Death removes unit and clears selection")
+	game.units._physics_process(3.0)
+	_check(game.units.territory.owner_at(attacker.hex) == 1, "Defeated garrison allows territory capture")
+	game.free()
+	print("Hex Dominion v0.1 Slice E: %d passed, %d failed" % [_successes, _failures])
 	quit(1 if _failures > 0 else 0)
+
+
+func _test_combat() -> void:
+	var rifle: UnitState = UnitState.new()
+	var enemy: UnitState = UnitState.new(Vector2i(1, 0))
+	enemy.faction = 2
+	var forces: Array[UnitState] = [rifle, enemy]
+	CombatState.advance(1.0, forces)
+	_check(rifle.health == 80.0 and enemy.health == 80.0, "Adjacent rifles exchange simultaneous damage")
+	enemy.hex = Vector2i(3, 0)
+	CombatState.advance(1.0, forces)
+	_check(rifle.health == 80.0 and enemy.health == 80.0, "No damage outside range")
+	enemy.hex = Vector2i(1, 0)
+	enemy.faction = 1
+	CombatState.advance(1.0, forces)
+	_check(rifle.health == 80.0 and enemy.health == 80.0, "No friendly fire")
+	enemy.faction = 2
+	rifle.configure_kind("tank")
+	CombatState.advance(1.0, forces)
+	_check(rifle.health == 230.0 and enemy.health == 35.0, "Tank has distinct durability and damage")
+	rifle.path.append(Vector2i(1, 0))
+	CombatState.advance(1.0, forces)
+	_check(enemy.health == 35.0 and rifle.health == 210.0, "Moving units take damage but do not fire")
+	rifle.path.clear()
+	rifle.health = 10.0
+	enemy.health = 10.0
+	CombatState.advance(1.0, forces)
+	_check(not rifle.is_alive() and not enemy.is_alive(), "Lethal exchange is simultaneous and clamps health")
+	_check(CombatState.advance(1.0, forces).is_empty(), "Dead units cannot attack or be targeted")
+	_check(not rifle.order_move({Vector2i.ZERO: {"is_land": true}}, Vector2i.ZERO), "Dead units reject orders")
+	var state: TerritoryState = TerritoryState.new()
+	state.advance(10.0, {Vector2i.ZERO: {"is_land": true}}, forces)
+	_check(state.owners.is_empty(), "Dead units cannot capture")
+
+
+func _test_territory() -> void:
+	var tiles: Dictionary = {Vector2i.ZERO: {"is_land": true}, Vector2i(1, 0): {"is_land": true}}
+	var state: TerritoryState = TerritoryState.new()
+	var squad: UnitState = UnitState.new()
+	var forces: Array[UnitState] = [squad]
+	state.advance(1.0, tiles, forces)
+	_check(state.owner_at(Vector2i.ZERO) == 0 and state.captures.has(Vector2i.ZERO), "Capture needs sustained occupation")
+	state.advance(2.0, tiles, forces)
+	_check(state.owner_at(Vector2i.ZERO) == 1 and state.captures.is_empty(), "Capture completes after three seconds")
+	squad.hex = Vector2i(1, 0)
+	state.advance(1.0, tiles, forces)
+	_check(state.owner_at(Vector2i.ZERO) == 1, "Ownership persists after departure")
+	var rival: UnitState = UnitState.new(Vector2i(1, 0))
+	rival.faction = 2
+	rival.garrisoned = true
+	forces.append(rival)
+	state.advance(10.0, tiles, forces)
+	_check(state.owner_at(squad.hex) == 0 and state.captures[squad.hex]["elapsed"] == 1.0, "Contested capture freezes")
+	forces.erase(squad)
+	state.advance(2.0, tiles, forces)
+	_check(state.owner_at(rival.hex) == 0 and state.captures[rival.hex]["faction"] == 2, "New captor resets previous progress")
+	state.advance(1.0, tiles, forces)
+	_check(state.owner_at(rival.hex) == 2, "Rival can capture territory")
+	_check(not rival.order_move(tiles, Vector2i.ZERO), "Garrison refuses movement")
+	rival.garrisoned = false
+	_check(rival.order_move(tiles, Vector2i.ZERO), "Released garrison can move")
+	state.advance(10.0, tiles, forces)
+	_check(not state.captures.has(Vector2i.ZERO), "Moving units cannot capture")
+	rival.advance(1.0)
+	state.advance(1.0, tiles, forces)
+	forces.clear()
+	state.advance(1.0, tiles, forces)
+	_check(state.captures.is_empty(), "Abandoned capture resets")
+	forces.append(rival)
+	state.advance(3.0, tiles, forces)
+	_check(state.owner_at(Vector2i.ZERO) == 2, "Empty enemy territory can be recaptured")
+
+
+func _test_movement() -> void:
+	var tiles: Dictionary = {}
+	for q in range(5):
+		for r in range(3):
+			tiles[Vector2i(q, r)] = {"is_land": true}
+	var start: Vector2i = Vector2i.ZERO
+	var goal: Vector2i = Vector2i(4, 0)
+	var route: Array[Vector2i] = HexPathfinding.find_path(tiles, start, goal)
+	_check(route.size() == 5 and route[0] == start and route[-1] == goal, "Shortest land route includes endpoints")
+	tiles[Vector2i(2, 0)]["is_land"] = false
+	route = HexPathfinding.find_path(tiles, start, goal)
+	_check(route.size() > 5, "Route detours around ocean")
+	for index in range(1, route.size()):
+		_check(HexMath.distance(route[index - 1], route[index]) == 1 and tiles[route[index]]["is_land"], "Route uses adjacent land cells")
+	_check(HexPathfinding.find_path(tiles, start, start).size() == 1, "Already at destination")
+	_check(HexPathfinding.find_path(tiles, start, Vector2i(99, 99)).is_empty(), "Off-map rejected")
+	_check(HexPathfinding.find_path(tiles, start, Vector2i(2, 0)).is_empty(), "Ocean destination rejected")
+	var unit: UnitState = UnitState.new(start)
+	_check(unit.order_move(tiles, goal), "Move order accepted")
+	unit.advance(unit.seconds_per_hex * 0.5)
+	_check(unit.hex == start and is_equal_approx(unit.progress, 0.5), "Partial edge keeps logical occupancy")
+	var prior: Array[Vector2i] = unit.path.duplicate()
+	_check(not unit.order_move(tiles, Vector2i(2, 0)) and unit.path == prior, "Invalid order preserves active route")
+	var next: Vector2i = unit.path[0]
+	_check(unit.order_move(tiles, start) and unit.path[0] == next and is_equal_approx(unit.progress, 0.5), "Retarget preserves in-flight edge")
+	unit.advance(20.0)
+	_check(unit.hex == start and unit.path.is_empty() and unit.progress == 0.0, "Large tick reaches destination without overshoot")
+	var a: UnitState = UnitState.new(start)
+	var b: UnitState = UnitState.new(start)
+	a.order_move(tiles, goal)
+	b.order_move(tiles, goal)
+	a.advance(0.9)
+	for index in range(9):
+		b.advance(0.1)
+	_check(a.hex == b.hex and is_equal_approx(a.progress, b.progress), "Movement independent of tick partition")
+	for r in range(3):
+		tiles[Vector2i(2, r)]["is_land"] = false
+	_check(HexPathfinding.find_path(tiles, start, goal).is_empty(), "Disconnected land rejected")
