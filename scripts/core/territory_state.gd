@@ -2,12 +2,21 @@ extends RefCounted
 class_name TerritoryState
 ## Sparse ownership separate from cached terrain. Zero is neutral.
 const CAPTURE_SECONDS: float = 3.0
-var owners: Dictionary = {}
+var continents: ContinentControl = ContinentControl.new()
+var owners: Dictionary = {}:
+	set(value):
+		owners = value
+		continents.recount(owners)
 var captures: Dictionary = {}
 var contested: Dictionary = {}
 
 func owner_at(hex: Vector2i) -> int:
 	return owners.get(hex, 0)
+
+func set_owner(hex: Vector2i, faction: int) -> void:
+	var previous: int = owner_at(hex)
+	owners[hex] = faction
+	continents.ownership_changed(hex, previous, faction)
 
 func is_contested(hex: Vector2i) -> bool:
 	return contested.has(hex) or captures.has(hex)
@@ -19,6 +28,8 @@ func advance(delta: float, tiles: Dictionary, units: Array[UnitState]) -> void:
 	contested.clear()
 	for unit in units:
 		if not unit.is_alive() or not unit.path.is_empty() or not HexPathfinding.is_walkable(tiles, unit.hex):
+			continue
+		if not tiles[unit.hex].get("capturable", true):
 			continue
 		if not occupants.has(unit.hex):
 			occupants[unit.hex] = {}
@@ -42,7 +53,7 @@ func advance(delta: float, tiles: Dictionary, units: Array[UnitState]) -> void:
 			capture = {"faction": faction, "elapsed": 0.0}
 		capture["elapsed"] += delta
 		if capture["elapsed"] >= CAPTURE_SECONDS:
-			owners[hex] = faction
+			set_owner(hex, faction)
 			captures.erase(hex)
 			contested.erase(hex)
 		else:

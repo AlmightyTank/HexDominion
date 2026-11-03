@@ -35,6 +35,15 @@ func _test_supply_ui_and_save() -> void:
 	game._process(0)
 	_check("SUPPLIED" in game.hud.supply_info.text and game.units.economy.income_status(home, tiles, game.units.territory)["income"] == 6, "Load rebuilds supply without stale isolation")
 	_check(snapshot == MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home), "Derived supply caches do not alter saved authoritative state")
+	for hex in game.units.territory.continents.membership:
+		game.units.territory.set_owner(hex, 1)
+	var bonus: float = game.units.territory.continents.bonus(1)
+	game._process(0)
+	_check(bonus > 0 and "(+10%)" in game.hud.continent_overview.text and "0 remain" in game.hud.continent_overview.text, "Continent overview exposes complete ownership, progress and remaining territories")
+	var complete_save: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home)
+	_check(MatchSave.restore(game.units, snapshot) and game.units.territory.continents.bonus(1) == 0, "Real match restore removes stale continent rewards")
+	_check(MatchSave.restore(game.units, complete_save) and game.units.territory.continents.bonus(1) == bonus, "Real match save restores completed continents exactly once")
+	_check(MatchSave.restore(game.units, complete_save) and game.units.territory.continents.bonus(1) == bonus, "Repeated load cannot duplicate continent rewards")
 	game.free()
 
 
@@ -466,6 +475,7 @@ func _run_tests() -> void:
 	preload("res://tests/terrain_tests.gd").run(_check)
 	preload("res://tests/road_tests.gd").run(_check)
 	preload("res://tests/supply_tests.gd").run(_check)
+	preload("res://tests/continent_tests.gd").run(_check)
 	_test_supply_ui_and_save()
 	_test_ai_integration()
 	game._begin_build("")
@@ -502,7 +512,7 @@ func _run_tests() -> void:
 		_check(restarted.units.units.size() == 4 and restarted.units.economy.credits >= 400 and restarted.units.economy.credits < 410 and restarted.units.selected == null, "Restart resets roster, economy and selection (allowing initial income ticks)")
 		restarted.free()
 	current_scene = null
-	print("Hex Dominion v0.3 Slice C: %d passed, %d failed" % [_successes, _failures])
+	print("Hex Dominion v0.3 Slice D: %d passed, %d failed" % [_successes, _failures])
 	quit(1 if _failures > 0 else 0)
 
 

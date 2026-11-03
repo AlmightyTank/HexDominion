@@ -68,6 +68,10 @@ func configure(map: WorldMap) -> void:
 			territory.owners[route[1]] = 2
 			match_state.rival_economy.add_building(route[1], "barracks")
 			break
+	var starts: Array[Vector2i] = []
+	for unit in units:
+		starts.append(unit.hex)
+	territory.continents.configure(map.map_data["tiles"], starts, territory.owners)
 	queue_redraw()
 
 

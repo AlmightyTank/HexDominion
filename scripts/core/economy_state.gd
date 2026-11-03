@@ -114,11 +114,12 @@ func income_rate(tiles: Dictionary, territory: TerritoryState) -> float:
 	supply.refresh(tiles, territory, self)
 	var rate: float = 0.0
 	var powered: bool = not low_power(territory)
+	var continent_bonus: float = territory.continents.bonus(faction)
 	for hex in territory.owners:
-		rate += _location_income(hex, tiles, powered)
+		rate += _location_income(hex, tiles, powered, continent_bonus)
 	return rate
 
-func _location_income(hex: Vector2i, tiles: Dictionary, powered: bool) -> float:
+func _location_income(hex: Vector2i, tiles: Dictionary, powered: bool, continent_bonus: float = 0.0) -> float:
 	if not supply.supplied.has(hex):
 		return 0.0
 	var base: float = CITY_INCOME_PER_SECOND if tiles[hex].get("terrain", "") == "city" else 0.0
@@ -129,13 +130,14 @@ func _location_income(hex: Vector2i, tiles: Dictionary, powered: bool) -> float:
 			hq_income = HQ_INCOME_PER_SECOND
 		elif site["kind"] == "extractor" and powered and site.get("health", 0.0) > 0 and tiles[hex].get("terrain", "") == "resource":
 			base += EXTRACTION_PER_SECOND
-	return hq_income + base * (1.0 + ROAD_INCOME_BONUS if supply.road_supplied.has(hex) else 1.0)
+	var road_bonus: float = ROAD_INCOME_BONUS if supply.road_supplied.has(hex) else 0.0
+	return hq_income * (1.0 + continent_bonus) + base * (1.0 + road_bonus + continent_bonus)
 
 func income_status(hex: Vector2i, tiles: Dictionary, territory: TerritoryState) -> Dictionary:
 	supply.refresh(tiles, territory, self)
 	var connected: bool = supply.supplied.has(hex)
 	var road: bool = connected and supply.road_supplied.has(hex)
-	return {"supplied": connected, "road_bonus": road, "income": _location_income(hex, tiles, not low_power(territory))}
+	return {"supplied": connected, "road_bonus": road, "income": _location_income(hex, tiles, not low_power(territory), territory.continents.bonus(faction))}
 
 func power_balance(territory: TerritoryState) -> Dictionary:
 	var supply: int = 0

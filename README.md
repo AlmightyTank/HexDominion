@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. Implemented through v0.2 Slice J and v0.3 Slice C: Earth hex skirmishes, terrain-aware movement and combat, roads, HQ supply connections and income, territory, construction, power, economy, AI, HQ victory/defeat, restart and named saves. Headless regression coverage is in place; interactive acceptance and balance playtesting remain pending.
+> **Status:** Pre-alpha. Implemented through v0.2 Slice J and v0.3 Slice D: Earth hex skirmishes, terrain-aware movement and combat, roads, HQ supply, additive continent income bonuses, territory, construction, power, economy, AI, HQ victory/defeat, restart and named saves. Headless regression coverage is in place; interactive acceptance and balance playtesting remain pending.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -156,6 +156,7 @@ Improved terrain rules, supply connections, continent bonuses, fortifications, d
 - [x] **Slice A: Terrain Advantages:** Forest infantry protection 15%, mountain ground speed -20% and protection 25%, desert vehicle speed +10%, city protection 20%. Weighted routing, hex inspection and existing crossing rules remain integrated. ([Rules and verification](docs/V0.3-SLICE-A.md).)
 - [x] **Slice B: Roads and Transportation:** Persistent 100 CR roads on controlled land, continuous connections, 30% faster ground travel and road-aware routing. ([Rules and verification](docs/V0.3-SLICE-B.md).)
 - [x] **Slice C: Supply Connections and Income:** Cities and extractors require friendly land supply from an operational HQ; connected friendly roads grant a single 10% income bonus. Cached networks, isolation indicators and save reconstruction. ([Rules and verification](docs/V0.3-SLICE-C.md).)
+- [x] **Slice D: Continent Bonuses:** Complete eligible continents grant +10% income each, additive with roads, with event-driven control counts and a faction overview. ([Rules and verification](docs/V0.3-SLICE-D.md).)
 
 ### v0.4 — Military expansion
 

@@ -52,6 +52,9 @@ signal rally_requested
 var facility_buttons: Dictionary = {}
 var facility_list: VBoxContainer
 var economy_summary: Label
+var continent_overview: Label
+var _continent_revision: int = -1
+var _continent_manager: ContinentControl
 var supply_info: Label
 var rally_button: Button
 var sidebar_scroll: ScrollContainer
@@ -376,6 +379,14 @@ func _create_build_menu() -> void:
 	supply_info = Label.new()
 	supply_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(supply_info)
+	var continent_panel: ScrollContainer = ScrollContainer.new()
+	continent_panel.custom_minimum_size.y = 130
+	continent_panel.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(continent_panel)
+	continent_overview = Label.new()
+	continent_overview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	continent_overview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	continent_panel.add_child(continent_overview)
 	command_tabs = TabContainer.new()
 	command_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(command_tabs)
@@ -557,6 +568,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 
 
 func show_supply(hex: Vector2i, economy: EconomyState, territory: TerritoryState, tiles: Dictionary) -> void:
+	show_continents(territory.continents)
 	var economic: bool = tiles.get(hex, {}).get("terrain", "") == "city" or (economy.buildings.has(hex) and economy.buildings[hex]["kind"] == "extractor")
 	supply_info.visible = economic
 	if not economic:
@@ -650,3 +662,23 @@ func _ui_box(fill: Color, border: Color, radius: int) -> StyleBoxFlat:
 	box.content_margin_top = 6
 	box.content_margin_bottom = 6
 	return box
+
+func show_continents(manager: ContinentControl) -> void:
+	if _continent_manager == manager and _continent_revision == manager.revision:
+		return
+	_continent_manager = manager
+	_continent_revision = manager.revision
+	var lines: PackedStringArray = ["CONTINENTS", "Player +%d%% | Rival +%d%% income" % [roundi(manager.bonus(1) * 100), roundi(manager.bonus(2) * 100)]]
+	for name in manager.regions:
+		var region: Dictionary = manager.regions[name]
+		var total: int = region["total"]
+		if total == 0:
+			lines.append("%s: excluded (unreachable)" % name)
+			continue
+		var owner: int = manager.controller(name)
+		var label: String = "Player" if owner == 1 else ("Rival" if owner == 2 else "None")
+		lines.append("%s: %s%s" % [name, label, " (+10%)" if owner > 0 else ""])
+		for faction in [1, 2]:
+			var count: int = region["counts"].get(faction, 0)
+			lines.append("%s %d/%d (%d remain)" % ["Player" if faction == 1 else "Rival", count, total, total - count])
+	continent_overview.text = "\n".join(lines)
