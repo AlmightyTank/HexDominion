@@ -2,16 +2,19 @@ extends Camera2D
 class_name StrategyCamera
 ## RTS-style camera, independent from world tiles and game state.
 ## Desktop: WASD/arrows, left/middle/right drag, wheel zoom, R to reset.
+## Slice B adds fit-to-world and world-bound camera clamping.
 ## Touch: one-finger drag and two-finger pinch + pan.
 
 signal view_changed(world_position: Vector2, zoom_factor: float)
 
-@export_range(0.25, 2.5, 0.05) var min_zoom: float = 0.4
-@export_range(0.25, 2.5, 0.05) var max_zoom: float = 2.3
+@export_range(0.05, 2.5, 0.01) var min_zoom: float = 0.08
+@export_range(0.05, 2.5, 0.05) var max_zoom: float = 2.3
 @export_range(100.0, 2500.0, 50.0) var keyboard_pan_speed: float = 850.0
 @export_range(1.05, 1.5, 0.01) var zoom_step: float = 1.14
 
 const START_ZOOM: float = 0.72
+var _world_bounds: Rect2 = Rect2()
+var _has_world_bounds: bool = false
 
 var _mouse_drag_buttons: Dictionary = {}
 var _touch_positions: Dictionary = {}
@@ -36,6 +39,7 @@ func _process(delta: float) -> void:
 		movement.y += 1.0
 	if movement != Vector2.ZERO:
 		position += movement.normalized() * keyboard_pan_speed * delta / zoom.x
+		_clamp_position()
 		_notify_view_changed()
 
 
@@ -110,6 +114,7 @@ func _reset_pinch_reference() -> void:
 
 func pan_screen_pixels(delta_pixels: Vector2) -> void:
 	position -= delta_pixels / zoom.x
+	_clamp_position()
 	_notify_view_changed()
 
 
@@ -122,6 +127,7 @@ func zoom_at_screen_point(screen_point: Vector2, multiplier: float) -> void:
 	var point_before: Vector2 = position + offset_pixels / zoom.x
 	zoom = Vector2.ONE * next_zoom
 	position = point_before - offset_pixels / next_zoom
+	_clamp_position()
 	_notify_view_changed()
 
 
@@ -129,11 +135,36 @@ func zoom_centered(multiplier: float) -> void:
 	zoom_at_screen_point(get_viewport_rect().size * 0.5, multiplier)
 
 
+func configure_world_bounds(bounds: Rect2) -> void:
+	_world_bounds = bounds
+	_has_world_bounds = bounds.size.x > 0.0 and bounds.size.y > 0.0
+	reset_view()
+
+
 func reset_view() -> void:
-	position = Vector2.ZERO
-	zoom = Vector2.ONE * START_ZOOM
+	position = _world_bounds.get_center() if _has_world_bounds else Vector2.ZERO
+	var fit_zoom: float = START_ZOOM
+	if _has_world_bounds:
+		var viewport_size: Vector2 = get_viewport_rect().size
+		fit_zoom = minf(viewport_size.x / _world_bounds.size.x, viewport_size.y / _world_bounds.size.y) * 0.91
+	zoom = Vector2.ONE * clampf(fit_zoom, min_zoom, max_zoom)
 	_mouse_drag_buttons.clear()
+	_clamp_position()
 	_notify_view_changed()
+
+
+func _clamp_position() -> void:
+	if not _has_world_bounds:
+		return
+	var half_visible: Vector2 = get_viewport_rect().size / (2.0 * zoom.x)
+	if half_visible.x * 2.0 >= _world_bounds.size.x:
+		position.x = _world_bounds.get_center().x
+	else:
+		position.x = clampf(position.x, _world_bounds.position.x + half_visible.x, _world_bounds.end.x - half_visible.x)
+	if half_visible.y * 2.0 >= _world_bounds.size.y:
+		position.y = _world_bounds.get_center().y
+	else:
+		position.y = clampf(position.y, _world_bounds.position.y + half_visible.y, _world_bounds.end.y - half_visible.y)
 
 
 func _notify_view_changed() -> void:
