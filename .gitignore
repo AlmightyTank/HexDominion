@@ -1,15 +1,15 @@
-# Godot generated metadata
+# Godot-generated editor metadata and import cache
 .godot/
 *.translation
 
-# Local builds
+# Editor and OS artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local builds and exported distributions
 build/
 dist/
 exports/
 *.pck
-
-# Editors and operating systems
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
