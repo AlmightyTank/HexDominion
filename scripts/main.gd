@@ -15,6 +15,10 @@ var units: UnitLayer
 var _box_active: bool = false
 var _selection_box: ReferenceRect
 var _menu_open: bool = false
+const NO_FACILITY: Vector2i = Vector2i(-99999, -99999)
+var _facility_hex: Vector2i = NO_FACILITY
+var _facility_site: Dictionary = {}
+var _rally_mode: bool = false
 const TAP_THRESHOLD: float = 14.0
 
 
@@ -28,6 +32,10 @@ func _ready() -> void:
 	units.configure(world_map)
 	hud.build_requested.connect(_begin_build)
 	hud.train_requested.connect(_train_selected)
+	hud.facility_selected.connect(_select_facility)
+	hud.rally_requested.connect(_begin_rally)
+	hud.cancel_construction_requested.connect(_cancel_construction)
+	hud.building_action_requested.connect(_building_action)
 	hud.match_action_requested.connect(_match_action)
 	hud.save_slot_requested.connect(_save_slot)
 	hud.load_slot_requested.connect(_load_slot)
@@ -42,7 +50,12 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if _menu_open and hud.save_browser.visible:
+		if _rally_mode:
+			_rally_mode = false
+			hud.show_command_info("Rally selection cancelled")
+		elif not _menu_open and not units.build_kind.is_empty():
+			_begin_build("")
+		elif _menu_open and hud.save_browser.visible:
 			hud.close_save_browser()
 		else:
 			_set_menu_open(not _menu_open)
@@ -82,6 +95,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	if not units.build_kind.is_empty():
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Q:
+			units.build_rotation = (units.build_rotation + 1) % 6
+			units.queue_redraw()
+			get_viewport().set_input_as_handled()
+			return
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			_begin_build("")
 			return
@@ -93,19 +111,13 @@ func _unhandled_input(event: InputEvent) -> void:
 					_place_build(get_global_mouse_position())
 			get_viewport().set_input_as_handled()
 			return
-		if event is InputEventScreenTouch:
-			if not event.pressed:
-				_place_build(get_viewport().get_canvas_transform().affine_inverse() * event.position)
-			return
 	if event is InputEventKey and event.pressed and not event.echo:
-		var hex: Vector2i = world_map.selected_hex
-		var build_keys: Dictionary = {KEY_H: "headquarters", KEY_B: "barracks", KEY_F: "factory"}
+		var build_keys: Dictionary = {KEY_H: "headquarters", KEY_B: "barracks", KEY_F: "factory", KEY_E: "extractor", KEY_P: "power_plant"}
 		var train_keys: Dictionary = {KEY_I: "rifle", KEY_T: "tank"}
 		if build_keys.has(event.keycode):
 			_begin_build(build_keys[event.keycode])
 		elif train_keys.has(event.keycode):
-			var accepted: bool = units.economy.train(hex, train_keys[event.keycode], units.territory)
-			hud.show_command_info("Training queued" if accepted else "Training rejected: select correct owned building, need credits/queue space")
+			_train_selected(train_keys[event.keycode])
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G:
 		if units.selected != null:
 			if units.selected.path.is_empty() and units.territory.owner_at(units.selected.hex) == units.selected.faction:
@@ -150,7 +162,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			_touch_start.erase(event.index)
 			if not _touch_gesture and _touch_start.is_empty() and event.position.distance_to(start) < TAP_THRESHOLD:
 				var world_point: Vector2 = get_viewport().get_canvas_transform().affine_inverse() * event.position
-				if units.pick(world_point, camera.zoom.x) != null or units.selected == null:
+				if not units.build_kind.is_empty():
+					_place_build(world_point)
+				elif units.pick(world_point, camera.zoom.x) != null or units.selected == null:
 					_select_at(world_point)
 				else:
 					_move_to(world_point)
@@ -163,10 +177,16 @@ func _inspect_world_at(world_point: Vector2) -> void:
 	var hex: Vector2i = world_map.world_to_hex(world_point)
 	if units.economy.buildings.has(hex):
 		var building: Dictionary = units.economy.buildings[hex]
-		hud.show_command_info("%s • Queue %d/5 • I rifle / T tank • Deselect units then right-click rally" % [String(building["kind"]).capitalize(), building["queue"].size()])
+		if units.territory.owner_at(hex) == units.economy.faction:
+			_facility_hex = hex
+			_facility_site = building
+		hud.show_command_info("%s • Queue %d/5 • Manage pinned facility in sidebar • I rifle / T tank" % [String(building["kind"]).capitalize(), building["queue"].size()])
 
 
 func _select_at(point: Vector2) -> void:
+	if _rally_mode:
+		_set_facility_rally(point)
+		return
 	units.select_one(units.pick(point, camera.zoom.x))
 	units.queue_redraw()
 	_inspect_world_at(point)
@@ -175,9 +195,12 @@ func _select_at(point: Vector2) -> void:
 
 
 func _move_to(point: Vector2) -> void:
+	if _rally_mode:
+		_set_facility_rally(point)
+		return
 	if units.selected == null:
-		if units.economy.buildings.has(world_map.selected_hex):
-			var accepted: bool = units.economy.set_rally(world_map.selected_hex, world_map.world_to_hex(point), world_map.map_data["tiles"], units.territory)
+		if units.economy.buildings.has(_economy_hex()):
+			var accepted: bool = units.economy.set_rally(_economy_hex(), world_map.world_to_hex(point), world_map.map_data["tiles"], units.territory)
 			hud.show_command_info("Rally point set" if accepted else "Rally rejected: need owned building and reachable land")
 			return
 		hud.show_command_info("Select a squad first (teal markers)")
@@ -198,45 +221,102 @@ func _move_to(point: Vector2) -> void:
 
 func _process(_delta: float) -> void:
 	if units != null:
-		hud.show_tile_actions(world_map.selected_hex, units.economy, units.territory, world_map.map_data["tiles"])
+		hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"])
+		if units.managed_hex != _facility_hex:
+			units.managed_hex = _facility_hex
+			units.queue_redraw()
 		hud.show_match_status(units.match_state)
-		if units.match_state.rival_economy.buildings.has(world_map.selected_hex):
-			hud.build_panel.hide() # Rival structures are not transferred or rebuilt over.
 		units.build_hex = world_map.world_to_hex(get_global_mouse_position())
-		for kind in hud.build_buttons:
-			var blocked: bool = not units.economy.account.can_afford(EconomyState.BUILD_COSTS[kind])
-			if kind == "headquarters":
-				for building in units.economy.buildings.values():
-					blocked = blocked or building["kind"] == "headquarters"
-			hud.build_buttons[kind].disabled = blocked
+		if not units.build_kind.is_empty():
+			hud.build_status.text = "%s • %d°\n%s\nLeft-click place • Q rotate\nRight-click / Esc cancel" % [units.build_kind.capitalize(), units.build_rotation * 60, "VALID — controlled empty hex" if units.can_place(units.build_hex, units.build_kind) else "BLOCKED — ownership / terrain / structure / credits"]
+			units.queue_redraw()
 		hud.world_stats_label.text = "%d CR   |   +%.0f / SEC" % [int(units.economy.credits), units.economy.income_rate(world_map.map_data["tiles"], units.territory)]
+		var power: Dictionary = units.economy.power_balance(units.territory)
+		hud.world_stats_label.text += "\nPOWER %d / %d used%s" % [power["demand"], power["supply"], " • LOW" if units.economy.low_power(units.territory) else " • OK"]
 
 
 func _begin_build(kind: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
-	units.build_kind = ""
+	_rally_mode = false
+	units.build_kind = kind if EconomyState.BUILD_COSTS.has(kind) else ""
+	units.build_rotation = 0
 	_box_active = false
 	_selection_box.hide()
-	if kind.is_empty():
+	units.queue_redraw()
+	hud.show_command_info("Construction cancelled" if kind.is_empty() else "Choose controlled empty land • Left-click place • Q rotate • Esc cancel")
+
+
+func _building_action(action: String, hex: Vector2i, site: Dictionary) -> void:
+	if _menu_open or units.match_state.result != "playing":
 		return
-	if units.match_state.rival_economy.buildings.has(world_map.selected_hex):
-		hud.show_command_info("Rival structure: production disabled when captured")
+	var accepted: bool = false
+	if action == "sell":
+		accepted = units.economy.sell_building(hex, units.territory, site)
+	elif action == "repair":
+		accepted = units.economy.set_repair(hex, units.territory, site, not site.get("repairing", false))
+	hud.show_command_info("Building order accepted" if accepted else "Building order rejected: site changed, unfinished or no longer controlled")
+	hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"])
+	units.queue_redraw()
+
+
+func _cancel_construction(hex: Vector2i, site: Dictionary) -> void:
+	if _menu_open or units.match_state.result != "playing":
 		return
-	var accepted: bool = units.economy.build(world_map.selected_hex, kind, world_map.map_data["tiles"], units.territory)
-	hud.show_command_info("Building constructed on selected tile" if accepted else "Cannot build here: select owned empty land and check credits")
-	hud.show_tile_actions(world_map.selected_hex, units.economy, units.territory, world_map.map_data["tiles"])
+	var accepted: bool = units.economy.cancel_construction(hex, units.territory, site)
+	hud.show_command_info("Construction cancelled: 50% refunded" if accepted else "Cancellation unavailable: site changed, completed or no longer controlled")
+	hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"])
+	units.queue_redraw()
 
 
 func _train_selected(kind: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
-	var accepted: bool = units.economy.train(world_map.selected_hex, kind, units.territory)
+	var accepted: bool = units.economy.train(_economy_hex(), kind, units.territory)
 	hud.show_command_info("Training queued" if accepted else "Training unavailable: check building, credits and queue")
+
+
+func _economy_hex() -> Vector2i:
+	if not units.economy.buildings.has(_facility_hex) or not is_same(units.economy.buildings.get(_facility_hex, {}), _facility_site) or units.territory.owner_at(_facility_hex) != units.economy.faction:
+		_facility_hex = NO_FACILITY
+		_facility_site = {}
+		_rally_mode = false
+	return _facility_hex
+
+
+func _select_facility(hex: Vector2i) -> void:
+	if _menu_open or units.match_state.result != "playing" or not units.economy.buildings.has(hex) or units.territory.owner_at(hex) != units.economy.faction:
+		return
+	_rally_mode = false
+	_facility_hex = hex
+	_facility_site = units.economy.buildings[hex]
+	units.select_one(null)
+	world_map.inspect_at_world(world_map.hex_to_world(hex))
+	hud.show_tile_actions(hex, units.economy, units.territory, world_map.map_data["tiles"])
+	units.queue_redraw()
+
+
+func _begin_rally() -> void:
+	if _menu_open or units.match_state.result != "playing":
+		return
+	var hex: Vector2i = _economy_hex()
+	if not units.economy.buildings.has(hex) or not EconomyState.is_complete(units.economy.buildings[hex]) or not units.economy.buildings[hex]["kind"] in ["factory", "barracks"]:
+		return
+	_begin_build("")
+	_rally_mode = true
+	hud.show_command_info("Choose rally destination on map. Esc cancels; factory stays selected.")
+
+
+func _set_facility_rally(point: Vector2) -> void:
+	var accepted: bool = units.economy.set_rally(_economy_hex(), world_map.world_to_hex(point), world_map.map_data["tiles"], units.territory)
+	_rally_mode = not accepted and _facility_hex != NO_FACILITY
+	hud.show_command_info("Rally point set" if accepted else "Rally rejected: choose reachable land, or Esc to cancel")
+	units.queue_redraw()
 
 
 func _set_menu_open(open: bool) -> void:
 	_menu_open = open
+	_rally_mode = false
 	_box_active = false
 	_selection_box.hide()
 	_touch_start.clear()
@@ -298,9 +378,11 @@ func _restart_match() -> void:
 
 func _place_build(point: Vector2) -> void:
 	var hex: Vector2i = world_map.world_to_hex(point)
-	if units.economy.build(hex, units.build_kind, world_map.map_data["tiles"], units.territory):
+	if _menu_open or units.match_state.result != "playing" or units.build_kind.is_empty():
+		return
+	if units.economy.build(hex, units.build_kind, world_map.map_data["tiles"], units.territory, units.build_rotation, units.match_state.rival_economy.buildings):
 		world_map.inspect_at_world(point)
 		_begin_build("")
-		hud.show_command_info("Building placed • I rifle / T tank at selected building")
+		hud.show_command_info("Foundation placed • Production unlocks when construction finishes")
 	else:
 		hud.build_status.text = "Blocked: need owned empty land,\ncredits, and no duplicate HQ"

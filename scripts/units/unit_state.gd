@@ -38,7 +38,7 @@ func order_move(tiles: Dictionary, goal: Vector2i) -> bool:
 		return false
 	# Commit the in-flight edge before following a replacement route: no teleporting.
 	var start: Vector2i = path[0] if progress > 0.0 and not path.is_empty() else hex
-	var route: Array[Vector2i] = HexPathfinding.find_path(tiles, start, goal)
+	var route: Array[Vector2i] = HexPathfinding.find_path(tiles, start, goal, kind)
 	if route.is_empty():
 		return false
 	route.pop_front()
@@ -50,12 +50,21 @@ func order_move(tiles: Dictionary, goal: Vector2i) -> bool:
 	return true
 
 
-func advance(delta: float) -> void:
-	if path.is_empty() or delta <= 0.0:
+func advance(delta: float, tiles: Dictionary) -> void:
+	if path.is_empty() or not is_finite(delta) or delta <= 0.0:
 		return
-	progress += delta / maxf(seconds_per_hex, 0.001)
-	while progress >= 1.0 and not path.is_empty():
+	var remaining: float = delta
+	while remaining > 0 and not path.is_empty():
+		var cost: float = TerrainRules.movement_cost(tiles, hex, path[0], kind)
+		if not is_finite(cost):
+			return
+		var duration: float = maxf(seconds_per_hex, 0.001) * cost
+		var needed: float = (1.0 - progress) * duration
+		if remaining + 0.000000001 < needed:
+			progress += remaining / duration
+			return
+		remaining = maxf(0.0, remaining - needed)
 		hex = path.pop_front()
-		progress -= 1.0
+		progress = 0.0
 	if path.is_empty():
 		progress = 0.0

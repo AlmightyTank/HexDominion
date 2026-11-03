@@ -1,6 +1,6 @@
 extends RefCounted
 class_name MatchState
-## Small deterministic opponent: engage nearby enemies, otherwise capture toward HQ.
+## Deterministic opponent with separate economic and military priorities.
 var player_hq: Vector2i
 var rival_hq: Vector2i
 var result: String = "playing"
@@ -23,13 +23,14 @@ func evaluate(territory: TerritoryState) -> void:
 	elif won:
 		result = "victory"
 
-func advance_ai(delta: float, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState]) -> void:
-	if result != "playing" or delta <= 0.0:
+func advance_ai(delta: float, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState], other_buildings: Dictionary = {}) -> void:
+	if result != "playing" or not is_finite(delta) or delta <= 0.0:
 		return
 	ai_countdown -= delta
 	if ai_countdown > 0.0:
 		return
 	ai_countdown = 1.0
+	RivalEconomyAI.plan(rival_economy, tiles, territory, units, other_buildings, rival_hq)
 	var roster_size: int = 0
 	for unit in units:
 		if unit.faction != 2 or not unit.is_alive():
@@ -46,16 +47,21 @@ func advance_ai(delta: float, tiles: Dictionary, territory: TerritoryState, unit
 				nearest = distance
 		if target != null and nearest <= unit.attack_range:
 			continue # Hold position to fire; movement suppresses attacks.
+		var attacking_structure: bool = false
+		if target == null:
+			for hex in other_buildings:
+				if HexMath.distance(unit.hex, hex) <= unit.attack_range:
+					attacking_structure = true
+					break
+		if attacking_structure:
+			continue
 		if target == null and territory.owner_at(unit.hex) != 2:
 			continue # Finish the three-second capture before advancing.
 		var goal: Vector2i = target.hex if target != null else player_hq
-		var route: Array[Vector2i] = HexPathfinding.find_path(tiles, unit.hex, goal)
+		if target == null and roster_size == 1:
+			goal = RivalEconomyAI.expansion_goal(unit.hex, rival_hq, tiles, territory, rival_economy)
+			if goal == unit.hex:
+				goal = player_hq
+		var route: Array[Vector2i] = HexPathfinding.find_path(tiles, unit.hex, goal, unit.kind)
 		if route.size() > 1:
 			unit.order_move(tiles, route[1])
-	var queued: int = 0
-	for building in rival_economy.buildings.values():
-		queued += building["queue"].size()
-	if roster_size + queued < 8:
-		for hex in rival_economy.buildings:
-			if rival_economy.train(hex, "rifle", territory):
-				break

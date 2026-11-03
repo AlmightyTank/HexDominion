@@ -14,6 +14,7 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 	var match_state: MatchState = layer.match_state
 	return {"version": 1, "map": MAP_ID, "units": roster,
 		"owners": layer.territory.owners.duplicate(true), "captures": layer.territory.captures.duplicate(true),
+		"contested": layer.territory.contested.duplicate(true),
 		"economy": _economy_data(layer.economy), "rival_economy": _economy_data(match_state.rival_economy),
 		"player_hq": match_state.player_hq, "rival_hq": match_state.rival_hq,
 		"result": match_state.result, "ai_countdown": match_state.ai_countdown,
@@ -50,6 +51,12 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 	for hex in data["owners"]:
 		if not _land(hex, tiles) or data["owners"][hex] not in [1, 2]:
 			return false
+	if data.has("contested"):
+		if not data["contested"] is Dictionary:
+			return false
+		for hex in data["contested"]:
+			if not _land(hex, tiles) or data["contested"][hex] != true:
+				return false
 	for hex in data["captures"]:
 		var entry: Variant = data["captures"][hex]
 		if not _land(hex, tiles) or not entry is Dictionary:
@@ -73,12 +80,6 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 	for key in ["economy", "rival_economy"]:
 		if not _valid_economy(data.get(key), tiles):
 			return false
-	if data["economy"]["buildings"].has(data["rival_hq"]) or data["rival_economy"]["buildings"].has(data["player_hq"]):
-		return false
-	for key in ["economy", "rival_economy"]:
-		var home: Vector2i = data["player_hq"] if key == "economy" else data["rival_hq"]
-		if not data[key]["buildings"].has(home) or data[key]["buildings"][home]["kind"] != "headquarters":
-			return false
 	for hex in data["economy"]["buildings"]:
 		if data["rival_economy"]["buildings"].has(hex):
 			return false
@@ -97,6 +98,23 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 			return false
 		if building.get("kind") not in EconomyState.BUILD_COSTS or not _land(building.get("rally"), tiles) or not building.get("queue") is Array:
 			return false
+		if not building.get("rotation", 0) is int or building.get("rotation", 0) < 0 or building.get("rotation", 0) > 5:
+			return false
+		if not _number(building.get("construction", EconomyState.BUILD_SECONDS[building["kind"]]), 0, EconomyState.BUILD_SECONDS[building["kind"]]):
+			return false
+		if building.has("construction") and not building.has("health"):
+			return false
+		if not _number(building.get("health", EconomyState.BUILD_HEALTH[building["kind"]]), 0.001, EconomyState.BUILD_HEALTH[building["kind"]]):
+			return false
+		if not building.get("repairing", false) is bool:
+			return false
+		if building.get("repairing", false) and not EconomyState.is_complete(building):
+			return false
+		if not EconomyState.is_complete(building) and (not building["queue"].is_empty() or building.get("elapsed", 0.0) != 0.0):
+			return false
+		if building["kind"] == "extractor":
+			if tiles[hex].get("terrain", "") != "resource" or not _number(building.get("health"), 0.001, EconomyState.EXTRACTOR_HEALTH):
+				return false
 		headquarters += 1 if building["kind"] == "headquarters" else 0
 		if building["queue"].size() > 5 or not _number(building.get("elapsed"), 0, 8):
 			return false
@@ -108,7 +126,7 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 				return false
 		elif building["elapsed"] >= EconomyState.TRAIN_SECONDS[building["queue"][0]]:
 			return false
-	return headquarters == 1
+	return headquarters <= 1
 
 static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 	if not validate(data, layer.world_map.map_data["tiles"]):
@@ -126,9 +144,11 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 	layer.units = roster
 	layer.select_one(null)
 	layer.build_kind = ""
+	layer.build_rotation = 0
 	layer.combat_targets.clear()
 	layer.territory.owners = data["owners"].duplicate(true)
 	layer.territory.captures = data["captures"].duplicate(true)
+	layer.territory.contested = data.get("contested", {}).duplicate(true)
 	layer.economy = _restore_economy(data["economy"], 1)
 	var match_state: MatchState = MatchState.new()
 	match_state.player_hq = data["player_hq"]

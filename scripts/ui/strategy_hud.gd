@@ -16,6 +16,13 @@ class_name StrategyHUD
 var _camera: StrategyCamera
 signal build_requested(kind: String)
 signal train_requested(kind: String)
+signal cancel_construction_requested(hex: Vector2i, site: Dictionary)
+signal building_action_requested(action: String, hex: Vector2i, site: Dictionary)
+var repair_button: Button
+var sell_button: Button
+var cancel_construction_button: Button
+var _cancel_hex: Vector2i
+var _cancel_site: Dictionary = {}
 signal match_action_requested(action: String)
 var match_panel: PanelContainer
 var match_label: Label
@@ -40,6 +47,13 @@ var build_buttons: Dictionary = {}
 var context_title: Label
 var train_buttons: Dictionary = {}
 var training_progress: ProgressBar
+signal facility_selected(hex: Vector2i)
+signal rally_requested
+var facility_buttons: Dictionary = {}
+var facility_list: VBoxContainer
+var economy_summary: Label
+var rally_button: Button
+var sidebar_scroll: ScrollContainer
 
 
 func _ready() -> void:
@@ -122,6 +136,7 @@ func _layout_for_viewport() -> void:
 	if build_panel != null:
 		build_panel.position = Vector2(maxf(12.0, viewport_size.x - 292.0), 350.0 if narrow else (280.0 if stacked else 102.0))
 		build_panel.size.x = minf(274.0, viewport_size.x - 24.0)
+		build_panel.size.y = maxf(100.0, viewport_size.y - build_panel.position.y - 12.0)
 	for panel in [header_panel, controls_panel, help_panel]:
 		panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	if narrow:
@@ -339,7 +354,11 @@ func _create_build_menu() -> void:
 		margin.add_theme_constant_override("margin_" + side, 10)
 	build_panel.add_child(margin)
 	var column: VBoxContainer = VBoxContainer.new()
-	margin.add_child(column)
+	sidebar_scroll = ScrollContainer.new()
+	sidebar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	margin.add_child(sidebar_scroll)
+	sidebar_scroll.add_child(column)
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var title: Label = Label.new()
 	context_title = title
 	title.text = "CONSTRUCTION"
@@ -348,27 +367,66 @@ func _create_build_menu() -> void:
 	title.add_theme_font_size_override("font_size", 19)
 	var divider: HSeparator = HSeparator.new()
 	column.add_child(divider)
-	for kind in ["headquarters", "barracks", "factory"]:
+	economy_summary = Label.new()
+	economy_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(economy_summary)
+	facility_list = VBoxContainer.new()
+	var roster_scroll: ScrollContainer = ScrollContainer.new()
+	roster_scroll.custom_minimum_size.y = 156
+	roster_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(roster_scroll)
+	roster_scroll.add_child(facility_list)
+	facility_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var catalog_toggle: Button = Button.new()
+	catalog_toggle.text = "Available structures (expand / collapse)"
+	catalog_toggle.custom_minimum_size.y = 44
+	column.add_child(catalog_toggle)
+	var catalog: VBoxContainer = VBoxContainer.new()
+	column.add_child(catalog)
+	catalog_toggle.pressed.connect(func() -> void: catalog.visible = not catalog.visible)
+	catalog.hide()
+	for kind in ["headquarters", "barracks", "factory", "extractor", "power_plant"]:
 		var button: Button = Button.new()
 		button.text = "%s  |  %d CR" % [String(kind).capitalize(), EconomyState.BUILD_COSTS[kind]]
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.custom_minimum_size.y = 44
-		button.tooltip_text = {"headquarters": "Command center • +5 credits/sec • Limit: one", "barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "Produce main battle tanks • 150 credits • 8 seconds"}[kind]
+		button.tooltip_text = {"headquarters": "Command center • +5 credits/sec • 20 power • Limit: one", "barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "10 power • Disabled under low power • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP"}[kind]
 		button.pressed.connect(func() -> void: build_requested.emit(kind))
-		column.add_child(button)
+		catalog.add_child(button)
 		build_buttons[kind] = button
 	build_status = Label.new()
 	build_status.text = "Choose a building"
 	build_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(build_status)
 	build_status.add_theme_color_override("font_color", Color("a8bbc9"))
+	rally_button = Button.new()
+	rally_button.text = "Set rally point on map"
+	rally_button.custom_minimum_size.y = 44
+	rally_button.pressed.connect(func() -> void: rally_requested.emit())
+	column.add_child(rally_button)
 	training_progress = ProgressBar.new()
 	training_progress.custom_minimum_size.y = 12
 	training_progress.show_percentage = false
 	column.add_child(training_progress)
+	cancel_construction_button = Button.new()
+	cancel_construction_button.custom_minimum_size.y = 44
+	cancel_construction_button.pressed.connect(func() -> void: cancel_construction_requested.emit(_cancel_hex, _cancel_site))
+	column.add_child(cancel_construction_button)
+	cancel_construction_button.hide()
+	repair_button = Button.new()
+	repair_button.custom_minimum_size.y = 44
+	repair_button.pressed.connect(func() -> void: building_action_requested.emit("repair", _cancel_hex, _cancel_site))
+	column.add_child(repair_button)
+	repair_button.hide()
+	sell_button = Button.new()
+	sell_button.custom_minimum_size.y = 44
+	sell_button.pressed.connect(func() -> void: building_action_requested.emit("sell", _cancel_hex, _cancel_site))
+	column.add_child(sell_button)
+	sell_button.hide()
 	for kind in ["rifle", "tank"]:
 		var button: Button = Button.new()
 		button.text = "%s • %d • %ds" % ["Rifle squad" if kind == "rifle" else "Tank", EconomyState.TRAIN_COSTS[kind], EconomyState.TRAIN_SECONDS[kind]]
-		button.custom_minimum_size.y = 34
+		button.custom_minimum_size.y = 44
 		button.pressed.connect(func() -> void: train_requested.emit(kind))
 		column.add_child(button)
 		train_buttons[kind] = button
@@ -376,32 +434,118 @@ func _create_build_menu() -> void:
 
 
 func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: TerritoryState, tiles: Dictionary) -> void:
-	build_panel.visible = territory.owner_at(hex) == 1 and HexPathfinding.is_walkable(tiles, hex)
-	if not build_panel.visible:
-		return
-	var has_building: bool = economy.buildings.has(hex)
+	build_panel.visible = true
+	_refresh_facilities(hex, economy, territory)
+	rally_button.hide()
+	cancel_construction_button.hide()
+	repair_button.hide()
+	sell_button.hide()
+	_cancel_site = {}
+	var has_building: bool = economy.buildings.has(hex) and territory.owner_at(hex) == economy.faction
 	training_progress.visible = has_building and not economy.buildings[hex]["queue"].is_empty()
 	if training_progress.visible:
 		var production: Dictionary = economy.buildings[hex]
 		training_progress.value = 100.0 * production["elapsed"] / EconomyState.TRAIN_SECONDS[production["queue"][0]]
-	context_title.text = "TRAINING" if has_building else "CONSTRUCTION"
+	context_title.text = "ECONOMY & BUILD"
 	for kind in build_buttons:
-		build_buttons[kind].visible = not has_building
-		build_buttons[kind].disabled = not economy.can_build(hex, kind, tiles, territory)
+		build_buttons[kind].visible = true
+		build_buttons[kind].disabled = not economy.account.can_afford(EconomyState.BUILD_COSTS[kind])
+		if kind == "headquarters":
+			for building in economy.buildings.values():
+				if building["kind"] == "headquarters":
+					build_buttons[kind].disabled = true
+		var requirement: String = "Controlled, uncontested empty land"
+		if kind == "extractor":
+			requirement = "Controlled resource deposit"
+		elif kind == "headquarters":
+			requirement += "; limit one HQ"
+		var power_text: String = "+%d power" % EconomyState.POWER_SUPPLY[kind] if EconomyState.POWER_SUPPLY.has(kind) else "%d power used" % EconomyState.POWER_DEMAND.get(kind, 0)
+		var unavailable: String = ""
+		if build_buttons[kind].disabled:
+			unavailable = "\nNeed %d CR" % EconomyState.BUILD_COSTS[kind] if not economy.account.can_afford(EconomyState.BUILD_COSTS[kind]) else "\nHQ limit reached"
+		build_buttons[kind].text = "%s | %d CR | %ds\n%s\n%s%s" % [String(kind).capitalize(), EconomyState.BUILD_COSTS[kind], EconomyState.BUILD_SECONDS[kind], power_text, requirement, unavailable]
 	for kind in train_buttons:
-		var compatible: bool = has_building and economy.buildings[hex]["kind"] == ("barracks" if kind == "rifle" else "factory")
+		var compatible: bool = has_building and EconomyState.is_complete(economy.buildings[hex]) and economy.buildings[hex]["kind"] == ("barracks" if kind == "rifle" else "factory")
 		train_buttons[kind].visible = compatible
 		train_buttons[kind].disabled = not compatible or not economy.account.can_afford(EconomyState.TRAIN_COSTS[kind]) or economy.buildings[hex]["queue"].size() >= 5
 	if has_building:
 		var building: Dictionary = economy.buildings[hex]
 		var queue: Array = building["queue"]
+		if not EconomyState.is_complete(building):
+			_cancel_hex = hex
+			_cancel_site = building
+			cancel_construction_button.text = "Cancel construction (+%d CR)" % int(EconomyState.BUILD_COSTS[building["kind"]] * EconomyState.CANCEL_REFUND_FRACTION)
+			cancel_construction_button.show()
+			training_progress.show()
+			training_progress.value = 100.0 * building["construction"] / EconomyState.BUILD_SECONDS[building["kind"]]
+			build_status.text = "Constructing %s: %.1f / %.0fs\nHP: %.0f / %.0f\n%s" % [building["kind"], building["construction"], EconomyState.BUILD_SECONDS[building["kind"]], building["health"], EconomyState.BUILD_HEALTH[building["kind"]], "Paused: contested" if territory.is_contested(hex) else "Not operational until complete"]
+			return
+		_cancel_hex = hex
+		_cancel_site = building
+		sell_button.text = "Sell building (+%d CR)" % int(EconomyState.BUILD_COSTS[building["kind"]] * EconomyState.SALVAGE_FRACTION)
+		sell_button.show()
+		repair_button.text = "Stop repairs" if building.get("repairing", false) else "Repair (1 CR / HP)"
+		repair_button.visible = building.get("health", EconomyState.BUILD_HEALTH[building["kind"]]) < EconomyState.BUILD_HEALTH[building["kind"]] or building.get("repairing", false)
 		build_status.text = "%s • (%d, %d)\nQueue: %d/5" % [String(building["kind"]).capitalize(), hex.x, hex.y, queue.size()]
+		build_status.text += "\nHP: %.0f / %.0f" % [building.get("health", EconomyState.BUILD_HEALTH[building["kind"]]), EconomyState.BUILD_HEALTH[building["kind"]]]
+		build_status.text += "\nPower: +%d supply / %d used" % [EconomyState.POWER_SUPPLY.get(building["kind"], 0), EconomyState.POWER_DEMAND.get(building["kind"], 0)]
+		if building["kind"] in ["factory", "barracks"]:
+			rally_button.show()
+			var rally: Vector2i = building["rally"]
+			build_status.text += "\nRally: (%d, %d)\nJobs: %s" % [rally.x, rally.y, ", ".join(queue) if not queue.is_empty() else "Idle"]
+		if building.get("repairing", false):
+			build_status.text += "\nRepairing: 20 HP/s (pauses if unfunded or contested)"
 		if not queue.is_empty():
 			build_status.text += "\n%s: %.1f / %.0fs" % [queue[0], building["elapsed"], EconomyState.TRAIN_SECONDS[queue[0]]]
 		elif building["kind"] == "headquarters":
 			build_status.text += "\nIncome: +5 credits/s\nBuild barracks to train rifles."
+		elif building["kind"] == "extractor":
+			build_status.text += "\nHP: %.0f / %.0f\nExtraction: %s" % [building["health"], EconomyState.EXTRACTOR_HEALTH, "Offline: low power" if economy.low_power(territory) else ("Paused (contested)" if territory.is_contested(hex) else "+2 credits/s")]
+		elif building["kind"] == "power_plant":
+			build_status.text += "\nSupply: 40 power\nHP: %.0f / 250" % building["health"]
+		if building["kind"] == "factory" and economy.low_power(territory):
+			build_status.text += "\nLOW POWER: production at 50%"
 	else:
-		build_status.text = "Owned land • (%d, %d)\nChoose a building for this tile." % [hex.x, hex.y]
+		build_status.text = "Choose a building, then place\non controlled empty land.\nQ rotate • Right-click / Esc cancel"
+
+
+func _refresh_facilities(selected_hex: Vector2i, economy: EconomyState, territory: TerritoryState) -> void:
+	var power: Dictionary = economy.power_balance(territory)
+	var count: int = 0
+	for hex in facility_buttons.keys():
+		if not economy.buildings.has(hex) or territory.owner_at(hex) != economy.faction:
+			var removed: Button = facility_buttons[hex]
+			facility_list.remove_child(removed)
+			removed.queue_free()
+			facility_buttons.erase(hex)
+	for hex in economy.buildings:
+		if territory.owner_at(hex) != economy.faction:
+			continue
+		count += 1
+		if not facility_buttons.has(hex):
+			var button: Button = Button.new()
+			button.custom_minimum_size.y = 44
+			button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			button.toggle_mode = true
+			button.pressed.connect(func() -> void: facility_selected.emit(hex))
+			facility_list.add_child(button)
+			facility_buttons[hex] = button
+		var site: Dictionary = economy.buildings[hex]
+		var kind: String = site["kind"]
+		var status: String = "Idle"
+		if not EconomyState.is_complete(site):
+			status = "Construction %d%%" % int(100.0 * site["construction"] / EconomyState.BUILD_SECONDS[kind])
+		elif not site["queue"].is_empty():
+			status = "%s %.1f/%ds; %d queued" % [site["queue"][0], site["elapsed"], EconomyState.TRAIN_SECONDS[site["queue"][0]], site["queue"].size()]
+		if site.get("repairing", false):
+			status += " | Repair %.0f HP%s" % [site["health"], " (no funds)" if economy.credits <= 0 else ""]
+		if territory.is_contested(hex):
+			status += " | Contested"
+		if economy.low_power(territory) and kind in ["factory", "extractor"]:
+			status += " | " + ("50% speed" if kind == "factory" else "Offline")
+		facility_buttons[hex].text = "%s (%d, %d)\n%s" % [kind.capitalize(), hex.x, hex.y, status]
+		facility_buttons[hex].set_pressed_no_signal(hex == selected_hex)
+	economy_summary.text = "POWER %d / %d used%s\nYOUR STRUCTURES: %d%s" % [power["demand"], power["supply"], " (LOW)" if economy.low_power(territory) else "", count, "\nNo controlled structures" if count == 0 else "\nSelect a site to keep its controls pinned."]
 
 
 func _apply_strategy_theme() -> void:

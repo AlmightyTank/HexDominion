@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. Slices A–G provide a basic playable skirmish: Earth hex map, movement, territory, combat, economy, AI opponent, HQ victory/defeat, restart and quicksave/load.
+> **Status:** Pre-alpha. Implemented through v0.2 Slice J and v0.3 Slice A: Earth hex skirmishes, terrain-aware movement and combat, territory, construction, power, economy, AI, HQ victory/defeat, restart and named saves. Headless regression coverage is in place; interactive acceptance and balance playtesting remain pending.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -139,10 +139,21 @@ The version milestones and slices below are **planned**, not completed.
 Money, power, resources, building placement and cancellation, repairs, selling, construction rules.
 
 - [x] **Slice A — Economy Foundation:** Shared player/AI credits accounts, configurable starting funds, income, atomic spending checks and saved transaction history. Construction and training cannot overdraw funds. ([API and verification](docs/V0.2-SLICE-A.md).)
+- [x] **Slice B — Territory Income:** Owned, uncontested cities provide passive credits; ordinary/resource hexes do not. Capture, loss and contest immediately update faction rates. ([Rules and verification](docs/V0.2-SLICE-B.md).)
+- [x] **Slice C — Resource Extraction:** Build destructible extractors on captured resource deposits for automated income. Lost, contested or destroyed extractors stop earning. ([Rules and verification](docs/V0.2-SLICE-C.md).)
+- [x] **Slice D: Building Placement:** Construction sidebar, hex-snapped valid/invalid ghosts, six-way rotation and controlled empty-hex placement. ([Rules and verification](docs/V0.2-SLICE-D.md).)
+- [x] **Slice E: Construction Progress:** Timed, vulnerable foundations with visible progress, operational gating and saved construction state. ([Rules and verification](docs/V0.2-SLICE-E.md).)
+- [x] **Slice F: Cancellation & Refunds:** Cancel controlled unfinished sites for a 50% refund, once only, releasing the construction hex. ([Rules and verification](docs/V0.2-SLICE-F.md).)
+- [x] **Slice G: Power System:** Power plants, faction supply/demand meters, half-speed factories and offline extractors under low power, with immediate recovery when supply returns. ([Rules and verification](docs/V0.2-SLICE-G.md).)
+- [x] **Slice H: Repairing & Selling Buildings:** Paid repairs over time, stop-repair controls, completed-building sales with 50% salvage, and destruction cleanup. ([Rules and verification](docs/V0.2-SLICE-H.md).)
+- [x] **Slice I: Production & Construction Interface:** Scrollable structure/job roster, costs and requirements catalog, pinned facility controls, individual production queues and rally points. ([Rules and verification](docs/V0.2-SLICE-I.md).)
+- [x] **Slice J: AI, Balancing & Integration:** Enemy base construction, resource expansion, power recovery, repair budgets, mixed recruitment and economic recovery with exploit, save/load and full-match regression tests. ([Rules and verification](docs/V0.2-SLICE-J.md).)
 
 ### v0.3 — Territorial strategy
 
 Improved terrain rules, supply connections, continent bonuses, fortifications, defended choke points.
+
+- [x] **Slice A: Advanced Terrain Rules:** Unit-specific travel costs and weighted routes, infantry forest cover, mountain and city defense, desert armor advantages, and river/narrow-crossing movement penalties. All land remains traversable; oceans and disconnected land still block routes. ([Rules and verification](docs/V0.3-SLICE-A.md).)
 
 ### v0.4 — Military expansion
 

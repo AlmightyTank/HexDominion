@@ -1,5 +1,6 @@
 extends Node2D
 class_name UnitLayer
+var managed_hex: Vector2i = Vector2i(-99999, -99999)
 ## Lightweight live overlay; never invalidates the cached terrain.
 
 var world_map: WorldMap
@@ -29,11 +30,15 @@ var combat_targets: Dictionary = {}
 var economy: EconomyState = EconomyState.new()
 var match_state: MatchState = MatchState.new()
 var build_kind: String = ""
+var build_rotation: int = 0
 var build_hex: Vector2i = Vector2i.ZERO
 
 
 func faction_color(faction: int) -> Color:
 	return Color("65ebd0") if faction == 1 else Color("f08075")
+
+func can_place(hex: Vector2i, kind: String) -> bool:
+	return economy.can_build(hex, kind, world_map.map_data["tiles"], territory, match_state.rival_economy.buildings)
 
 
 func configure(map: WorldMap) -> void:
@@ -90,8 +95,10 @@ func pick(global_point: Vector2, zoom_factor: float) -> UnitState:
 func _physics_process(delta: float) -> void:
 	if world_map == null or match_state.result != "playing":
 		return
-	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units)
-	combat_targets = CombatState.advance(delta, units)
+	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units, economy.buildings)
+	combat_targets = CombatState.advance(delta, units, world_map.map_data["tiles"])
+	var economies: Array[EconomyState] = [economy, match_state.rival_economy]
+	CombatState.attack_extractors(delta, units, economies, combat_targets, world_map.map_data["tiles"])
 	for index in range(units.size() - 1, -1, -1):
 		if not units[index].is_alive():
 			selected_units.erase(units[index])
@@ -107,7 +114,7 @@ func _physics_process(delta: float) -> void:
 		return
 	for unit in units:
 		if not unit.path.is_empty():
-			unit.advance(delta)
+			unit.advance(delta, world_map.map_data["tiles"])
 	units.append_array(economy.advance(delta, world_map.map_data["tiles"], territory))
 	units.append_array(match_state.rival_economy.advance(delta, world_map.map_data["tiles"], territory))
 	queue_redraw()
@@ -119,22 +126,29 @@ func _draw() -> void:
 	_draw_territory()
 	for hex in match_state.rival_economy.buildings:
 		var rival_building: Dictionary = match_state.rival_economy.buildings[hex]
-		_draw_building_badge(to_local(world_map.hex_to_world(hex)), rival_building["kind"], faction_color(2), world_map.selected_hex == hex)
+		_draw_building_badge(to_local(world_map.hex_to_world(hex)), rival_building["kind"], faction_color(2), world_map.selected_hex == hex, rival_building.get("rotation", 0))
+		_draw_construction(to_local(world_map.hex_to_world(hex)), rival_building, faction_color(2))
 	if not build_kind.is_empty():
-		var valid: bool = economy.can_build(build_hex, build_kind, world_map.map_data["tiles"], territory)
+		var valid: bool = can_place(build_hex, build_kind)
 		var preview_color: Color = Color("65ebd0") if valid else Color("f08075")
-		_draw_building_badge(to_local(world_map.hex_to_world(build_hex)), build_kind, preview_color, true)
+		var ghost_center: Vector2 = to_local(world_map.hex_to_world(build_hex))
+		var corners: PackedVector2Array = []
+		for index in range(6):
+			corners.append(ghost_center + Vector2.from_angle(deg_to_rad(index * 60.0 - 30.0)) * WorldMap.HEX_RADIUS)
+		draw_colored_polygon(corners, Color(preview_color, 0.35))
+		_draw_building_badge(ghost_center, build_kind, preview_color, true, build_rotation)
 	for hex in economy.buildings:
 		var building: Dictionary = economy.buildings[hex]
 		var center: Vector2 = to_local(world_map.hex_to_world(hex))
 		var color: Color = Color("ffd87c") if territory.owner_at(hex) == 1 else Color("889099")
-		_draw_building_badge(center, building["kind"], color, world_map.selected_hex == hex)
+		_draw_building_badge(center, building["kind"], color, managed_hex == hex, building.get("rotation", 0))
+		_draw_construction(center, building, color)
 		if not building["queue"].is_empty():
 			var fraction: float = building["elapsed"] / EconomyState.TRAIN_SECONDS[building["queue"][0]]
 			draw_arc(center, 16.0, -PI / 2.0, -PI / 2.0 + TAU * fraction, 48, color, 2.5, true)
 			draw_circle(center + Vector2(-12, 12), 5.0, Color("071522"))
 			draw_string(ThemeDB.fallback_font, center + Vector2(-15, 15), str(building["queue"].size()), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, color)
-		if world_map.selected_hex == hex and building["rally"] != hex:
+		if managed_hex == hex and building["rally"] != hex:
 			draw_line(center, to_local(world_map.hex_to_world(building["rally"])), color, 1.0, true)
 	for attacker in combat_targets:
 		var target: UnitState = combat_targets[attacker]
@@ -163,7 +177,26 @@ func _draw() -> void:
 		draw_line(point + Vector2(-3, 3), point + Vector2(3, -3), Color("12364c"), 2.0)
 
 
-func _draw_building_badge(center: Vector2, kind: String, color: Color, highlighted: bool) -> void:
+func _draw_construction(center: Vector2, building: Dictionary, color: Color) -> void:
+	var maximum: float = EconomyState.BUILD_HEALTH[building["kind"]]
+	draw_rect(Rect2(center + Vector2(-12, -23), Vector2(24, 3)), Color("071522"))
+	draw_rect(Rect2(center + Vector2(-12, -23), Vector2(24 * building.get("health", maximum) / maximum, 3)), color)
+	if EconomyState.is_complete(building):
+		return
+	var fraction: float = building["construction"] / EconomyState.BUILD_SECONDS[building["kind"]]
+	# Cover the completed symbol until the foundation rises into its silhouette.
+	draw_rect(Rect2(center - Vector2(13, 13), Vector2(26, 26 * (1.0 - fraction))), Color("071522"))
+	draw_rect(Rect2(center + Vector2(-12, 9), Vector2(24, 4)), color, false, 1.5)
+	draw_rect(Rect2(center + Vector2(-14, 19), Vector2(28, 4)), Color("071522"))
+	draw_rect(Rect2(center + Vector2(-14, 19), Vector2(28 * fraction, 4)), color)
+
+
+func _draw_building_badge(center: Vector2, kind: String, color: Color, highlighted: bool, orientation: int = 0) -> void:
+	draw_set_transform(center, deg_to_rad(orientation * 60.0))
+	_draw_building_icon(Vector2.ZERO, kind, color, highlighted)
+	draw_set_transform(Vector2.ZERO)
+
+func _draw_building_icon(center: Vector2, kind: String, color: Color, highlighted: bool) -> void:
 	var ink: Color = Color("071522")
 	draw_circle(center + Vector2(0, 2), 15.0, Color(0.0, 0.0, 0.0, 0.35))
 	draw_circle(center, 14.0, ink)
@@ -185,6 +218,15 @@ func _draw_building_badge(center: Vector2, kind: String, color: Color, highlight
 		draw_rect(Rect2(center + Vector2(-2, 2), Vector2(4, 5)), ink)
 		for x in [-6, 4]:
 			draw_rect(Rect2(center + Vector2(x, 2), Vector2(2, 2)), ink)
+	elif kind == "extractor":
+		_building_polygon(center, [Vector2(-8, 8), Vector2(0, -10), Vector2(8, 8)], color)
+		draw_line(center + Vector2(-7, 0), center + Vector2(7, 0), Color("071522"), 3.0)
+		draw_line(center + Vector2(0, -4), center + Vector2(0, 11), Color("071522"), 2.0)
+		draw_rect(Rect2(center + Vector2(-10, 8), Vector2(20, 3)), color)
+	elif kind == "power_plant":
+		_building_polygon(center, [Vector2(-10, 8), Vector2(-7, -9), Vector2(-2, -9), Vector2(0, 8)], color)
+		_building_polygon(center, [Vector2(1, 8), Vector2(3, -6), Vector2(7, -6), Vector2(10, 8)], color)
+		draw_line(center + Vector2(-11, 9), center + Vector2(11, 9), color, 2.0)
 	elif kind == "factory":
 		# Sawtooth roof, smokestack, and a wide vehicle bay.
 		_building_polygon(center, [Vector2(-9, 7), Vector2(-9, -2), Vector2(-3, -6), Vector2(-3, -2), Vector2(3, -6), Vector2(3, -2), Vector2(9, -2), Vector2(9, 7)], color)

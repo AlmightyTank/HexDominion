@@ -4,14 +4,19 @@ class_name TerritoryState
 const CAPTURE_SECONDS: float = 3.0
 var owners: Dictionary = {}
 var captures: Dictionary = {}
+var contested: Dictionary = {}
 
 func owner_at(hex: Vector2i) -> int:
 	return owners.get(hex, 0)
+
+func is_contested(hex: Vector2i) -> bool:
+	return contested.has(hex) or captures.has(hex)
 
 func advance(delta: float, tiles: Dictionary, units: Array[UnitState]) -> void:
 	if delta <= 0.0:
 		return
 	var occupants: Dictionary = {}
+	contested.clear()
 	for unit in units:
 		if not unit.is_alive() or not unit.path.is_empty() or not HexPathfinding.is_walkable(tiles, unit.hex):
 			continue
@@ -23,6 +28,9 @@ func advance(delta: float, tiles: Dictionary, units: Array[UnitState]) -> void:
 			captures.erase(hex)
 	for hex in occupants:
 		var factions: Dictionary = occupants[hex]
+		for present_faction in factions:
+			if present_faction != owner_at(hex):
+				contested[hex] = true
 		if factions.size() != 1:
 			continue
 		var faction: int = factions.keys()[0]
@@ -36,5 +44,6 @@ func advance(delta: float, tiles: Dictionary, units: Array[UnitState]) -> void:
 		if capture["elapsed"] >= CAPTURE_SECONDS:
 			owners[hex] = faction
 			captures.erase(hex)
+			contested.erase(hex)
 		else:
 			captures[hex] = capture

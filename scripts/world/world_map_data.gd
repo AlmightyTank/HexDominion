@@ -4,6 +4,7 @@ class_name WorldMapData
 ## World definition coordinates use normalized [0, 1] X/Y in map space.
 
 const DEFINITION_PATH: String = "res://data/world/earth_regions.json"
+const RIVER_PATH: String = "res://data/world/earth_rivers.geojson"
 const TERRAIN_TYPES: Array[String] = ["ocean", "plains", "forest", "desert", "mountain", "snow", "tundra", "city", "resource"]
 
 
@@ -83,10 +84,56 @@ static func build(columns: int, rows: int) -> Dictionary:
 			chosen["terrain"] = String(site["kind"])
 			chosen["site_name"] = String(site["name"])
 			tiles[nearest] = chosen
+	_add_crossings(tiles, columns, rows)
 	for tile in tiles.values():
 		var terrain_name: String = tile["terrain"]
 		counts[terrain_name] = int(counts.get(terrain_name, 0)) + 1
 	return {"columns": columns, "rows": rows, "tiles": tiles, "terrain_counts": counts, "definition_name": String(definition.get("name", "World"))}
+
+static func _add_crossings(tiles: Dictionary, columns: int, rows: int) -> void:
+	for hex in tiles:
+		if not tiles[hex]["is_land"]:
+			continue
+		var exits: int = 0
+		for neighbor in HexMath.neighbors(hex):
+			exits += int(HexPathfinding.is_walkable(tiles, neighbor))
+		tiles[hex]["narrow_crossing"] = exits > 0 and exits <= 2
+		tiles[hex]["river_neighbors"] = []
+	var rivers: Variant = JSON.parse_string(FileAccess.get_file_as_string(RIVER_PATH))
+	if not rivers is Dictionary:
+		push_error("Missing or invalid bundled river data")
+		return
+	for feature in rivers.get("features", []):
+		var geometry: Dictionary = feature.get("geometry", {})
+		var lines: Array = geometry.get("coordinates", [])
+		if geometry.get("type", "") == "LineString":
+			lines = [lines]
+		elif geometry.get("type", "") != "MultiLineString":
+			continue
+		for line in lines:
+			for index in range(1, line.size()):
+				var a: Vector2 = Vector2(0.5 + float(line[index - 1][0]) / 360.0, 0.5 - float(line[index - 1][1]) / 180.0)
+				var b: Vector2 = Vector2(0.5 + float(line[index][0]) / 360.0, 0.5 - float(line[index][1]) / 180.0)
+				if absf(a.x - b.x) > 0.5:
+					continue # Do not draw a dateline-spanning segment across the world.
+				var left: int = maxi(0, floori(minf(a.x, b.x) * (columns + 0.5)) - 2)
+				var right: int = mini(columns - 1, ceili(maxf(a.x, b.x) * (columns + 0.5)) + 2)
+				var top: int = maxi(0, floori(minf(a.y, b.y) * rows) - 2)
+				var bottom: int = mini(rows - 1, ceili(maxf(a.y, b.y) * rows) + 2)
+				for row in range(top, bottom + 1):
+					for column in range(left, right + 1):
+						var hex: Vector2i = offset_to_axial(column, row)
+						if not tiles[hex]["is_land"]:
+							continue
+						var center: Vector2 = cell_uv(column, row, columns, rows)
+						for neighbor in HexMath.neighbors(hex):
+							if not HexPathfinding.is_walkable(tiles, neighbor) or neighbor in tiles[hex]["river_neighbors"]:
+								continue
+							var offset: Vector2i = axial_to_offset(neighbor)
+							var destination: Vector2 = cell_uv(offset.x, offset.y, columns, rows)
+							if Geometry2D.segment_intersects_segment(center, destination, a, b) != null:
+								tiles[hex]["river_neighbors"].append(neighbor)
+								tiles[neighbor]["river_neighbors"].append(hex)
 
 
 static func cell_uv(column: int, row: int, columns: int, rows: int) -> Vector2:

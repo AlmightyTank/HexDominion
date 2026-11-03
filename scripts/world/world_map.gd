@@ -175,6 +175,8 @@ func _draw_coast_edges(corners: PackedVector2Array, hex: Vector2i, tiles: Dictio
 		var neighbor: Dictionary = tiles.get(hex + directions[index], {})
 		if neighbor.is_empty() or not neighbor["is_land"]:
 			_terrain_canvas.draw_line(corners[index], corners[(index + 1) % 6], COLOR_COAST, 0.65, true)
+		elif hex + directions[index] in tiles[hex].get("river_neighbors", []):
+			_terrain_canvas.draw_line(corners[index], corners[(index + 1) % 6], Color("77b9dc"), 1.6, true)
 
 
 func _draw_terrain_symbol(center: Vector2, tile: Dictionary) -> void:
