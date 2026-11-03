@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. Slices A–E provide the camera, Earth hex map, squad movement, territory capture, garrisons, faction borders and real-time rifle/tank combat.
+> **Status:** Pre-alpha. Slices A–G provide a basic playable skirmish: Earth hex map, movement, territory, combat, economy, AI opponent, HQ victory/defeat, restart and quicksave/load.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -127,8 +127,8 @@ The version milestones and slices below are **planned**, not completed.
 - [x] **Slice C:** Unit selection, movement commands, hex pathfinding. (Headless verified; interactive acceptance checklist in [Slice C](docs/SLICE-C.md).)
 - [x] **Slice D:** Territory ownership, capture progress, garrisons, faction borders. (Headless verified; [rules and manual checklist](docs/SLICE-D.md).)
 - [x] **Slice E:** Rifle squads, tanks, health, damage, and real-time combat. (Headless verified; [rules and manual checklist](docs/SLICE-E.md).)
-- [ ] **Slice F:** Headquarters, barracks, factory, basic resource income, training and rally points.
-- [ ] **Slice G:** Basic AI opponent, win/loss conditions, match restart, and save/load baseline.
+- [x] **Slice F:** Headquarters, barracks, factory, basic resource income, training and rally points. (Headless verified; [rules and controls](docs/SLICE-F.md).)
+- [x] **Slice G:** Basic AI opponent, HQ win/loss conditions, match restart, and versioned save/load. (Headless verified; [rules, controls and limitations](docs/SLICE-G.md).)
 
 **v0.1 acceptance test:** Start a match on a small hexagonal world map, capture territory with infantry, station defenders, produce reinforcements, fight an AI opponent, and win by taking its headquarters. The goal is a complete small skirmish, not final artwork or perfect balance.
 
@@ -137,6 +137,8 @@ The version milestones and slices below are **planned**, not completed.
 ### v0.2 — Economy and construction
 
 Money, power, resources, building placement and cancellation, repairs, selling, construction rules.
+
+- [x] **Slice A — Economy Foundation:** Shared player/AI credits accounts, configurable starting funds, income, atomic spending checks and saved transaction history. Construction and training cannot overdraw funds. ([API and verification](docs/V0.2-SLICE-A.md).)
 
 ### v0.3 — Territorial strategy
 

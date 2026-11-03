@@ -5,8 +5,31 @@ class_name UnitLayer
 var world_map: WorldMap
 var units: Array[UnitState] = []
 var selected: UnitState
+var selected_units: Array[UnitState] = []
+
+
+func select_one(unit: UnitState) -> void:
+	selected_units.clear()
+	selected = unit
+	if unit != null:
+		selected_units.append(unit)
+	queue_redraw()
+
+
+func select_box(screen_rect: Rect2, canvas_transform: Transform2D) -> void:
+	selected_units.clear()
+	for unit in units:
+		var screen_point: Vector2 = canvas_transform * to_global(unit_position(unit))
+		if unit.faction == 1 and unit.is_alive() and screen_rect.abs().has_point(screen_point):
+			selected_units.append(unit)
+	selected = selected_units[0] if not selected_units.is_empty() else null
+	queue_redraw()
 var territory: TerritoryState = TerritoryState.new()
 var combat_targets: Dictionary = {}
+var economy: EconomyState = EconomyState.new()
+var match_state: MatchState = MatchState.new()
+var build_kind: String = ""
+var build_hex: Vector2i = Vector2i.ZERO
 
 
 func faction_color(faction: int) -> Color:
@@ -23,14 +46,20 @@ func configure(map: WorldMap) -> void:
 		territory.owners[unit.hex] = unit.faction
 	units[1].configure_kind("tank")
 	units[1].title = "Main battle tank"
-	var rival_home: Vector2i = units[-1].hex
+	economy.add_building(units[0].hex, "headquarters")
+	match_state.player_hq = units[0].hex
+	var rival_home: Vector2i = units[0].hex
 	for neighbor in map.map_data["tiles"]:
-		if HexMath.distance(rival_home, neighbor) == 3 and HexPathfinding.is_walkable(map.map_data["tiles"], neighbor) and territory.owner_at(neighbor) == 0 and not HexPathfinding.find_path(map.map_data["tiles"], rival_home, neighbor).is_empty():
-			var defender: UnitState = UnitState.new(neighbor, "Rival garrison")
+		if HexMath.distance(rival_home, neighbor) == 8 and HexPathfinding.is_walkable(map.map_data["tiles"], neighbor) and territory.owner_at(neighbor) == 0 and not HexPathfinding.find_path(map.map_data["tiles"], rival_home, neighbor).is_empty():
+			var defender: UnitState = UnitState.new(neighbor, "Rival squad")
 			defender.faction = 2
-			defender.garrisoned = true
 			units.append(defender)
 			territory.owners[neighbor] = 2
+			match_state.rival_hq = neighbor
+			match_state.rival_economy.add_building(neighbor, "headquarters")
+			var route: Array[Vector2i] = HexPathfinding.find_path(map.map_data["tiles"], neighbor, rival_home)
+			territory.owners[route[1]] = 2
+			match_state.rival_economy.add_building(route[1], "barracks")
 			break
 	queue_redraw()
 
@@ -39,6 +68,9 @@ func unit_position(unit: UnitState) -> Vector2:
 	var point: Vector2 = world_map.hex_to_world(unit.hex)
 	if not unit.path.is_empty():
 		point = point.lerp(world_map.hex_to_world(unit.path[0]), unit.progress)
+	# Dock idle units beside a building rather than hiding its identifying symbol.
+	if unit.path.is_empty() and economy.buildings.has(unit.hex):
+		point += Vector2(14, 14)
 	return to_local(point)
 
 
@@ -56,17 +88,28 @@ func pick(global_point: Vector2, zoom_factor: float) -> UnitState:
 
 
 func _physics_process(delta: float) -> void:
+	if world_map == null or match_state.result != "playing":
+		return
+	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units)
 	combat_targets = CombatState.advance(delta, units)
 	for index in range(units.size() - 1, -1, -1):
 		if not units[index].is_alive():
+			selected_units.erase(units[index])
 			if selected == units[index]:
-				selected = null
+				selected = selected_units[0] if not selected_units.is_empty() else null
 			units.remove_at(index)
 	# No capture credit on the tick a squad arrives.
 	territory.advance(delta, world_map.map_data["tiles"], units)
+	match_state.evaluate(territory)
+	if match_state.result != "playing":
+		combat_targets.clear()
+		queue_redraw()
+		return
 	for unit in units:
 		if not unit.path.is_empty():
 			unit.advance(delta)
+	units.append_array(economy.advance(delta, world_map.map_data["tiles"], territory))
+	units.append_array(match_state.rival_economy.advance(delta, world_map.map_data["tiles"], territory))
 	queue_redraw()
 
 
@@ -74,6 +117,25 @@ func _draw() -> void:
 	if world_map == null:
 		return
 	_draw_territory()
+	for hex in match_state.rival_economy.buildings:
+		var rival_building: Dictionary = match_state.rival_economy.buildings[hex]
+		_draw_building_badge(to_local(world_map.hex_to_world(hex)), rival_building["kind"], faction_color(2), world_map.selected_hex == hex)
+	if not build_kind.is_empty():
+		var valid: bool = economy.can_build(build_hex, build_kind, world_map.map_data["tiles"], territory)
+		var preview_color: Color = Color("65ebd0") if valid else Color("f08075")
+		_draw_building_badge(to_local(world_map.hex_to_world(build_hex)), build_kind, preview_color, true)
+	for hex in economy.buildings:
+		var building: Dictionary = economy.buildings[hex]
+		var center: Vector2 = to_local(world_map.hex_to_world(hex))
+		var color: Color = Color("ffd87c") if territory.owner_at(hex) == 1 else Color("889099")
+		_draw_building_badge(center, building["kind"], color, world_map.selected_hex == hex)
+		if not building["queue"].is_empty():
+			var fraction: float = building["elapsed"] / EconomyState.TRAIN_SECONDS[building["queue"][0]]
+			draw_arc(center, 16.0, -PI / 2.0, -PI / 2.0 + TAU * fraction, 48, color, 2.5, true)
+			draw_circle(center + Vector2(-12, 12), 5.0, Color("071522"))
+			draw_string(ThemeDB.fallback_font, center + Vector2(-15, 15), str(building["queue"].size()), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, color)
+		if world_map.selected_hex == hex and building["rally"] != hex:
+			draw_line(center, to_local(world_map.hex_to_world(building["rally"])), color, 1.0, true)
 	for attacker in combat_targets:
 		var target: UnitState = combat_targets[attacker]
 		if attacker.is_alive() and target.is_alive():
@@ -86,7 +148,7 @@ func _draw() -> void:
 		draw_arc(points[-1], 8.0, 0.0, TAU, 24, Color("fff0ad"), 2.0, true)
 	for unit in units:
 		var point: Vector2 = unit_position(unit)
-		if unit == selected:
+		if unit == selected or selected_units.has(unit):
 			draw_arc(point, 13.0, 0.0, TAU, 24, Color("fff0ad"), 2.0, true)
 		draw_circle(point, 9.0, Color("071522"))
 		draw_circle(point, 6.5, faction_color(unit.faction))
@@ -99,6 +161,42 @@ func _draw() -> void:
 			draw_rect(Rect2(point - Vector2(10, 10), Vector2(20, 20)), faction_color(unit.faction), false, 2.0)
 		draw_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("12364c"), 2.0)
 		draw_line(point + Vector2(-3, 3), point + Vector2(3, -3), Color("12364c"), 2.0)
+
+
+func _draw_building_badge(center: Vector2, kind: String, color: Color, highlighted: bool) -> void:
+	var ink: Color = Color("071522")
+	draw_circle(center + Vector2(0, 2), 15.0, Color(0.0, 0.0, 0.0, 0.35))
+	draw_circle(center, 14.0, ink)
+	draw_circle(center, 11.5, Color(color, 0.14))
+	draw_arc(center, 14.0, 0.0, TAU, 48, color, 1.5, true)
+	if highlighted:
+		draw_arc(center, 18.0, 0.0, TAU, 48, Color("fff0ad"), 1.5, true)
+	if kind == "headquarters":
+		# Central command block, wings, and a raised flag.
+		draw_rect(Rect2(center + Vector2(-9, 0), Vector2(18, 7)), color)
+		draw_rect(Rect2(center + Vector2(-4, -5), Vector2(8, 12)), color)
+		draw_line(center + Vector2(0, -5), center + Vector2(0, -11), color, 1.5, true)
+		_building_polygon(center, [Vector2(0, -11), Vector2(6, -9), Vector2(0, -7)], color)
+		draw_rect(Rect2(center + Vector2(-2, 2), Vector2(4, 5)), ink)
+	elif kind == "barracks":
+		# Pitched roof, long accommodation block, door and windows.
+		_building_polygon(center, [Vector2(-10, -1), Vector2(0, -8), Vector2(10, -1)], color)
+		draw_rect(Rect2(center + Vector2(-8, 0), Vector2(16, 7)), color)
+		draw_rect(Rect2(center + Vector2(-2, 2), Vector2(4, 5)), ink)
+		for x in [-6, 4]:
+			draw_rect(Rect2(center + Vector2(x, 2), Vector2(2, 2)), ink)
+	elif kind == "factory":
+		# Sawtooth roof, smokestack, and a wide vehicle bay.
+		_building_polygon(center, [Vector2(-9, 7), Vector2(-9, -2), Vector2(-3, -6), Vector2(-3, -2), Vector2(3, -6), Vector2(3, -2), Vector2(9, -2), Vector2(9, 7)], color)
+		draw_rect(Rect2(center + Vector2(5, -10), Vector2(3, 10)), color)
+		draw_rect(Rect2(center + Vector2(-5, 2), Vector2(9, 5)), ink)
+
+
+func _building_polygon(center: Vector2, vertices: Array[Vector2], color: Color) -> void:
+	var points: PackedVector2Array = []
+	for vertex in vertices:
+		points.append(center + vertex)
+	draw_colored_polygon(points, color)
 
 
 func _draw_territory() -> void:

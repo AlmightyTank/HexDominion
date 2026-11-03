@@ -27,6 +27,17 @@ func _ready() -> void:
 	reset_view()
 
 
+func restore_view(saved_position: Vector2, saved_zoom: Vector2) -> void:
+	_mouse_drag_buttons.clear()
+	_touch_positions.clear()
+	_pinch_distance = 0.0
+	_pinch_midpoint = Vector2.ZERO
+	position = saved_position
+	zoom = Vector2.ONE * clampf(saved_zoom.x, min_zoom, max_zoom)
+	_clamp_position()
+	_notify_view_changed()
+
+
 func _process(delta: float) -> void:
 	var movement: Vector2 = Vector2.ZERO
 	if Input.is_action_pressed("ui_left") or Input.is_key_pressed(KEY_A):
@@ -63,7 +74,7 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 		zoom_at_screen_point(event.position, zoom_step)
 	elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 		zoom_at_screen_point(event.position, 1.0 / zoom_step)
-	elif event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT]:
+	elif event.button_index in [MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT]:
 		if event.pressed:
 			_mouse_drag_buttons[event.button_index] = true
 		else:
