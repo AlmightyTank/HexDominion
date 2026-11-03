@@ -13,7 +13,7 @@ func run() -> void:
 		for index in range(3):
 			var unit: UnitState = UnitState.new(home, kind)
 			unit.configure_kind(kind)
-			unit.health = unit.max_health * 0.5 if index == 0 else unit.max_health
+			unit.health = unit.max_health * 0.4 if index == 0 else unit.max_health
 			game.units.units.append(unit)
 	for zoom_factor in [0.45, 1.0, 2.3]:
 		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * zoom_factor)

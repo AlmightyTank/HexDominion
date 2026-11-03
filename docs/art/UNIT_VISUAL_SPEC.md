@@ -2,6 +2,8 @@
 
 ## Direction and scope
 
+Infantry now use hexagonal soldier badges, superseding the original circle rule;
+see `INFANTRY_BADGE_DESIGN.md` for the current infantry states and threshold.
 Top-down, original silhouette-first military vectors. ENERGY 2 / RHYTHM 1 /
 MOTION 1: tactical clarity, predictable map grouping, short combat feedback only.
 The existing four approved vehicle SVGs are source art, not discarded experiments.
@@ -19,9 +21,9 @@ A/B/C map to IDs 1/2/3; unknown IDs clamp to the nearest supported slot.
 
 | Stable visual ID | Name | Silhouette |
 |---|---|---|
-| rifle | Rifleman | Circular marker, rifle with stock and grip |
-| rocket | Rocket Soldier | Circular marker, broad launcher and pointed round |
-| gunner | Machine Gunner | Circular marker, heavy receiver, ammunition box and bipod |
+| rifle | Rifleman | Hex badge, helmeted rifleman aiming right, chevron |
+| rocket | Rocket Soldier | Hex badge, shoulder launcher and rocket insignia |
+| gunner | Machine Gunner | Hex badge, heavy gun, ammunition box, bipod, three rounds |
 | tank | Main Battle Tank | Wide tracks, turret, long cannon |
 | scout | Scout Vehicle | Narrow light hull, four exposed wheels |
 | apc | APC | Boxy enclosed troop compartment, eight wheels |
@@ -33,8 +35,8 @@ A/B/C map to IDs 1/2/3; unknown IDs clamp to the nearest supported slot.
 | destroyer | Destroyer | Longer hull, fore/aft guns, side sponsons, central superstructure |
 | landing_transport | Landing Transport | Broad squared hull, open cargo deck, ramp |
 
-All infantry remain circles, never humanoids. Their black outer silhouettes are
-intentionally identical; role recognition comes from the high-contrast center symbol.
+All infantry remain badges, never walking humanoid sprites. Their black outer frames
+are intentionally identical; role recognition comes from the soldier/weapon and insignia.
 Ship scale and deck details complement hull shape; recognition must also be judged
 at native 25-28 pixel display sizes, not only at source resolution.
 
@@ -48,13 +50,17 @@ Panels provide grayscale identification without changing the class footprint. Th
 are deliberately modest panel variants, not independent redesigns. The accent on
 the unit itself differs from the existing teal player ownership/HUD accent, which is
 preserved to avoid changing established game interaction semantics.
+Infantry instead share the military badge geometry, with the class-specific bottom
+insignia; their faction edge/interior palettes are detailed in `INFANTRY_BADGE_DESIGN.md`.
 
 ## States
 
 Each class/faction has base, damaged, destroyed and icon SVGs (156 files total).
-Selected is a reusable dark-backed pale ring, not another texture copy. Its double
+Selected is a reusable dark-backed pale outline (hexagonal for infantry, round for
+vehicles), not another texture copy. Its double
 stroke remains legible on ocean, forest, desert, snow and city terrain.
-Any health below maximum queries damaged; zero queries destroyed. Damaged art uses
+Non-infantry health below maximum queries damaged; infantry require below 50%.
+Zero queries destroyed. Damaged art uses
 a dark scorch patch and angular crack. Destroyed art uses muted burnt tones and a
 broad structural fracture with debris; infantry use the same cracked inactive marker,
 not corpses. These are simplified vector state treatments, not animated wreck art.
@@ -63,7 +69,8 @@ The strategic damaged notch means at least one group member is injured; the heal
 bar shows the lowest member fraction, not an invented combined simulation health.
 
 Dead simulation objects are removed normally. Close-view wreck snapshots last eight
-simulation seconds, capped at 128, never selected or counted. They are cosmetic and
+simulation seconds for vehicles, or fade over 0.65 seconds for infantry, capped at
+128, never selected or counted. They are cosmetic and
 are not saved. Successful save restoration clears cosmetic snapshots atomically.
 No wrecks clutter strategic view.
 
@@ -74,7 +81,7 @@ is the canonical generated path; state is base/damaged/destroyed/icon.
 Categories are infantry, vehicles, aircraft, naval. Icons live with their source
 class rather than in a duplicate icon tree. The four original root SVGs remain
 editable source inputs. All sources have transparent 128x128 canvases, center pivot
-(64,64), north facing, no baked text, no environment, and 3px dark outlines.
+(64,64), north-facing vehicles or upright infantry badges, no baked text or environment.
 Godot imports SVGs as Texture2D. Runtime scales them to 28 world pixels, with linear
 filtering inherited from the project. This is vector-style art, not pixel art.
 Strategic icons simplify the non-infantry silhouette and remain independent files.
@@ -92,7 +99,8 @@ Definitions do not extend UnitCatalog and cannot accidentally enable production.
 close >=1.5. Far view shows one icon and exact count per hex/faction/class. Mixed
 armies stay separate. Medium view uses one infantry marker with count or up to
 three representative vehicle sprites plus exact count. Close view draws every live
-unit with interpolated movement and facing (+X simulation to north-facing texture).
+unit with interpolated movement and vehicle facing (+X simulation to north-facing
+texture). Infantry badges stay upright and retain a directional attack flash.
 No zoom path creates, deletes, merges or duplicates simulation objects.
 Existing mouse/touch picking and group cycling use the same presentation anchors.
 Very crowded neighboring hex groups can still overlap; there is no screen-space
@@ -104,7 +112,7 @@ cross-hex decluttering or unlimited-army performance claim.
 * Muted body and restricted faction accents: keeps terrain and selected ring readable.
 * Pale selection plus dark backing: dual-value contrast over both light/dark terrain.
 * Fixed family panel placement: consistent faction recognition in grayscale.
-* Circular infantry: honors the abstract marker rule and avoids noisy tiny humans.
+* Hexagonal infantry badges: military insignia repeats the map's hexagonal identity.
 * Native Godot count text: exact counts remain readable without baking numbers into art.
 * Existing grouping: preserves input behavior and simulation count semantics.
 * No new menu controls: integrates art without redesigning the user's active HUD work.

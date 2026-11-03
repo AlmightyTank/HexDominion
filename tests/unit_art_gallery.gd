@@ -26,7 +26,7 @@ class Gallery extends Node2D:
 		for index in range(13):
 			UnitAppearance.strategic(self, UnitArt.CATEGORIES.keys()[index], 1 + index % 3, Vector2(45 + index * 104, 1400), 125 + index, true, true, 1)
 		draw_rect(Rect2(0, 1460, 1440, 180), Color("dfdfdf"))
-		draw_string(font, Vector2(16, 1480), "Black silhouettes, same roster order (infantry deliberately share a circle)", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.BLACK)
+		draw_string(font, Vector2(16, 1480), "Black silhouettes, same roster order (infantry share a hexagonal frame)", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.BLACK)
 		for index in range(13):
 			var image: Texture2D = UnitArt.texture(UnitArt.CATEGORIES.keys()[index], 1)
 			draw_texture_rect(image, Rect2(12 + index * 108, 1500, 64, 64), false, Color.BLACK)

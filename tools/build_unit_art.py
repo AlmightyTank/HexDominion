@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 import re
+from infantry_badges import badge
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets/units/roster'
@@ -10,9 +11,9 @@ FACTIONS = {'a': ('#738d9d', '#bed3dc', '#405b70', '#55aff0'),
             'b': ('#626369', '#929298', '#383e46', '#f08075'),
             'c': ('#74805a', '#b8b38a', '#505f43', '#e5ba59')}
 ROSTER = {
- 'rifle': ('infantry', 'Rifleman', 'rifle'),
- 'rocket': ('infantry', 'Rocket Soldier', 'launcher tube'),
- 'gunner': ('infantry', 'Machine Gunner', 'machine gun and bipod'),
+ 'rifle': ('infantry', 'Rifleman', 'hex badge, helmeted rifleman and chevron'),
+ 'rocket': ('infantry', 'Rocket Soldier', 'hex badge, shoulder launcher and rocket insignia'),
+ 'gunner': ('infantry', 'Machine Gunner', 'hex badge, heavy gun, bipod and three rounds'),
  'tank': ('vehicles', 'Main Battle Tank', 'wide tracks and long turret cannon'),
  'scout': ('vehicles', 'Scout Vehicle', 'narrow body and four exposed wheels'),
  'apc': ('vehicles', 'APC', 'box troop compartment and eight wheels'),
@@ -51,13 +52,6 @@ def geometry(kind):
             text += path('M30 43 L30 20 L35 10 L40 20 L40 43 Z', 'LIGHT')
             text += path('M82 43 L82 20 L87 10 L92 20 L92 43 Z', 'LIGHT')
         return text
-    if kind in ('rifle', 'rocket', 'gunner'):
-        circle = f'<circle cx="64" cy="64" r="43" fill="{INK}" stroke="ACCENT" stroke-width="8"/>'
-        symbols = {
-          'rifle': path('M30 62 L42 54 L54 54 L54 48 L79 48 L79 54 L101 54 L101 61 L72 61 L69 77 L60 77 L62 62 L46 62 L32 72 Z', 'LIGHT'),
-          'rocket': rect(30, 49, 63, 16, 'LIGHT') + path('M93 46 L107 57 L93 69 Z', 'ACCENT') + rect(25, 43, 7, 29, 'LIGHT') + path('M57 65 L53 81 L65 81 L69 65 Z', 'LIGHT'),
-          'gunner': rect(30, 46, 43, 20, 'LIGHT') + rect(73, 49, 30, 9, 'LIGHT') + rect(43, 66, 20, 15, 'ACCENT') + path('M83 59 L71 85 M83 59 L99 85', 'none', 6)}
-        return circle + symbols[kind]
     if kind == 'artillery':
         return rect(25, 50, 18, 70, 'DARK') + rect(85, 50, 18, 70, 'DARK') + path('M43 44 L85 44 L91 117 L37 117 Z') + rect(42, 70, 44, 34, 'LIGHT') + rect(59, 7, 10, 75, 'DARK') + rect(55, 5, 18, 12, 'LIGHT') + rect(44, 106, 40, 9, 'ACCENT')
     if kind == 'helicopter':
@@ -82,7 +76,7 @@ def icon(kind):
       'patrol_boat': 'M64 13 L84 46 L79 112 H49 L44 46 Z',
       'destroyer': 'M64 5 L87 32 V112 L78 123 H50 L41 112 V32 Z M29 65 H99 V82 H29 Z M60 9 H68 V40 H60 Z',
       'landing_transport': 'M29 17 H99 L105 39 V115 H23 V39 Z'}
-    return geometry(kind) if kind in ('rifle', 'rocket', 'gunner') else path(silhouettes[kind], 'LIGHT')
+    return path(silhouettes[kind], 'LIGHT')
 
 def build():
     manifest = {'source': 'Original deterministic vector artwork; no external assets', 'units': {}}
@@ -94,10 +88,10 @@ def build():
                       'b': rect(49, 92, 30, 13, 'ACCENT') + '<circle cx="54" cy="98" r="2" fill="LIGHT"/><circle cx="74" cy="98" r="2" fill="LIGHT"/>',
                       'c': rect(49, 93, 11, 12, 'ACCENT') + rect(68, 93, 11, 12, 'ACCENT')}[faction]
             for state in ('base', 'damaged', 'destroyed', 'icon'):
-                body = (icon(kind) if state == 'icon' else geometry(kind)) + panels
-                if state == 'damaged':
+                body = badge(kind, faction, state) if category == 'infantry' else (icon(kind) if state == 'icon' else geometry(kind)) + panels
+                if state == 'damaged' and category != 'infantry':
                     body += path('M45 70 L59 63 L72 72 L63 88 L46 83 Z', '#292825') + path('M47 40 L60 52 L55 62 L70 70', 'none', 4)
-                if state == 'destroyed':
+                if state == 'destroyed' and category != 'infantry':
                     body = body.replace('BODY', '#45443f').replace('LIGHT', '#68665b').replace('DARK', '#252827').replace('ACCENT', '#777262')
                     body += path('M32 35 L55 54 L46 68 L73 81 L63 97 L92 112', 'none', 7) + path('M36 97 L51 91 L48 111 L29 115 Z', '#302e29')
                 for token, color in zip(('BODY', 'LIGHT', 'DARK', 'ACCENT'), palette):

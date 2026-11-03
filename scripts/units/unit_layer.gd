@@ -174,7 +174,7 @@ func _physics_process(delta: float) -> void:
 	for index in range(units.size() - 1, -1, -1):
 		if not units[index].is_alive():
 			var lost: UnitState = units[index]
-			wrecks.append({"kind": lost.kind, "faction": lost.faction, "position": unit_position(lost), "facing": lost.facing, "remaining": WRECK_SECONDS})
+			wrecks.append({"kind": lost.kind, "faction": lost.faction, "position": unit_position(lost), "facing": lost.facing, "remaining": 0.65 if UnitCatalog.is_infantry(lost.kind) else WRECK_SECONDS})
 			if wrecks.size() > MAX_WRECKS:
 				wrecks.pop_front()
 			selected_units.erase(units[index])
@@ -258,7 +258,8 @@ func _draw_units() -> void:
 	var detail: String = UnitVisuals.tier(zoom_factor)
 	if detail == "close":
 		for wreck in wrecks:
-			UnitArt.draw(self, wreck["kind"], wreck["faction"], "destroyed", wreck["position"], wreck["facing"])
+			var opacity: float = clampf(wreck["remaining"] / 0.65, 0, 1) if UnitCatalog.is_infantry(wreck["kind"]) else 1.0
+			UnitArt.draw(self, wreck["kind"], wreck["faction"], "destroyed", wreck["position"], wreck["facing"], false, 28, opacity)
 		for unit in units:
 			UnitAppearance.draw_unit(self, unit, unit_position(unit), faction_color(unit.faction), selected_units.has(unit), animation_time)
 		return
@@ -271,7 +272,7 @@ func _draw_units() -> void:
 		var health_fraction: float = 1.0
 		for member in members:
 			highlighted = highlighted or selected_units.has(member)
-			injured = injured or member.health < member.max_health
+			injured = injured or UnitArt.state_for(member.health, member.max_health, member.kind) == "damaged"
 			health_fraction = minf(health_fraction, member.health / member.max_health)
 		var icon_scale: float = 1.0 / maxf(zoom_factor, 0.15)
 		if detail == "far":
@@ -284,7 +285,7 @@ func _draw_units() -> void:
 			draw_line(point + heading * 13 * icon_scale, point + heading * 18 * icon_scale, faction_color(batch["faction"]), 2 * icon_scale, true)
 			for member in members:
 				if member.damage_flash > 0:
-					draw_arc(point, 11 * icon_scale, 0, TAU, 24, Color("fff5db"), icon_scale, true)
+					UnitArt.badge_outline(self, point, 28 * icon_scale, Color("ed736a"), 2 * icon_scale)
 				if member.attack_flash > 0:
 					draw_circle(point + heading * 20 * icon_scale, 2 * icon_scale, Color("ffe0a0"))
 		else:
@@ -292,7 +293,7 @@ func _draw_units() -> void:
 				var offset: Vector2 = Vector2(index * 7.0 - (mini(3, members.size()) - 1) * 3.5, index * 3.0) * icon_scale
 				UnitAppearance.draw_unit(self, members[index], point + offset, faction_color(batch["faction"]), highlighted, animation_time + index, 0.85 * icon_scale)
 			draw_string(ThemeDB.fallback_font, point + Vector2(-12, 21) * icon_scale, "%s %d" % [UnitCatalog.TYPES[batch["kind"]]["marker"], members.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, roundi(10 * icon_scale), faction_color(batch["faction"]))
-		if injured or highlighted:
+		if health_fraction < 1.0 or highlighted:
 			draw_rect(Rect2(point + Vector2(-9, -15) * icon_scale, Vector2(18, 2) * icon_scale), UnitAppearance.INK)
 			draw_rect(Rect2(point + Vector2(-9, -15) * icon_scale, Vector2(18 * health_fraction, 2) * icon_scale), faction_color(batch["faction"]))
 

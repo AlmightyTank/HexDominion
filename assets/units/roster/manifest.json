@@ -4,7 +4,7 @@
     "rifle": {
       "category": "infantry",
       "name": "Rifleman",
-      "silhouette": "rifle",
+      "silhouette": "hex badge, helmeted rifleman and chevron",
       "files": [
         "assets/units/roster/infantry/rifle/rifle_faction_a_base.svg",
         "assets/units/roster/infantry/rifle/rifle_faction_a_damaged.svg",
@@ -23,7 +23,7 @@
     "rocket": {
       "category": "infantry",
       "name": "Rocket Soldier",
-      "silhouette": "launcher tube",
+      "silhouette": "hex badge, shoulder launcher and rocket insignia",
       "files": [
         "assets/units/roster/infantry/rocket/rocket_faction_a_base.svg",
         "assets/units/roster/infantry/rocket/rocket_faction_a_damaged.svg",
@@ -42,7 +42,7 @@
     "gunner": {
       "category": "infantry",
       "name": "Machine Gunner",
-      "silhouette": "machine gun and bipod",
+      "silhouette": "hex badge, heavy gun, bipod and three rounds",
       "files": [
         "assets/units/roster/infantry/gunner/gunner_faction_a_base.svg",
         "assets/units/roster/infantry/gunner/gunner_faction_a_damaged.svg",

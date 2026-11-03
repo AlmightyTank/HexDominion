@@ -27,7 +27,7 @@ func _run() -> void:
 	game.camera.set_process(false)
 	var home: Vector2i = game.units.units[0].hex
 	game.units.units.clear()
-	for faction in [1, 2]:
+	for faction in [1, 2, 3]:
 		for kind in UnitCatalog.INFANTRY:
 			for index in range(3):
 				var unit: UnitState = UnitState.new(home, UnitCatalog.TYPES[kind]["name"])
@@ -35,7 +35,7 @@ func _run() -> void:
 				unit.faction = faction
 				unit.facing = 0.0 if faction == 1 else PI
 				if index == 1:
-					unit.health *= 0.6
+					unit.health *= 0.4
 				game.units.units.append(unit)
 	game.units.select_one(game.units.units[0])
 	game.units.selected_units.append(game.units.units[6])
@@ -44,7 +44,7 @@ func _run() -> void:
 		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * entry[1])
 		game.units.queue_redraw()
 		await _capture(entry[0])
-		if game.units.units.size() != 18:
+		if game.units.units.size() != 27:
 			failures += 1
 	# Record real feedback frames independently of wall-clock speed.
 	var idle: Image = await _capture("idle")
@@ -64,6 +64,17 @@ func _run() -> void:
 	game.units.animation_time = 0.35
 	game.units.queue_redraw()
 	await _capture("moving")
-	print("Infantry rendered verification: 18 independent units, three zoom tiers and feedback frames; %d failures. Images: %s" % [failures, ProjectSettings.globalize_path(output)])
+	var defeated: UnitState = game.units.units[0]
+	defeated.health = 0
+	game.units._physics_process(0.01)
+	game.units.match_state.result = "victory"
+	game.units.queue_redraw()
+	await _capture("defeat")
+	if game.units.units.has(defeated) or game.units.wrecks.size() != 1:
+		failures += 1
+	game.units._physics_process(0.7)
+	if not game.units.wrecks.is_empty() or game.units.units.size() != 26:
+		failures += 1
+	print("Infantry rendered verification: 27 independent units, nine class/faction combinations, three zoom tiers, feedback and defeat; %d failures. Images: %s" % [failures, ProjectSettings.globalize_path(output)])
 	game.free()
 	quit(1 if failures else 0)

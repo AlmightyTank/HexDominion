@@ -35,6 +35,15 @@ func run() -> void:
 	check(UnitArt.state_for(100, 100) == "base", "Healthy query")
 	check(UnitArt.state_for(99, 100) == "damaged", "Damaged query")
 	check(UnitArt.state_for(0, 100) == "destroyed", "Destroyed query")
+	for kind in ["rifle", "rocket", "gunner"]:
+		check(UnitArt.state_for(51, 100, kind) == "base", "Above half healthy " + kind)
+		check(UnitArt.state_for(50, 100, kind) == "base", "Exactly half healthy " + kind)
+		check(UnitArt.state_for(49, 100, kind) == "damaged", "Below half damaged " + kind)
+		check(UnitArt.state_for(0, 100, kind) == "destroyed", "Infantry defeated " + kind)
+		for faction in range(1, 4):
+			var image: Image = UnitArt.texture(kind, faction).get_image()
+			check(image.get_pixel(15, 64).a > 0.9 and image.get_pixel(15, 15).a == 0, "Hex vertical edge and clipped corner")
+			check(UnitArt.texture(kind, faction, "icon").get_image().get_data() != image.get_data(), "Dedicated compact badge")
 	check(UnitArt.texture("unknown", 1) == null, "Unknown placeholder support")
 	var game: Node2D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
@@ -63,8 +72,10 @@ func run() -> void:
 	lost.health = 0
 	game.units._physics_process(0.01)
 	check(not game.units.units.has(lost) and game.units.wrecks.size() == 1, "Death produces cosmetic snapshot only")
+	check(game.units.wrecks[0]["remaining"] <= 0.65, "Infantry defeat is brief")
+	check(game.units.pick_faction(game.units.to_global(game.units.wrecks[0]["position"]), 2.3, 1) != lost, "Defeated badge cannot be picked")
 	game.units.match_state.result = "victory"
-	game.units._physics_process(9.0)
+	game.units._physics_process(0.7)
 	check(game.units.wrecks.is_empty(), "Wreck expires")
 	game.free()
 	print("Unit art: %d checks, %d failures" % [checks, failures])

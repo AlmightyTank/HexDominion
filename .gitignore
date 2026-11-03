@@ -14,3 +14,4 @@ dist/
 exports/
 *.pck
 *.uid
+__pycache__/
