@@ -10,7 +10,9 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 	for unit in layer.units:
 		roster.append({"hex": unit.hex, "path": unit.path.duplicate(), "progress": unit.progress,
 			"kind": unit.kind, "health": unit.health, "faction": unit.faction,
-			"garrisoned": unit.garrisoned, "holding": unit.holding, "title": unit.title})
+			"garrisoned": unit.garrisoned, "holding": unit.holding, "title": unit.title,
+			"weapon_elapsed": unit.weapon_elapsed, "facing": unit.facing, "attack_order": unit.attack_order,
+			"attack_hex": unit.attack_hex, "attack_target": layer.units.find(unit.attack_target.get_ref()) if unit.attack_target != null else -1})
 	var match_state: MatchState = layer.match_state
 	return {"version": 1, "map": MAP_ID, "units": roster,
 		"owners": layer.territory.owners.duplicate(true), "captures": layer.territory.captures.duplicate(true),
@@ -72,9 +74,25 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 	for unit in data["units"]:
 		if not unit is Dictionary or not _land(unit.get("hex"), tiles) or not unit.get("path") is Array:
 			return false
-		if unit.get("kind") not in ["rifle", "tank"] or unit.get("faction") not in [1, 2] or not unit.get("garrisoned") is bool or not unit.get("title") is String:
+		if unit.get("kind") not in UnitCatalog.TYPES or unit.get("faction") not in [1, 2] or not unit.get("garrisoned") is bool or not unit.get("title") is String:
 			return false
-		if not _number(unit.get("health"), 0.001, 250 if unit["kind"] == "tank" else 100) or not _number(unit.get("progress"), 0, 0.999999999):
+		if not _number(unit.get("health"), 0.001, UnitCatalog.TYPES[unit["kind"]]["health"]) or not _number(unit.get("progress"), 0, 0.999999999):
+			return false
+		if not _number(unit.get("weapon_elapsed", 0.0), 0, UnitCatalog.TYPES[unit["kind"]]["cooldown"]) or not _number(unit.get("facing", 0.0), -PI, PI):
+			return false
+		if not unit.get("attack_order", false) is bool or not unit.get("attack_target", -1) is int:
+			return false
+		var target_index: int = unit.get("attack_target", -1)
+		if target_index < -1 or target_index >= data["units"].size():
+			return false
+		if unit.get("attack_order", false):
+			if not _land(unit.get("attack_hex"), tiles) or unit.get("holding", false) or unit["garrisoned"]:
+				return false
+			if target_index >= 0:
+				var target_entry: Variant = data["units"][target_index]
+				if not target_entry is Dictionary or target_entry.get("faction") == unit["faction"]:
+					return false
+		elif target_index != -1:
 			return false
 		if (unit["path"].is_empty() and unit["progress"] != 0) or (unit["garrisoned"] and not unit["path"].is_empty()):
 			return false
@@ -127,7 +145,7 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 		if building["queue"].size() > 5 or not _number(building.get("elapsed"), 0, 8):
 			return false
 		for kind in building["queue"]:
-			if kind not in EconomyState.TRAIN_SECONDS or building["kind"] != ("barracks" if kind == "rifle" else "factory"):
+			if kind not in EconomyState.TRAIN_SECONDS or building["kind"] != UnitCatalog.producer(kind):
 				return false
 		if building["queue"].is_empty():
 			if building["elapsed"] != 0:
@@ -149,7 +167,15 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		unit.holding = entry.get("holding", false)
 		unit.path.assign(entry["path"])
 		unit.progress = entry["progress"]
+		unit.weapon_elapsed = entry.get("weapon_elapsed", 0.0)
+		unit.facing = entry.get("facing", 0.0)
+		unit.attack_order = entry.get("attack_order", false)
+		unit.attack_hex = entry.get("attack_hex", Vector2i.ZERO)
 		roster.append(unit)
+	for index in range(roster.size()):
+		var target_index: int = data["units"][index].get("attack_target", -1)
+		if target_index >= 0:
+			roster[index].attack_target = weakref(roster[target_index])
 	layer.units = roster
 	for hex in layer.world_map.map_data["tiles"]:
 		layer.world_map.map_data["tiles"][hex].erase("road")

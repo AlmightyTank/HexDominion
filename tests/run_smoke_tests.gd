@@ -43,6 +43,76 @@ func _test_fortification_save() -> void:
 	_check(not game.units.units[0].garrisoned and game.units.units[0].holding, "Sold loaded bunker clears assignment without dropping hold")
 	game.free()
 
+func _test_infantry_integration() -> void:
+	var game: Node2D = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+	game.units.set_physics_process(false)
+	var tiles: Dictionary = game.world_map.map_data["tiles"]
+	var home: Vector2i = game.units.units[0].hex
+	var enemy_hex: Vector2i = game.units.match_state.rival_hq
+	game.units.units.clear()
+	for kind in UnitCatalog.INFANTRY:
+		var unit: UnitState = UnitState.new(home, UnitCatalog.TYPES[kind]["name"])
+		unit.configure_kind(kind)
+		unit.weapon_elapsed = unit.cooldown * 0.4
+		game.units.units.append(unit)
+	var enemy: UnitState = UnitState.new(enemy_hex, "Target")
+	enemy.configure_kind("tank")
+	enemy.faction = 2
+	game.units.units.append(enemy)
+	game.units.select_one(game.units.units[1])
+	game.hud.defensive_order_requested.emit("attack")
+	game._attack_at(game.world_map.hex_to_world(enemy.hex), enemy)
+	_check(game.units.units[1].attack_order and not game._attack_mode, "HUD attack command creates real pursuit")
+	var snapshot: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home)
+	_check(MatchSave.restore(game.units, snapshot), "Mixed infantry and weapon timers restore")
+	_check(MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home) == snapshot, "Infantry save round trip preserves cooldowns, facing and target indexes exactly")
+	_check(game.units.units[1].attack_target.get_ref() == game.units.units[3], "Loaded attack references restored roster rather than old objects")
+	var bad: Dictionary = snapshot.duplicate(true)
+	bad["units"][1]["attack_target"] = 999
+	_check(not MatchSave.restore(game.units, bad), "Out-of-roster attack target rejected before mutation")
+	bad = snapshot.duplicate(true)
+	bad["units"][1]["weapon_elapsed"] = INF
+	_check(not MatchSave.restore(game.units, bad), "Nonfinite cooldown save rejected")
+	bad = snapshot.duplicate(true)
+	bad["units"][1]["health"] = 91
+	_check(not MatchSave.restore(game.units, bad), "Role-specific HP bounds validated")
+	var legacy: Dictionary = snapshot.duplicate(true)
+	for entry in legacy["units"]:
+		for key in ["attack_order", "attack_hex", "attack_target", "weapon_elapsed", "facing"]:
+			entry.erase(key)
+	_check(MatchSave.restore(game.units, legacy) and game.units.units[1].weapon_elapsed == 0 and not game.units.units[1].attack_order, "Older saves acquire safe order and cooldown defaults")
+	for unit in game.units.units:
+		unit.hex = home
+		unit.path.clear()
+		unit.progress = 0
+	for zoom_factor in [0.45, 1.0, 2.3]:
+		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * zoom_factor)
+		var batches: Array[Dictionary] = UnitVisuals.groups(game.units.units)
+		var first: Dictionary = batches[0]
+		var point: Vector2 = game.units.group_position(first, batches, zoom_factor) if zoom_factor < 1.5 else game.units.unit_position(game.units.units[0])
+		_check(game.units.pick_faction(game.units.to_global(point), zoom_factor, 1) == game.units.units[0], "Rendered individual/group can be selected at zoom %.2f" % zoom_factor)
+		game.units.select_box(Rect2(-100000, -100000, 200000, 200000), game.get_viewport().get_canvas_transform())
+		_check(game.units.selected_units.size() == 3, "Box selection preserves exact friendly simulation members")
+	game.units.select_one(game.units.units[0])
+	game.units.toggle_selection(game.units.units[1])
+	game._process(0)
+	_check(game.units.selected_units.size() == 2 and "Rocket Soldier" in game.hud.selection_info.text, "Additive selection reports mixed roster and live stats")
+	game.units.economy.add_building(home, "barracks")
+	game.units.economy.credits = 1000
+	game._select_facility(home)
+	for kind in UnitCatalog.INFANTRY:
+		game.hud.train_requested.emit(kind)
+	_check(game.units.economy.buildings[home]["queue"] == ["rifle", "rocket", "gunner"], "All three HUD production actions use pinned barracks")
+	game.units.select_one(game.units.units[0])
+	game.hud.add_selection_button.button_pressed = true
+	var position: Vector2 = game.units.to_global(game.units.unit_position(game.units.units[1]))
+	game._select_at(position)
+	_check(game.units.selected_units.size() == 2, "Touch additive-selection toggle uses individual pick path")
+	game.hud.defensive_order_requested.emit("hold")
+	_check(game.units.units[0].holding and game.units.units[1].holding, "HUD Hold acts on multiple infantry roles")
+	game.free()
+
 func _test_supply_ui_and_save() -> void:
 	var game: Node2D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
@@ -502,7 +572,9 @@ func _run_tests() -> void:
 	preload("res://tests/supply_tests.gd").run(_check)
 	preload("res://tests/continent_tests.gd").run(_check)
 	preload("res://tests/fortification_tests.gd").run(_check)
+	preload("res://tests/infantry_tests.gd").run(_check)
 	_test_fortification_save()
+	_test_infantry_integration()
 	_test_supply_ui_and_save()
 	_test_ai_integration()
 	game._begin_build("")
@@ -515,7 +587,7 @@ func _run_tests() -> void:
 	attacker.health = 100.0
 	victim.health = 1.0
 	game.units.selected = victim
-	game.units._physics_process(0.1)
+	game.units._physics_process(attacker.cooldown)
 	_check(not game.units.units.has(victim) and game.units.selected == null, "Death removes unit and clears selection")
 	game.units._physics_process(3.0)
 	_check(game.units.territory.owner_at(attacker.hex) == 1, "Defeated garrison allows territory capture")
@@ -539,7 +611,7 @@ func _run_tests() -> void:
 		_check(restarted.units.units.size() == 4 and restarted.units.economy.credits >= 400 and restarted.units.economy.credits < 410 and restarted.units.selected == null, "Restart resets roster, economy and selection (allowing initial income ticks)")
 		restarted.free()
 	current_scene = null
-	print("Hex Dominion v0.3 Slice E: %d passed, %d failed" % [_successes, _failures])
+	print("Hex Dominion v0.4 Slice A: %d passed, %d failed" % [_successes, _failures])
 	quit(1 if _failures > 0 else 0)
 
 

@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. v0.3 Territorial Strategy implemented through Slice E: terrain-aware combat, roads, HQ supply, additive continent bonuses, bunkers, Hold Position and defensive AI, alongside construction, power, economy, HQ victory/defeat and named saves. Headless regression coverage is in place; interactive acceptance and balance playtesting remain pending.
+> **Status:** Pre-alpha. v0.4 Slice A adds Riflemen, Rocket Soldiers and Machine Gunners, explicit attack pursuit, configurable weapons and shared procedural unit appearances at three zoom levels. Earlier territory, roads, supply, continent, bunker, construction, power and save systems remain integrated. Headless and rendered fixtures are verified; physical touchscreen acceptance and balance playtesting remain pending.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -162,6 +162,20 @@ Improved terrain rules, supply connections, continent bonuses, fortifications, d
 ### v0.4 — Military expansion
 
 Expanded infantry and armor, artillery, air units, naval units, transports, expanded combat orders.
+
+- [x] **Slice A: Infantry Expansion and Unit Visual Foundation:** Three barracks infantry roles, weapon cooldowns and counters, attack commands, shared faction-accented soldier silhouettes, grouped zoom presentation and backward-compatible saves. ([Tuning, controls, verification and limitations](docs/V0.4-SLICE-A.md).)
+
+#### Infantry controls
+
+- Train all three roles in the **Inf** tab with a completed barracks selected.
+- Click/tap to select. Shift-click or **Add selection** toggles members; drag a box for multiple units. Repeated grouped-marker clicks cycle individual soldiers.
+- Right-click an enemy to attack, or use **Attack (X)** and tap/click the target. Right-click land moves. Touch: select then tap land to move.
+- **Hold (J)** stops pursuit; **Garrison (G)** occupies a friendly bunker (two infantry slots). Accepted movement/attack releases Hold and garrison.
+- Zoom changes presentation only: role/count markers, grouped sprites, then individual soldiers. All simulated units always remain present.
+
+#### Validation
+
+`.github/workflows/godot-validation.yml` imports the pinned Godot 4.7.2 project, runs smoke/HUD/startup checks, and renders zoom/feedback fixtures with Xvfb. Rendered screenshots are uploaded as CI artifacts. Local commands and evidence are documented in the slice notes.
 
 ### v0.5 — Cities and technology
 

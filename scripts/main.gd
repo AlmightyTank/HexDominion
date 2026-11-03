@@ -19,6 +19,7 @@ const NO_FACILITY: Vector2i = Vector2i(-99999, -99999)
 var _facility_hex: Vector2i = NO_FACILITY
 var _facility_site: Dictionary = {}
 var _rally_mode: bool = false
+var _attack_mode: bool = false
 const TAP_THRESHOLD: float = 14.0
 
 
@@ -40,6 +41,7 @@ func _ready() -> void:
 	hud.match_action_requested.connect(_match_action)
 	hud.save_slot_requested.connect(_save_slot)
 	hud.load_slot_requested.connect(_load_slot)
+	hud.show_command_info("Click/tap selects. Shift-click or Add selection adds units. Right-click enemies attacks; X/Attack then tap also works. J holds, G garrisons. Repeated group clicks cycle soldiers.")
 	_selection_box = ReferenceRect.new()
 	_selection_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_selection_box.editor_only = false
@@ -52,6 +54,15 @@ func _ready() -> void:
 func _defensive_order(action: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
+	if action == "add_select":
+		return
+	if action == "attack":
+		_attack_mode = not _attack_mode and not units.selected_units.is_empty()
+		_rally_mode = false
+		units.build_kind = ""
+		hud.show_command_info("Tap/click an enemy unit or building. Esc cancels." if _attack_mode else "Attack selection cancelled")
+		return
+	_attack_mode = false
 	var accepted: int = 0
 	for unit in units.selected_units:
 		if action == "hold":
@@ -68,7 +79,10 @@ func _defensive_order(action: String) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if _rally_mode:
+		if _attack_mode:
+			_attack_mode = false
+			hud.show_command_info("Attack selection cancelled")
+		elif _rally_mode:
 			_rally_mode = false
 			hud.show_command_info("Rally selection cancelled")
 		elif not _menu_open and not units.build_kind.is_empty():
@@ -140,6 +154,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_defensive_order("hold")
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G:
 		_defensive_order("garrison")
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_X:
+		_defensive_order("attack")
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_mouse_press = event.position
@@ -179,6 +195,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				var world_point: Vector2 = get_viewport().get_canvas_transform().affine_inverse() * event.position
 				if not units.build_kind.is_empty():
 					_place_build(world_point)
+				elif _attack_mode or units.pick_faction(world_point, camera.zoom.x, 2) != null:
+					_move_to(world_point)
 				elif units.pick(world_point, camera.zoom.x) != null or units.selected == null:
 					_select_at(world_point)
 				else:
@@ -199,10 +217,17 @@ func _inspect_world_at(world_point: Vector2) -> void:
 
 
 func _select_at(point: Vector2) -> void:
+	if _attack_mode:
+		_attack_at(point)
+		return
 	if _rally_mode:
 		_set_facility_rally(point)
 		return
-	units.select_one(units.pick(point, camera.zoom.x))
+	var picked: UnitState = units.pick_faction(point, camera.zoom.x, 1, true)
+	if hud.add_selection_button.button_pressed or Input.is_key_pressed(KEY_SHIFT):
+		units.toggle_selection(picked)
+	else:
+		units.select_one(picked)
 	units.queue_redraw()
 	_inspect_world_at(point)
 	if units.selected != null:
@@ -212,6 +237,10 @@ func _select_at(point: Vector2) -> void:
 func _move_to(point: Vector2) -> void:
 	if _rally_mode:
 		_set_facility_rally(point)
+		return
+	var enemy: UnitState = units.pick_faction(point, camera.zoom.x, 2)
+	if _attack_mode or (units.selected != null and (enemy != null or units.match_state.rival_economy.buildings.has(world_map.world_to_hex(point)))):
+		_attack_at(point, enemy)
 		return
 	if units.selected == null:
 		if units.economy.buildings.has(_economy_hex()):
@@ -229,13 +258,30 @@ func _move_to(point: Vector2) -> void:
 			ordered += 1
 	units.queue_redraw()
 	if ordered > 0:
-		hud.show_command_info("Move accepted: %d/%d units • Garrisoned/unreachable units keep orders" % [ordered, group.size()])
+		hud.show_command_info("Move accepted: %d/%d units. Unreachable units keep orders." % [ordered, group.size()])
 	else:
-		hud.show_command_info("Garrisoned or no land route • Release with G • Previous order unchanged")
+		hud.show_command_info("No land route. Previous order unchanged.")
+
+func _attack_at(point: Vector2, target: UnitState = null) -> void:
+	if target == null:
+		target = units.pick_faction(point, camera.zoom.x, 2)
+	var goal: Vector2i = target.hex if target != null else world_map.world_to_hex(point)
+	if target == null and not units.match_state.rival_economy.buildings.has(goal):
+		hud.show_command_info("Choose an enemy unit or building. Esc cancels.")
+		return
+	var accepted: int = 0
+	for unit in units.selected_units:
+		if UnitOrders.attack(unit, world_map.map_data["tiles"], goal, target):
+			accepted += 1
+	if accepted > 0:
+		_attack_mode = false
+	units.queue_redraw()
+	hud.show_command_info("Attack: %d orders accepted. Move or Hold cancels pursuit." % accepted)
 
 
 func _process(_delta: float) -> void:
 	if units != null:
+		hud.show_selection(units.selected_units, _attack_mode)
 		hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"])
 		var inspected: Vector2i = world_map.selected_hex
 		var income_economy: EconomyState = units.match_state.rival_economy if units.territory.owner_at(inspected) == 2 else units.economy
@@ -259,6 +305,7 @@ func _begin_build(kind: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	_rally_mode = false
+	_attack_mode = false
 	units.build_kind = kind if EconomyState.BUILD_COSTS.has(kind) or kind == "road" else ""
 	units.build_rotation = 0
 	_box_active = false
@@ -337,6 +384,7 @@ func _set_facility_rally(point: Vector2) -> void:
 
 
 func _set_menu_open(open: bool) -> void:
+	_attack_mode = false
 	_menu_open = open
 	_rally_mode = false
 	_box_active = false

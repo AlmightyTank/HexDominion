@@ -12,8 +12,8 @@ const SALVAGE_FRACTION: float = 0.5
 const REPAIR_HP_PER_SECOND: float = 20.0
 const REPAIR_COST_PER_HP: float = 1.0
 const EXTRACTION_PER_SECOND: float = 2.0
-const TRAIN_COSTS: Dictionary = {"rifle": 50, "tank": 150}
-const TRAIN_SECONDS: Dictionary = {"rifle": 4.0, "tank": 8.0}
+const TRAIN_COSTS: Dictionary = UnitCatalog.COSTS
+const TRAIN_SECONDS: Dictionary = UnitCatalog.TRAIN_SECONDS
 const CITY_INCOME_PER_SECOND: float = 1.0
 const HQ_INCOME_PER_SECOND: float = 5.0
 var account: CreditsAccount
@@ -96,7 +96,7 @@ func train(hex: Vector2i, kind: String, territory: TerritoryState) -> bool:
 	if not buildings.has(hex) or not is_complete(buildings[hex]) or territory.owner_at(hex) != faction or not TRAIN_COSTS.has(kind):
 		return false
 	var building: Dictionary = buildings[hex]
-	var required: String = "barracks" if kind == "rifle" else "factory"
+	var required: String = UnitCatalog.producer(kind)
 	if building["kind"] != required or building["queue"].size() >= 5:
 		return false
 	if not account.try_spend(TRAIN_COSTS[kind], "Train %s at %s" % [kind, hex]):
@@ -199,7 +199,7 @@ func _advance_interval(delta: float, tiles: Dictionary, territory: TerritoryStat
 				break
 			building["elapsed"] -= TRAIN_SECONDS[kind]
 			building["queue"].pop_front()
-			var unit: UnitState = UnitState.new(hex, "Rifle squad" if kind == "rifle" else "Main battle tank")
+			var unit: UnitState = UnitState.new(hex, UnitCatalog.TYPES[kind]["name"])
 			unit.configure_kind(kind)
 			unit.faction = faction
 			unit.order_move(tiles, building["rally"])

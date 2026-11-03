@@ -13,16 +13,34 @@ var holding: bool = false
 var kind: String = "rifle"
 var max_health: float = 100.0
 var health: float = 100.0
-var damage_per_second: float = 20.0
+var damage: float = 5.0
+var cooldown: float = 0.25
+var weapon_elapsed: float = 0.0
+var damage_per_second: float:
+	get: return damage / cooldown
+	set(value): damage = value * cooldown
 var attack_range: int = 1
+var facing: float = 0.0
+var attack_order: bool = false
+var attack_hex: Vector2i = Vector2i.ZERO
+var attack_target: WeakRef
+var shot_serial: int = 0
+var attack_flash: float = 0.0
+var damage_flash: float = 0.0
 
 
 func configure_kind(unit_kind: String) -> void:
+	if not UnitCatalog.TYPES.has(unit_kind):
+		return
 	kind = unit_kind
-	max_health = 250.0 if kind == "tank" else 100.0
+	var definition: Dictionary = UnitCatalog.TYPES[kind]
+	max_health = definition["health"]
 	health = max_health
-	damage_per_second = 45.0 if kind == "tank" else 20.0
-	seconds_per_hex = 0.65 if kind == "tank" else 0.45
+	damage = definition["damage"]
+	cooldown = definition["cooldown"]
+	attack_range = definition["range"]
+	seconds_per_hex = definition["speed"]
+	weapon_elapsed = 0.0
 
 
 func is_alive() -> bool:
@@ -50,6 +68,8 @@ func order_move(tiles: Dictionary, goal: Vector2i) -> bool:
 	path = route
 	garrisoned = false
 	holding = false
+	attack_order = false
+	attack_target = null
 	return true
 
 func order_hold() -> void:
@@ -58,6 +78,8 @@ func order_hold() -> void:
 	path.clear()
 	progress = 0.0
 	holding = true
+	attack_order = false
+	attack_target = null
 
 
 func advance(delta: float, tiles: Dictionary) -> void:
@@ -65,6 +87,7 @@ func advance(delta: float, tiles: Dictionary) -> void:
 		return
 	var remaining: float = delta
 	while remaining > 0 and not path.is_empty():
+		facing = (HexMath.axial_to_world(path[0], 1.0) - HexMath.axial_to_world(hex, 1.0)).angle()
 		var cost: float = TerrainRules.movement_cost(tiles, hex, path[0], kind)
 		if not is_finite(cost):
 			return

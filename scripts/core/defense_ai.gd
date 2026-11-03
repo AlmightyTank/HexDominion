@@ -49,7 +49,7 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 		var defender: UnitState = null
 		var distance: int = 2147483647
 		for unit in army:
-			if unit.kind == "rifle" and not reserved.has(unit) and HexMath.distance(unit.hex, hex) < distance and not HexPathfinding.find_path(tiles, unit.hex, hex).is_empty():
+			if UnitCatalog.is_infantry(unit.kind) and not reserved.has(unit) and HexMath.distance(unit.hex, hex) < distance and not HexPathfinding.find_path(tiles, unit.hex, hex).is_empty():
 				defender = unit
 				distance = HexMath.distance(unit.hex, hex)
 		if defender == null:

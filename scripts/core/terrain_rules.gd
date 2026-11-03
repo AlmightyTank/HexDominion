@@ -31,7 +31,7 @@ static func defense_multiplier(tile: Dictionary, kind: String, stationary: bool)
 	if not stationary:
 		return 1.0
 	var terrain: String = ground(tile)
-	if terrain == "forest" and kind == "rifle":
+	if terrain == "forest" and UnitCatalog.is_infantry(kind):
 		return 0.85
 	return DEFENSE.get(terrain, 1.0)
 

@@ -8,10 +8,16 @@ const REPAIR_RESERVE: float = 200.0
 static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState], other_buildings: Dictionary, home: Vector2i) -> void:
 	var living: int = 0
 	var tanks: int = 0
+	var infantry: Dictionary = {"rifle": 0, "rocket": 0, "gunner": 0}
+	var enemy_armor: bool = false
 	for unit in units:
+		if unit.faction != economy.faction and unit.is_alive() and unit.kind == "tank":
+			enemy_armor = true
 		if unit.faction == economy.faction and unit.is_alive():
 			living += 1
 			tanks += int(unit.kind == "tank")
+			if UnitCatalog.is_infantry(unit.kind):
+				infantry[unit.kind] += 1
 	var queued: int = 0
 	var counts: Dictionary = {}
 	var supply: int = 0
@@ -25,6 +31,8 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 		queued += site["queue"].size()
 		for job in site["queue"]:
 			tanks += int(job == "tank")
+			if UnitCatalog.is_infantry(job):
+				infantry[job] += 1
 		if not territory.is_contested(hex):
 			# Include paid foundations so a pending plant is not ordered repeatedly.
 			supply += EconomyState.POWER_SUPPLY.get(kind, 0)
@@ -72,6 +80,11 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 	# Leave space in the roster for armor once a factory has been funded.
 	var wants_tank: bool = counts.get("factory", 0) > 0 and tanks < 2 and living + queued >= 3
 	var kind: String = "tank" if wants_tank else "rifle"
+	if not wants_tank and living + queued >= 2:
+		if enemy_armor and infantry["rocket"] == 0:
+			kind = "rocket"
+		elif infantry["rifle"] >= 2 and infantry["gunner"] == 0:
+			kind = "gunner"
 	var reserve: float = 150.0 if needed_power > supply and living + queued > 0 else 0.0
 	if living + queued > 0:
 		if deposit:

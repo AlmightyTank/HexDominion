@@ -7,6 +7,9 @@ var world_map: WorldMap
 var units: Array[UnitState] = []
 var selected: UnitState
 var selected_units: Array[UnitState] = []
+var animation_time: float = 0.0
+var _last_pick_members: Array = []
+var _pick_index: int = 0
 
 
 func select_one(unit: UnitState) -> void:
@@ -16,11 +19,29 @@ func select_one(unit: UnitState) -> void:
 		selected_units.append(unit)
 	queue_redraw()
 
+func toggle_selection(unit: UnitState) -> void:
+	if unit == null or unit.faction != 1 or not unit.is_alive():
+		return
+	if selected_units.has(unit):
+		selected_units.erase(unit)
+	else:
+		selected_units.append(unit)
+	selected = selected_units[0] if not selected_units.is_empty() else null
+	queue_redraw()
+
 
 func select_box(screen_rect: Rect2, canvas_transform: Transform2D) -> void:
 	selected_units.clear()
+	var zoom_factor: float = canvas_transform.get_scale().x
+	var batches: Array[Dictionary] = UnitVisuals.groups(units)
 	for unit in units:
-		var screen_point: Vector2 = canvas_transform * to_global(unit_position(unit))
+		var point: Vector2 = unit_position(unit)
+		if UnitVisuals.tier(zoom_factor) != "close":
+			for batch in batches:
+				if batch["members"].has(unit):
+					point = group_position(batch, batches, zoom_factor)
+					break
+		var screen_point: Vector2 = canvas_transform * to_global(point)
 		if unit.faction == 1 and unit.is_alive() and screen_rect.abs().has_point(screen_point):
 			selected_units.append(unit)
 	selected = selected_units[0] if not selected_units.is_empty() else null
@@ -75,7 +96,7 @@ func configure(map: WorldMap) -> void:
 	queue_redraw()
 
 
-func unit_position(unit: UnitState) -> Vector2:
+func _base_position(unit: UnitState) -> Vector2:
 	var point: Vector2 = world_map.hex_to_world(unit.hex)
 	if not unit.path.is_empty():
 		point = point.lerp(world_map.hex_to_world(unit.path[0]), unit.progress)
@@ -84,13 +105,43 @@ func unit_position(unit: UnitState) -> Vector2:
 		point += Vector2(14, 14)
 	return to_local(point)
 
+func unit_position(unit: UnitState) -> Vector2:
+	return _base_position(unit) + UnitVisuals.offset(unit, units)
+
+func group_position(batch: Dictionary, batches: Array[Dictionary], zoom_factor: float) -> Vector2:
+	var point: Vector2 = Vector2.ZERO
+	for member in batch["members"]:
+		point += _base_position(member)
+	var spacing: float = 1.8 if UnitVisuals.tier(zoom_factor) == "medium" else 1.0
+	return point / batch["members"].size() + UnitVisuals.group_offset(batch, batches) * spacing / maxf(zoom_factor, 0.15)
+
 
 func pick(global_point: Vector2, zoom_factor: float) -> UnitState:
+	return pick_faction(global_point, zoom_factor, 1)
+
+func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, cycle: bool = false) -> UnitState:
+	if UnitVisuals.tier(zoom_factor) != "close":
+		var batches: Array[Dictionary] = UnitVisuals.groups(units)
+		var members: Array = []
+		var best_group: float = 17.0 / maxf(zoom_factor, 0.15)
+		for batch in batches:
+			var distance: float = group_position(batch, batches, zoom_factor).distance_to(to_local(global_point))
+			if batch["faction"] == faction and distance < best_group:
+				best_group = distance
+				members = batch["members"]
+		if members.is_empty():
+			return null
+		if cycle:
+			_pick_index = (_pick_index + 1) % members.size() if members == _last_pick_members else 0
+			_last_pick_members = members.duplicate()
+		else:
+			return members[0]
+		return members[_pick_index]
 	var nearest: UnitState = null
 	var best: float = maxf(10.0, 9.0 / zoom_factor)
 	for unit in units:
 		var distance: float = unit_position(unit).distance_to(to_local(global_point))
-		if unit.faction != 1:
+		if unit.faction != faction or not unit.is_alive():
 			continue
 		if distance < best:
 			best = distance
@@ -101,9 +152,14 @@ func pick(global_point: Vector2, zoom_factor: float) -> UnitState:
 func _physics_process(delta: float) -> void:
 	if world_map == null or match_state.result != "playing":
 		return
+	animation_time += delta
+	for unit in units:
+		unit.attack_flash = maxf(0, unit.attack_flash - delta)
+		unit.damage_flash = maxf(0, unit.damage_flash - delta)
+	var economies: Array[EconomyState] = [economy, match_state.rival_economy]
+	UnitOrders.update(units, world_map.map_data["tiles"], economies)
 	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units, economy.buildings)
 	combat_targets = CombatState.advance(delta, units, world_map.map_data["tiles"], FortificationRules.protection(units, [economy, match_state.rival_economy], territory))
-	var economies: Array[EconomyState] = [economy, match_state.rival_economy]
 	CombatState.attack_extractors(delta, units, economies, combat_targets, world_map.map_data["tiles"])
 	for index in range(units.size() - 1, -1, -1):
 		if not units[index].is_alive():
@@ -111,6 +167,9 @@ func _physics_process(delta: float) -> void:
 			if selected == units[index]:
 				selected = selected_units[0] if not selected_units.is_empty() else null
 			units.remove_at(index)
+	for unit in units:
+		if unit.attack_target != null and not units.has(unit.attack_target.get_ref()):
+			unit.order_hold()
 	# No capture credit on the tick a squad arrives.
 	territory.advance(delta, world_map.map_data["tiles"], units)
 	match_state.evaluate(territory)
@@ -178,23 +237,45 @@ func _draw() -> void:
 			points.append(to_local(world_map.hex_to_world(hex)))
 		draw_polyline(points, Color("fff0ad"), 2.0, true)
 		draw_arc(points[-1], 8.0, 0.0, TAU, 24, Color("fff0ad"), 2.0, true)
-	for unit in units:
-		var point: Vector2 = unit_position(unit)
-		if unit == selected or selected_units.has(unit):
-			draw_arc(point, 13.0, 0.0, TAU, 24, Color("fff0ad"), 2.0, true)
-		draw_circle(point, 9.0, Color("071522"))
-		draw_circle(point, 6.5, faction_color(unit.faction))
-		if unit.kind == "tank":
-			draw_rect(Rect2(point - Vector2(7, 5), Vector2(14, 10)), faction_color(unit.faction))
-			draw_line(point, point + Vector2(12, 0), faction_color(unit.faction), 3.0)
-		draw_rect(Rect2(point + Vector2(-10, -17), Vector2(20, 3)), Color("071522"))
-		draw_rect(Rect2(point + Vector2(-10, -17), Vector2(20.0 * unit.health / unit.max_health, 3)), faction_color(unit.faction))
-		if unit.garrisoned:
-			draw_rect(Rect2(point - Vector2(10, 10), Vector2(20, 20)), faction_color(unit.faction), false, 2.0)
-		if unit.holding:
-			draw_line(point + Vector2(-7, 12), point + Vector2(7, 12), Color("fff0ad"), 3.0)
-		draw_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("12364c"), 2.0)
-		draw_line(point + Vector2(-3, 3), point + Vector2(3, -3), Color("12364c"), 2.0)
+	_draw_units()
+
+func _draw_units() -> void:
+	var zoom_factor: float = get_canvas_transform().get_scale().x
+	var detail: String = UnitVisuals.tier(zoom_factor)
+	if detail == "close":
+		for unit in units:
+			UnitAppearance.draw_unit(self, unit, unit_position(unit), faction_color(unit.faction), selected_units.has(unit), animation_time)
+		return
+	var batches: Array[Dictionary] = UnitVisuals.groups(units)
+	for batch in batches:
+		var members: Array = batch["members"]
+		var point: Vector2 = group_position(batch, batches, zoom_factor)
+		var highlighted: bool = false
+		var injured: bool = false
+		var health_fraction: float = 1.0
+		for member in members:
+			highlighted = highlighted or selected_units.has(member)
+			injured = injured or member.health < member.max_health
+			health_fraction = minf(health_fraction, member.health / member.max_health)
+		var icon_scale: float = 1.0 / maxf(zoom_factor, 0.15)
+		if detail == "far":
+			UnitAppearance.draw_marker(self, batch["kind"], point, faction_color(batch["faction"]), members.size(), highlighted, icon_scale)
+			var leader: UnitState = members[0]
+			var heading: Vector2 = Vector2.from_angle(leader.facing)
+			draw_line(point + heading * 13 * icon_scale, point + heading * 18 * icon_scale, faction_color(batch["faction"]), 2 * icon_scale, true)
+			for member in members:
+				if member.damage_flash > 0:
+					draw_rect(Rect2(point - Vector2(11, 11) * icon_scale, Vector2(23, 26) * icon_scale), Color("fff5db"), false, icon_scale)
+				if member.attack_flash > 0:
+					draw_circle(point + heading * 20 * icon_scale, 2 * icon_scale, Color("ffe0a0"))
+		else:
+			for index in range(mini(3, members.size())):
+				var offset: Vector2 = Vector2(index * 7.0 - (mini(3, members.size()) - 1) * 3.5, index * 3.0) * icon_scale
+				UnitAppearance.draw_unit(self, members[index], point + offset, faction_color(batch["faction"]), highlighted, animation_time + index, 0.85 * icon_scale)
+			draw_string(ThemeDB.fallback_font, point + Vector2(-12, 21) * icon_scale, "%s %d" % [UnitCatalog.TYPES[batch["kind"]]["marker"], members.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, roundi(10 * icon_scale), faction_color(batch["faction"]))
+		if injured or highlighted:
+			draw_rect(Rect2(point + Vector2(-9, -15) * icon_scale, Vector2(18, 2) * icon_scale), UnitAppearance.INK)
+			draw_rect(Rect2(point + Vector2(-9, -15) * icon_scale, Vector2(18 * health_fraction, 2) * icon_scale), faction_color(batch["faction"]))
 
 
 func _draw_bunker_status(hex: Vector2i, owner_economy: EconomyState) -> void:

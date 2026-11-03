@@ -64,6 +64,9 @@ var radar: Control
 var structure_grid: GridContainer
 var infantry_grid: GridContainer
 var vehicle_grid: GridContainer
+var selection_info: Label
+var attack_button: Button
+var add_selection_button: Button
 
 
 func _ready() -> void:
@@ -72,8 +75,10 @@ func _ready() -> void:
 	_create_match_menu()
 	$Header/Margin/Content/Subtitle.text = "STRATEGIC COMMAND  /  PLAYER FACTION"
 	$Help/Margin/Content/HelpTitle.text = "FIELD ORDERS"
-	$Help/Margin/Content/DesktopHelp.text = "LEFT DRAG  Select • RIGHT CLICK  Move / rally"
-	$Help/Margin/Content/TouchHelp.text = "MIDDLE / RIGHT DRAG  Pan • WHEEL  Zoom • G  Garrison"
+	$Help/Margin/Content/DesktopHelp.text = "LEFT DRAG  Select • SHIFT CLICK  Add • RIGHT CLICK  Move / attack"
+	$Help/Margin/Content/TouchHelp.text = "TOUCH  Tap select/move • Add selection / Attack buttons • Drag pan • Pinch zoom"
+	$Help/Margin/Content/TouchHelp.show()
+	$Help/Margin/Content/DesktopHelp.show()
 	$Help/Margin/Content/DesktopHelp.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	$Help/Margin/Content/TouchHelp.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tile_info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -403,6 +408,21 @@ func _create_build_menu() -> void:
 		order_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		order_button.pressed.connect(func() -> void: defensive_order_requested.emit(action))
 		defensive_orders.add_child(order_button)
+	var command_orders: HBoxContainer = HBoxContainer.new()
+	column.add_child(command_orders)
+	attack_button = Button.new()
+	attack_button.text = "Attack (X)"
+	attack_button.custom_minimum_size.y = 44
+	attack_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	attack_button.pressed.connect(func() -> void: defensive_order_requested.emit("attack"))
+	command_orders.add_child(attack_button)
+	add_selection_button = Button.new()
+	add_selection_button.text = "Add selection"
+	add_selection_button.toggle_mode = true
+	add_selection_button.custom_minimum_size.y = 44
+	add_selection_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_selection_button.pressed.connect(func() -> void: defensive_order_requested.emit("add_select"))
+	command_orders.add_child(add_selection_button)
 	command_tabs = TabContainer.new()
 	command_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(command_tabs)
@@ -416,6 +436,9 @@ func _create_build_menu() -> void:
 		page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		page_scroll.add_child(page)
 		pages.append(page)
+	selection_info = Label.new()
+	selection_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pages[1].add_child(selection_info)
 	structure_grid = GridContainer.new()
 	structure_grid.columns = 2
 	pages[0].add_child(structure_grid)
@@ -484,12 +507,13 @@ func _create_build_menu() -> void:
 	sell_button.pressed.connect(func() -> void: building_action_requested.emit("sell", _cancel_hex, _cancel_site))
 	column.add_child(sell_button)
 	sell_button.hide()
-	for kind in ["rifle", "tank"]:
+	for kind in UnitCatalog.TYPES:
 		var button: Button = Button.new()
-		button.text = "%s • %d • %ds" % ["Rifle squad" if kind == "rifle" else "Tank", EconomyState.TRAIN_COSTS[kind], EconomyState.TRAIN_SECONDS[kind]]
+		button.text = "%s\n%d CR / %ds" % [UnitCatalog.TYPES[kind]["name"], EconomyState.TRAIN_COSTS[kind], EconomyState.TRAIN_SECONDS[kind]]
+		button.tooltip_text = "%s: %.0f HP; %.2fs/hex; %.0f damage / %.2fs; range %d\nDamage vs infantry x%.2f, armor x%.2f" % [UnitCatalog.TYPES[kind]["name"], UnitCatalog.TYPES[kind]["health"], UnitCatalog.TYPES[kind]["speed"], UnitCatalog.TYPES[kind]["damage"], UnitCatalog.TYPES[kind]["cooldown"], UnitCatalog.TYPES[kind]["range"], UnitCatalog.TYPES[kind]["infantry"], UnitCatalog.TYPES[kind]["armor"]]
 		button.custom_minimum_size.y = 44
 		button.pressed.connect(func() -> void: train_requested.emit(kind))
-		(infantry_grid if kind == "rifle" else vehicle_grid).add_child(button)
+		(infantry_grid if UnitCatalog.is_infantry(kind) else vehicle_grid).add_child(button)
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.custom_minimum_size.y = 72
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -497,6 +521,21 @@ func _create_build_menu() -> void:
 	build_panel.show()
 	_set_command_cursors(build_panel)
 
+
+func show_selection(roster: Array[UnitState], attack_mode: bool) -> void:
+	attack_button.text = "Cancel attack" if attack_mode else "Attack (X)"
+	attack_button.disabled = roster.is_empty()
+	if roster.is_empty():
+		selection_info.text = "No units selected. Tap a soldier or drag a selection box."
+		return
+	var counts: Dictionary = {}
+	for unit in roster:
+		counts[unit.kind] = counts.get(unit.kind, 0) + 1
+	var labels: PackedStringArray = []
+	for kind in counts:
+		labels.append("%s: %d" % [UnitCatalog.TYPES[kind]["name"], counts[kind]])
+	var primary: UnitState = roster[0]
+	selection_info.text = "%d selected | %s\n%s: %.0f / %.0f HP\n%.0f damage / %.2fs | Range %d\n%.2fs/hex | %s" % [roster.size(), ", ".join(labels), UnitCatalog.TYPES[primary.kind]["name"], primary.health, primary.max_health, primary.damage, primary.cooldown, primary.attack_range, primary.seconds_per_hex, "Garrisoned" if primary.garrisoned else ("Holding" if primary.holding else ("Attacking" if primary.attack_order else "Mobile"))]
 
 func _set_command_cursors(node: Node) -> void:
 	if node is BaseButton:
@@ -539,7 +578,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 		build_buttons[kind].text = "%s\n%d CR  /  %ds" % [String(kind).capitalize(), EconomyState.BUILD_COSTS[kind], EconomyState.BUILD_SECONDS[kind]]
 		build_buttons[kind].tooltip_text = "%s\n%s%s" % [power_text, requirement, unavailable]
 	for kind in train_buttons:
-		var compatible: bool = has_building and EconomyState.is_complete(economy.buildings[hex]) and economy.buildings[hex]["kind"] == ("barracks" if kind == "rifle" else "factory")
+		var compatible: bool = has_building and EconomyState.is_complete(economy.buildings[hex]) and economy.buildings[hex]["kind"] == UnitCatalog.producer(kind)
 		train_buttons[kind].visible = true
 		train_buttons[kind].disabled = not compatible or not economy.account.can_afford(EconomyState.TRAIN_COSTS[kind]) or economy.buildings[hex]["queue"].size() >= 5
 	if has_building:

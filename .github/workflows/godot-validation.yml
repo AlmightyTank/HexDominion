@@ -1,0 +1,35 @@
+name: Godot validation
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GODOT_VERSION: 4.7.2
+      LIBGL_ALWAYS_SOFTWARE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Godot
+        run: |
+          curl --fail --location --retry 3 -o godot.zip "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          ln -s "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$RUNNER_TEMP/godot/godot"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+      - name: Import and parse
+        run: godot --headless --path . --editor --quit
+      - name: Smoke and simulation regressions
+        run: godot --headless --path . --script res://tests/run_smoke_tests.gd
+      - name: HUD regressions
+        run: godot --headless --path . --script res://tests/hud_tests.gd
+      - name: Startup
+        run: godot --headless --path . --quit-after 10
+      - name: Render zoom and feedback fixtures
+        run: xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/infantry_visual_test.gd -- --output="$RUNNER_TEMP/infantry-visuals"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: infantry-visual-review
+          path: ${{ runner.temp }}/infantry-visuals/*.png

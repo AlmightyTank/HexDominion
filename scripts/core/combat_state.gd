@@ -1,6 +1,19 @@
 extends RefCounted
 class_name CombatState
-## Continuous DPS resolved simultaneously. Stable roster order breaks distance ties.
+## Cooldown volleys resolved simultaneously. Stable roster order breaks distance ties.
+
+static func _volley(attacker: UnitState, delta: float) -> float:
+	attacker.weapon_elapsed += delta
+	var shots: int = floori((attacker.weapon_elapsed + 0.000000001) / maxf(0.001, attacker.cooldown))
+	attacker.weapon_elapsed = maxf(0, attacker.weapon_elapsed - shots * attacker.cooldown)
+	if shots > 0:
+		attacker.shot_serial += shots
+		attacker.attack_flash = 0.14
+	return shots * attacker.damage
+
+static func _face(attacker: UnitState, hex: Vector2i) -> void:
+	if attacker.hex != hex:
+		attacker.facing = (HexMath.axial_to_world(hex, 1.0) - HexMath.axial_to_world(attacker.hex, 1.0)).angle()
 
 static func advance(delta: float, units: Array[UnitState], tiles: Dictionary = {}, protection: Dictionary = {}) -> Dictionary:
 	var targets: Dictionary = {}
@@ -12,18 +25,22 @@ static func advance(delta: float, units: Array[UnitState], tiles: Dictionary = {
 			continue
 		var target: UnitState = null
 		var best: int = attacker.attack_range + 1
+		var ordered: UnitState = attacker.attack_target.get_ref() if attacker.attack_target != null else null
 		for candidate in units:
 			if not candidate.is_alive() or candidate.faction == attacker.faction:
 				continue
 			var distance: int = HexMath.distance(attacker.hex, candidate.hex)
-			if distance < best:
+			if distance <= attacker.attack_range and (candidate == ordered or ((ordered == null or target != ordered) and distance < best)):
 				best = distance
 				target = candidate
 		if target != null:
 			targets[attacker] = target
+			_face(attacker, target.hex)
 			var modifier: float = TerrainRules.attack_multiplier(tiles.get(attacker.hex, {}), attacker.kind) * TerrainRules.defense_multiplier(tiles.get(target.hex, {}), target.kind, target.path.is_empty())
-			damage[target] = damage.get(target, 0.0) + attacker.damage_per_second * delta * modifier * protection.get(target, 1.0)
+			damage[target] = damage.get(target, 0.0) + _volley(attacker, delta) * UnitCatalog.counter(attacker.kind, target.kind) * modifier * protection.get(target, 1.0)
 	for target in damage:
+		if damage[target] > 0:
+			target.damage_flash = 0.18
 		target.health = maxf(0.0, target.health - damage[target])
 	return targets
 
@@ -44,14 +61,17 @@ static func attack_extractors(delta: float, units: Array[UnitState], economies: 
 			for hex in economy.buildings:
 				var building: Dictionary = economy.buildings[hex]
 				var distance: int = HexMath.distance(attacker.hex, hex)
-				if building.get("health", EconomyState.BUILD_HEALTH[building["kind"]]) > 0 and distance < best:
+				var focused: bool = attacker.attack_order and attacker.attack_target == null and hex == attacker.attack_hex
+				var already_focused: bool = target_economy != null and attacker.attack_order and target_hex == attacker.attack_hex
+				if building.get("health", EconomyState.BUILD_HEALTH[building["kind"]]) > 0 and distance <= attacker.attack_range and (focused or (not already_focused and distance < best)):
 					best = distance
 					target_economy = economy
 					target_hex = hex
 		if target_economy != null:
+			_face(attacker, target_hex)
 			if not damage.has(target_economy):
 				damage[target_economy] = {}
-			damage[target_economy][target_hex] = damage[target_economy].get(target_hex, 0.0) + attacker.damage_per_second * delta * TerrainRules.attack_multiplier(tiles.get(attacker.hex, {}), attacker.kind)
+			damage[target_economy][target_hex] = damage[target_economy].get(target_hex, 0.0) + _volley(attacker, delta) * TerrainRules.attack_multiplier(tiles.get(attacker.hex, {}), attacker.kind)
 	for economy in damage:
 		for hex in damage[economy]:
 			economy.damage_building(hex, damage[economy][hex])

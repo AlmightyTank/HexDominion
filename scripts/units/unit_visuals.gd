@@ -1,0 +1,42 @@
+extends RefCounted
+class_name UnitVisuals
+## Presentation-only batches. Members always remain independent simulation objects.
+const FAR_ZOOM: float = 0.65
+const CLOSE_ZOOM: float = 1.5
+
+static func tier(zoom_factor: float) -> String:
+	return "far" if zoom_factor < FAR_ZOOM else ("medium" if zoom_factor < CLOSE_ZOOM else "close")
+
+static func groups(units: Array[UnitState]) -> Array[Dictionary]:
+	var batches: Dictionary = {}
+	for unit in units:
+		if not unit.is_alive():
+			continue
+		var key: String = "%s:%s:%s" % [unit.hex, unit.faction, unit.kind]
+		if not batches.has(key):
+			batches[key] = {"kind": unit.kind, "faction": unit.faction, "hex": unit.hex, "members": []}
+		batches[key]["members"].append(unit)
+	var result: Array[Dictionary] = []
+	for batch in batches.values():
+		result.append(batch)
+	return result
+
+static func offset(unit: UnitState, units: Array[UnitState]) -> Vector2:
+	var peers: Array[UnitState] = []
+	for candidate in units:
+		if candidate.is_alive() and candidate.hex == unit.hex:
+			peers.append(candidate)
+	var slot: int = peers.find(unit)
+	if peers.size() < 2 or slot < 0:
+		return Vector2.ZERO
+	return Vector2.from_angle(slot * TAU / mini(peers.size(), 6)) * (13.0 + floorf(slot / 6.0) * 17.0)
+
+static func group_offset(batch: Dictionary, batches: Array[Dictionary]) -> Vector2:
+	var peers: Array[Dictionary] = []
+	for candidate in batches:
+		if candidate["hex"] == batch["hex"]:
+			peers.append(candidate)
+	if peers.size() < 2:
+		return Vector2.ZERO
+	var slot: int = peers.find(batch)
+	return Vector2((slot % 3 - (mini(peers.size(), 3) - 1) * 0.5) * 25.0, (slot / 3 - (ceili(peers.size() / 3.0) - 1) * 0.5) * 28.0)
