@@ -8,41 +8,32 @@ const LIGHT: Color = Color("c6c7a3")
 static func _poly(canvas: CanvasItem, vertices: Array, color: Color) -> void:
 	canvas.draw_colored_polygon(PackedVector2Array(vertices), color)
 
-static func soldier(canvas: CanvasItem, unit: UnitState, accent: Color, phase: float) -> void:
-	var moving: bool = not unit.path.is_empty()
-	var stride: float = sin(phase * 16.0) * 2.0 if moving else sin(phase * 2.0) * 0.25
-	var recoil: float = -1.2 if unit.attack_flash > 0 else 0.0
-	canvas.draw_circle(Vector2(1, 2), 7, Color(0, 0, 0, 0.35))
-	# Split boots, tapered shoulders, backpack and faceted helmet retain a human outline.
-	canvas.draw_line(Vector2(-3, -2), Vector2(-6 + stride, -3), INK, 3.5)
-	canvas.draw_line(Vector2(-3, 2), Vector2(-6 - stride, 3), INK, 3.5)
-	_poly(canvas, [Vector2(-4, -4), Vector2(2, -6), Vector2(5, -3), Vector2(4, 4), Vector2(-4, 4)], CLOTH)
-	canvas.draw_rect(Rect2(-5, -3, 3, 6), Color("626e53"))
-	canvas.draw_line(Vector2(1, -5), Vector2(4, -3), accent, 2.5)
-	canvas.draw_line(Vector2(1, 4), Vector2(4, 3), accent, 2.5)
-	_poly(canvas, [Vector2(-1, -2), Vector2(2, -3), Vector2(5, -1), Vector2(5, 2), Vector2(1, 3)], LIGHT)
-	canvas.draw_line(Vector2(4, -1), Vector2(5, 1), INK, 1.5)
-	var muzzle: float = 13.0
-	if unit.kind == "rocket":
-		# A broad shoulder tube with flared warhead and rear exhaust, not a recolored rifle.
-		canvas.draw_rect(Rect2(-7 + recoil, -7, 17, 4), INK)
-		canvas.draw_rect(Rect2(-5 + recoil, -6.5, 13, 3), Color("8c9270"))
-		_poly(canvas, [Vector2(8 + recoil, -8), Vector2(14 + recoil, -5), Vector2(8 + recoil, -2)], LIGHT)
-		canvas.draw_line(Vector2(-7, -8), Vector2(-7, -2), accent, 2)
-		muzzle = 15.0
-	elif unit.kind == "gunner":
-		canvas.draw_rect(Rect2(3 + recoil, 2, 9, 3.5), INK)
-		canvas.draw_rect(Rect2(5 + recoil, 4, 4, 3), Color("b5a578"))
-		canvas.draw_line(Vector2(9 + recoil, 3), Vector2(18 + recoil, 3), INK, 2.5)
-		canvas.draw_line(Vector2(15, 3), Vector2(18, 7), INK, 1.2)
-		canvas.draw_line(Vector2(15, 3), Vector2(18, -1), INK, 1.2)
-		muzzle = 19.0
+const INFANTRY_RADIUS: float = 10.0
+
+static func infantry_icon(canvas: CanvasItem, kind: String) -> void:
+	if kind == "rocket":
+		canvas.draw_rect(Rect2(-7, -2, 12, 4), LIGHT)
+		_poly(canvas, [Vector2(5, -3), Vector2(9, 0), Vector2(5, 3)], LIGHT)
+		canvas.draw_line(Vector2(-7, -4), Vector2(-7, 4), LIGHT, 2)
+		canvas.draw_line(Vector2(-1, 2), Vector2(-2, 6), LIGHT, 2)
+	elif kind == "gunner":
+		canvas.draw_rect(Rect2(-6, -2, 9, 4), LIGHT)
+		canvas.draw_line(Vector2(3, 0), Vector2(9, 0), LIGHT, 2)
+		canvas.draw_rect(Rect2(-3, 2, 4, 4), LIGHT)
+		canvas.draw_line(Vector2(5, 1), Vector2(8, 6), LIGHT, 1.5)
+		canvas.draw_line(Vector2(5, 1), Vector2(3, 6), LIGHT, 1.5)
 	else:
-		canvas.draw_line(Vector2(3 + recoil, 3), Vector2(12 + recoil, 3), INK, 2.2)
-		canvas.draw_line(Vector2(6, 3), Vector2(5, 6), INK, 2)
-	if unit.attack_flash > 0:
-		var y: float = -5.0 if unit.kind == "rocket" else 3.0
-		_poly(canvas, [Vector2(muzzle, y - 3), Vector2(muzzle + 6, y), Vector2(muzzle, y + 3), Vector2(muzzle + 2, y)], Color("ffe0a0"))
+		_poly(canvas, [Vector2(-8, -2), Vector2(-3, -1), Vector2(-3, -3), Vector2(3, -3), Vector2(3, 0), Vector2(-3, 0), Vector2(-7, 2)], LIGHT)
+		canvas.draw_line(Vector2(2, -2), Vector2(8, -2), LIGHT, 2)
+		canvas.draw_line(Vector2(-1, 0), Vector2(-2, 5), LIGHT, 2)
+		canvas.draw_line(Vector2(2, 0), Vector2(1, 4), LIGHT, 2)
+
+static func infantry_marker(canvas: CanvasItem, kind: String, accent: Color, selected: bool) -> void:
+	canvas.draw_circle(Vector2.ZERO, INFANTRY_RADIUS, INK)
+	canvas.draw_arc(Vector2.ZERO, INFANTRY_RADIUS, 0, TAU, 24, accent, 1.8, true)
+	if selected:
+		canvas.draw_arc(Vector2.ZERO, INFANTRY_RADIUS + 3, 0, TAU, 24, Color("fff0ad"), 1.5, true)
+	infantry_icon(canvas, kind)
 
 static func tracked(canvas: CanvasItem, unit: UnitState, accent: Color, phase: float) -> void:
 	canvas.draw_rect(Rect2(-9, -7, 18, 4), INK)
@@ -61,11 +52,13 @@ static func tracked(canvas: CanvasItem, unit: UnitState, accent: Color, phase: f
 static func draw_unit(canvas: CanvasItem, unit: UnitState, point: Vector2, accent: Color, selected: bool, phase: float, size_scale: float = 1.0) -> void:
 	if selected:
 		canvas.draw_arc(point, 12 * size_scale, 0, TAU, 24, Color("fff0ad"), 1.4 * size_scale, true)
-	canvas.draw_set_transform(point, unit.facing, Vector2.ONE * size_scale)
+	canvas.draw_set_transform(point, 0.0 if UnitCatalog.is_infantry(unit.kind) else unit.facing, Vector2.ONE * size_scale)
 	if UnitCatalog.TYPES[unit.kind]["appearance"] == "tracked":
 		tracked(canvas, unit, accent, phase)
 	else:
-		soldier(canvas, unit, accent, phase)
+		infantry_marker(canvas, unit.kind, accent, false)
+		if unit.attack_flash > 0:
+			canvas.draw_arc(Vector2.ZERO, 11, -0.4, 0.4, 6, Color("ffe0a0"), 2, true)
 	if unit.damage_flash > 0:
 		canvas.draw_arc(Vector2.ZERO, 8, 0, TAU, 16, Color("fff5db"), 2, true)
 	canvas.draw_set_transform(Vector2.ZERO)
@@ -77,6 +70,13 @@ static func draw_unit(canvas: CanvasItem, unit: UnitState, point: Vector2, accen
 
 static func draw_marker(canvas: CanvasItem, kind: String, center: Vector2, accent: Color, count: int, selected: bool, scale_factor: float) -> void:
 	canvas.draw_set_transform(center, 0, Vector2.ONE * scale_factor)
+	if UnitCatalog.is_infantry(kind):
+		infantry_marker(canvas, kind, accent, selected)
+		if count > 1:
+			canvas.draw_circle(Vector2(9, 9), 6, INK)
+			canvas.draw_string(ThemeDB.fallback_font, Vector2(6, 12), str(count), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color("f5efdb"))
+		canvas.draw_set_transform(Vector2.ZERO)
+		return
 	canvas.draw_rect(Rect2(-10, -10, 21, 24), INK)
 	canvas.draw_rect(Rect2(-10, -10, 21, 24), Color("fff0ad") if selected else accent, false, 1.3)
 	if kind == "rifle":

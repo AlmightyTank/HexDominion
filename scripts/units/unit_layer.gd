@@ -258,14 +258,14 @@ func _draw_units() -> void:
 			injured = injured or member.health < member.max_health
 			health_fraction = minf(health_fraction, member.health / member.max_health)
 		var icon_scale: float = 1.0 / maxf(zoom_factor, 0.15)
-		if detail == "far":
+		if UnitCatalog.is_infantry(batch["kind"]):
 			UnitAppearance.draw_marker(self, batch["kind"], point, faction_color(batch["faction"]), members.size(), highlighted, icon_scale)
 			var leader: UnitState = members[0]
 			var heading: Vector2 = Vector2.from_angle(leader.facing)
 			draw_line(point + heading * 13 * icon_scale, point + heading * 18 * icon_scale, faction_color(batch["faction"]), 2 * icon_scale, true)
 			for member in members:
 				if member.damage_flash > 0:
-					draw_rect(Rect2(point - Vector2(11, 11) * icon_scale, Vector2(23, 26) * icon_scale), Color("fff5db"), false, icon_scale)
+					draw_arc(point, 11 * icon_scale, 0, TAU, 24, Color("fff5db"), icon_scale, true)
 				if member.attack_flash > 0:
 					draw_circle(point + heading * 20 * icon_scale, 2 * icon_scale, Color("ffe0a0"))
 		else:
