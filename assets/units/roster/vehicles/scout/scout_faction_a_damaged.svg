@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Scout Vehicle: faction a, damaged</title>
+  <title>Hex Dominion scout vehicle, facing north</title>
+  <desc>Original overhead light recon buggy with four exposed wheels, narrow olive body, open cabin, light mounted weapon, and teal hood panel. Transparent background.</desc>
+  <g stroke="#202a28" stroke-width="3" stroke-linejoin="round">
+    <path d="M41 43h46M41 94h46" stroke="#405b70" stroke-width="5"/>
+    <g fill="#303936">
+      <rect x="33" y="31" width="13" height="25" rx="4"/>
+      <rect x="82" y="31" width="13" height="25" rx="4"/>
+      <rect x="33" y="82" width="13" height="25" rx="4"/>
+      <rect x="82" y="82" width="13" height="25" rx="4"/>
+    </g>
+    <path d="M36 37v13m53-13v13M36 88v13m53-13v13" stroke="#738d9d" stroke-width="2"/>
+    <path d="M53 25h22l7 16v58l-7 10H53l-7-10V41Z" fill="#738d9d"/>
+    <path d="M53 25h6l-6 17v56l6 11h-6l-7-10V41Z" fill="#bed3dc" stroke="none"/>
+    <path d="M75 25l7 16v58l-7 10H59v-8h16V42l-5-17Z" fill="#405b70" stroke="none"/>
+    <path d="M49 29h30M48 108h32" fill="none" stroke-width="4"/>
+    <path d="M54 36h20l3 13H51Z" fill="#55aff0" stroke-width="2"/>
+    <path d="M51 53h26v30H51Z" fill="#405b70" stroke-width="2"/>
+    <path d="M53 55h22v6H53Z" fill="#bed3dc" stroke="none"/>
+    <path d="M56 68h6v11h-6Zm11 0h6v11h-6Z" fill="#738d9d" stroke-width="2"/>
+    <path d="M49 64h30M49 84h30" stroke="#bed3dc" stroke-width="3"/>
+    <path d="M49 64v20m30-20v20" stroke="#405b70" stroke-width="3"/>
+    <!-- Offset pintle gun, not a heavy enclosed turret. -->
+    <circle cx="73" cy="76" r="4" fill="#405b70" stroke-width="2"/>
+    <path d="M70 60h6v17h-6Z" fill="#405b70" stroke-width="2"/>
+    <path d="M73 43v18" stroke="#202a28" stroke-width="4"/>
+    <path d="M73 44v14" stroke="#bed3dc" stroke-width="1"/>
+    <path d="M55 91h18v10H55Z" fill="#405b70" stroke-width="2"/>
+    <path d="M58 94h12" stroke="#bed3dc" stroke-width="2"/>
+    <path d="M51 30h5m16 0h5" stroke="#bed3dc" stroke-width="2"/>
+  </g>
+<path d="M52 92 L64 98 L76 92 L64 104 Z" fill="#55aff0" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/><path d="M45 70 L59 63 L72 72 L63 88 L46 83 Z" fill="#292825" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/><path d="M47 40 L60 52 L55 62 L70 70" fill="none" stroke="#202a28" stroke-width="4" stroke-linejoin="round"/></svg>

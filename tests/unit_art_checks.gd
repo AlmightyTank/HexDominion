@@ -1,0 +1,71 @@
+extends SceneTree
+
+var failures: int = 0
+var checks: int = 0
+
+func check(ok: bool, description: String) -> void:
+	checks += 1
+	if not ok:
+		failures += 1
+		push_error(description)
+
+func _init() -> void:
+	call_deferred("run")
+
+func run() -> void:
+	check(UnitArt.CATEGORIES.size() == 13, "Full visual roster")
+	for kind in UnitArt.CATEGORIES:
+		var faction_images: Array[PackedByteArray] = []
+		for faction in range(1, 4):
+			var states: Array[PackedByteArray] = []
+			for state in ["base", "damaged", "destroyed", "icon"]:
+				var path: String = UnitArt.asset_path(kind, faction, state)
+				var texture: Texture2D = UnitArt.texture(kind, faction, state)
+				check(texture != null, "Load " + path)
+				if texture == null:
+					continue
+				var image: Image = texture.get_image()
+				check(image.get_size() == Vector2i(128, 128), "Dimensions " + path)
+				check(image.get_pixel(0, 0).a == 0 and image.get_pixel(127, 127).a == 0, "Transparent corners " + path)
+				check(image.get_used_rect().has_area(), "Nonempty " + path)
+				states.append(image.get_data())
+			check(states[0] != states[1] and states[1] != states[2], "Distinct damage states " + kind)
+			faction_images.append(states[0])
+		check(faction_images[0] != faction_images[1] and faction_images[1] != faction_images[2], "Distinct factions " + kind)
+	check(UnitArt.state_for(100, 100) == "base", "Healthy query")
+	check(UnitArt.state_for(99, 100) == "damaged", "Damaged query")
+	check(UnitArt.state_for(0, 100) == "destroyed", "Destroyed query")
+	check(UnitArt.texture("unknown", 1) == null, "Unknown placeholder support")
+	var game: Node2D = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+	game.units.set_physics_process(false)
+	var home: Vector2i = game.units.units[0].hex
+	game.units.units.clear()
+	for kind in UnitCatalog.TYPES:
+		for faction in [1, 2, 3]:
+			for index in range(2):
+				var unit: UnitState = UnitState.new(home)
+				unit.configure_kind(kind)
+				unit.faction = faction
+				game.units.units.append(unit)
+	var before: Array[UnitState] = game.units.units.duplicate()
+	for zoom_factor in [0.45, 1.0, 2.3]:
+		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * zoom_factor)
+		var batches: Array[Dictionary] = UnitVisuals.groups(game.units.units)
+		var count: int = 0
+		for batch in batches:
+			count += batch["members"].size()
+		check(batches.size() == 12 and count == 24, "Mixed army exact counts at " + str(zoom_factor))
+		check(game.units.units == before, "Zoom preserves identities and roster")
+		var point: Vector2 = game.units.group_position(batches[0], batches, zoom_factor) if zoom_factor < 1.5 else game.units.unit_position(before[0])
+		check(game.units.pick_faction(game.units.to_global(point), zoom_factor, 1) != null, "Mouse/touch shared pick anchor")
+	var lost: UnitState = before[0]
+	lost.health = 0
+	game.units._physics_process(0.01)
+	check(not game.units.units.has(lost) and game.units.wrecks.size() == 1, "Death produces cosmetic snapshot only")
+	game.units.match_state.result = "victory"
+	game.units._physics_process(9.0)
+	check(game.units.wrecks.is_empty(), "Wreck expires")
+	game.free()
+	print("Unit art: %d checks, %d failures" % [checks, failures])
+	quit(1 if failures else 0)

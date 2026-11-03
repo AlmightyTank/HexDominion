@@ -8,6 +8,9 @@ var units: Array[UnitState] = []
 var selected: UnitState
 var selected_units: Array[UnitState] = []
 var animation_time: float = 0.0
+var wrecks: Array[Dictionary] = []
+const WRECK_SECONDS: float = 8.0
+const MAX_WRECKS: int = 128
 var _last_pick_members: Array = []
 var _pick_index: int = 0
 
@@ -150,7 +153,14 @@ func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, cycle
 
 
 func _physics_process(delta: float) -> void:
+	var had_wrecks: bool = not wrecks.is_empty()
+	for index in range(wrecks.size() - 1, -1, -1):
+		wrecks[index]["remaining"] -= delta
+		if wrecks[index]["remaining"] <= 0:
+			wrecks.remove_at(index)
 	if world_map == null or match_state.result != "playing":
+		if had_wrecks:
+			queue_redraw()
 		return
 	animation_time += delta
 	for unit in units:
@@ -163,6 +173,10 @@ func _physics_process(delta: float) -> void:
 	CombatState.attack_extractors(delta, units, economies, combat_targets, world_map.map_data["tiles"])
 	for index in range(units.size() - 1, -1, -1):
 		if not units[index].is_alive():
+			var lost: UnitState = units[index]
+			wrecks.append({"kind": lost.kind, "faction": lost.faction, "position": unit_position(lost), "facing": lost.facing, "remaining": WRECK_SECONDS})
+			if wrecks.size() > MAX_WRECKS:
+				wrecks.pop_front()
 			selected_units.erase(units[index])
 			if selected == units[index]:
 				selected = selected_units[0] if not selected_units.is_empty() else null
@@ -243,6 +257,8 @@ func _draw_units() -> void:
 	var zoom_factor: float = get_canvas_transform().get_scale().x
 	var detail: String = UnitVisuals.tier(zoom_factor)
 	if detail == "close":
+		for wreck in wrecks:
+			UnitArt.draw(self, wreck["kind"], wreck["faction"], "destroyed", wreck["position"], wreck["facing"])
 		for unit in units:
 			UnitAppearance.draw_unit(self, unit, unit_position(unit), faction_color(unit.faction), selected_units.has(unit), animation_time)
 		return
@@ -258,8 +274,11 @@ func _draw_units() -> void:
 			injured = injured or member.health < member.max_health
 			health_fraction = minf(health_fraction, member.health / member.max_health)
 		var icon_scale: float = 1.0 / maxf(zoom_factor, 0.15)
-		if UnitCatalog.is_infantry(batch["kind"]):
-			UnitAppearance.draw_marker(self, batch["kind"], point, faction_color(batch["faction"]), members.size(), highlighted, icon_scale)
+		if detail == "far":
+			UnitAppearance.strategic(self, batch["kind"], batch["faction"], point, members.size(), highlighted, injured, icon_scale)
+		elif UnitCatalog.is_infantry(batch["kind"]):
+			UnitArt.draw(self, batch["kind"], batch["faction"], "damaged" if injured else "base", point, 0, highlighted, 28 * icon_scale)
+			draw_string(ThemeDB.fallback_font, point + Vector2(9, 18) * icon_scale, str(members.size()), HORIZONTAL_ALIGNMENT_LEFT, -1, roundi(11 * icon_scale), Color("f5efdb"))
 			var leader: UnitState = members[0]
 			var heading: Vector2 = Vector2.from_angle(leader.facing)
 			draw_line(point + heading * 13 * icon_scale, point + heading * 18 * icon_scale, faction_color(batch["faction"]), 2 * icon_scale, true)

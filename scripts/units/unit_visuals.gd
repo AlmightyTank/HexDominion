@@ -29,7 +29,7 @@ static func offset(unit: UnitState, units: Array[UnitState]) -> Vector2:
 	var slot: int = peers.find(unit)
 	if peers.size() < 2 or slot < 0:
 		return Vector2.ZERO
-	return Vector2.from_angle(slot * TAU / mini(peers.size(), 6)) * (13.0 + floorf(slot / 6.0) * 17.0)
+	return Vector2.from_angle(slot * TAU / mini(peers.size(), 6)) * (28.0 + floorf(slot / 6.0) * 30.0)
 
 static func group_offset(batch: Dictionary, batches: Array[Dictionary]) -> Vector2:
 	var peers: Array[Dictionary] = []
@@ -39,4 +39,4 @@ static func group_offset(batch: Dictionary, batches: Array[Dictionary]) -> Vecto
 	if peers.size() < 2:
 		return Vector2.ZERO
 	var slot: int = peers.find(batch)
-	return Vector2((slot % 3 - (mini(peers.size(), 3) - 1) * 0.5) * 25.0, (slot / 3 - (ceili(peers.size() / 3.0) - 1) * 0.5) * 28.0)
+	return Vector2((slot % 3 - (mini(peers.size(), 3) - 1) * 0.5) * 42.0, (slot / 3 - (ceili(peers.size() / 3.0) - 1) * 0.5) * 42.0)

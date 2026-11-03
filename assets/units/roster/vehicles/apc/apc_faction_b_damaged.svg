@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>APC: faction b, damaged</title>
+  <title>Hex Dominion armored personnel carrier, facing north</title>
+  <desc>Original overhead eight-wheel armored transport with a rectangular enclosed troop compartment, rear ramp, small forward turret, and teal faction panels. Transparent background.</desc>
+  <g stroke="#202a28" stroke-width="3" stroke-linejoin="round">
+    <!-- Four separated wheel pairs distinguish transport from tank tracks. -->
+    <g fill="#303936">
+      <rect x="23" y="27" width="14" height="18" rx="3"/>
+      <rect x="91" y="27" width="14" height="18" rx="3"/>
+      <rect x="23" y="49" width="14" height="18" rx="3"/>
+      <rect x="91" y="49" width="14" height="18" rx="3"/>
+      <rect x="23" y="71" width="14" height="18" rx="3"/>
+      <rect x="91" y="71" width="14" height="18" rx="3"/>
+      <rect x="23" y="93" width="14" height="18" rx="3"/>
+      <rect x="91" y="93" width="14" height="18" rx="3"/>
+    </g>
+    <path d="M26 32v8m73-8v8M26 54v8m73-8v8M26 76v8m73-8v8M26 98v8m73-8v8" stroke="#626369" stroke-width="2"/>
+    <path d="M43 19h42l9 14v75l-7 8H41l-7-8V33Z" fill="#626369"/>
+    <path d="M43 19h7l-8 17v69l6 11h-7l-7-8V33Z" fill="#929298" stroke="none"/>
+    <path d="m85 19 9 14v75l-7 8H48v-8h38V35l-8-16Z" fill="#383e46" stroke="none"/>
+    <path d="M44 26h40" stroke="#929298" stroke-width="2"/>
+    <path d="M42 32h13v7H42Zm31 0h13v7H73Z" fill="#929298" stroke-width="2"/>
+    <!-- The large uninterrupted rear roof is the troop compartment. -->
+    <path d="M43 61h42v42H43Z" fill="#626369" stroke-width="2"/>
+    <path d="M44 62h7v39h-7Z" fill="#929298" stroke="none"/>
+    <path d="M78 62h6v39h-6Z" fill="#383e46" stroke="none"/>
+    <path d="M54 69h20v23H54Z" fill="#626369" stroke-width="2"/>
+    <path d="M64 70v21" stroke="#383e46" stroke-width="2"/>
+    <path d="M58 80v5m12-5v5" stroke="#929298" stroke-width="2"/>
+    <path d="M44 65h6v33h-6Zm34 0h6v33h-6Z" fill="#f08075" stroke="none"/>
+    <path d="M49 105h30v11H49Z" fill="#383e46" stroke-width="2"/>
+    <path d="M54 109h20m-20 4h20" stroke="#929298" stroke-width="2"/>
+    <!-- A compact defensive mount leaves the transport roof dominant. -->
+    <path d="M57 43q7-4 14 0l3 8-3 7H57l-3-7Z" fill="#626369" stroke-width="2"/>
+    <path d="M61 31h6v16h-6Z" fill="#383e46" stroke-width="2"/>
+    <path d="M63 33v10" stroke="#929298" stroke-width="1"/>
+    <path d="M40 25h5m38 0h5" stroke="#929298" stroke-width="2"/>
+  </g>
+<rect x="49" y="92" width="30" height="13" rx="2" fill="#f08075" stroke="#202a28" stroke-width="3"/><circle cx="54" cy="98" r="2" fill="#929298"/><circle cx="74" cy="98" r="2" fill="#929298"/><path d="M45 70 L59 63 L72 72 L63 88 L46 83 Z" fill="#292825" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/><path d="M47 40 L60 52 L55 62 L70 70" fill="none" stroke="#202a28" stroke-width="4" stroke-linejoin="round"/></svg>

@@ -177,6 +177,7 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		if target_index >= 0:
 			roster[index].attack_target = weakref(roster[target_index])
 	layer.units = roster
+	layer.wrecks.clear()
 	for hex in layer.world_map.map_data["tiles"]:
 		layer.world_map.map_data["tiles"][hex].erase("road")
 	for hex in data.get("roads", {}):

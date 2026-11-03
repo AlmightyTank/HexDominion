@@ -1,0 +1,252 @@
+{
+  "source": "Original deterministic vector artwork; no external assets",
+  "units": {
+    "rifle": {
+      "category": "infantry",
+      "name": "Rifleman",
+      "silhouette": "rifle",
+      "files": [
+        "assets/units/roster/infantry/rifle/rifle_faction_a_base.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_a_damaged.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_a_destroyed.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_a_icon.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_b_base.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_b_damaged.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_b_destroyed.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_b_icon.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_c_base.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_c_damaged.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_c_destroyed.svg",
+        "assets/units/roster/infantry/rifle/rifle_faction_c_icon.svg"
+      ]
+    },
+    "rocket": {
+      "category": "infantry",
+      "name": "Rocket Soldier",
+      "silhouette": "launcher tube",
+      "files": [
+        "assets/units/roster/infantry/rocket/rocket_faction_a_base.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_a_damaged.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_a_destroyed.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_a_icon.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_b_base.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_b_damaged.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_b_destroyed.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_b_icon.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_c_base.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_c_damaged.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_c_destroyed.svg",
+        "assets/units/roster/infantry/rocket/rocket_faction_c_icon.svg"
+      ]
+    },
+    "gunner": {
+      "category": "infantry",
+      "name": "Machine Gunner",
+      "silhouette": "machine gun and bipod",
+      "files": [
+        "assets/units/roster/infantry/gunner/gunner_faction_a_base.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_a_damaged.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_a_destroyed.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_a_icon.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_b_base.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_b_damaged.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_b_destroyed.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_b_icon.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_c_base.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_c_damaged.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_c_destroyed.svg",
+        "assets/units/roster/infantry/gunner/gunner_faction_c_icon.svg"
+      ]
+    },
+    "tank": {
+      "category": "vehicles",
+      "name": "Main Battle Tank",
+      "silhouette": "wide tracks and long turret cannon",
+      "files": [
+        "assets/units/roster/vehicles/tank/tank_faction_a_base.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_a_damaged.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_a_destroyed.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_a_icon.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_base.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_damaged.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_destroyed.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_icon.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_base.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_damaged.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_destroyed.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_icon.svg"
+      ]
+    },
+    "scout": {
+      "category": "vehicles",
+      "name": "Scout Vehicle",
+      "silhouette": "narrow body and four exposed wheels",
+      "files": [
+        "assets/units/roster/vehicles/scout/scout_faction_a_base.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_a_damaged.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_a_destroyed.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_a_icon.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_b_base.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_b_damaged.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_b_destroyed.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_b_icon.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_c_base.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_c_damaged.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_c_destroyed.svg",
+        "assets/units/roster/vehicles/scout/scout_faction_c_icon.svg"
+      ]
+    },
+    "apc": {
+      "category": "vehicles",
+      "name": "APC",
+      "silhouette": "box troop compartment and eight wheels",
+      "files": [
+        "assets/units/roster/vehicles/apc/apc_faction_a_base.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_a_damaged.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_a_destroyed.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_a_icon.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_b_base.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_b_damaged.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_b_destroyed.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_b_icon.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_c_base.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_c_damaged.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_c_destroyed.svg",
+        "assets/units/roster/vehicles/apc/apc_faction_c_icon.svg"
+      ]
+    },
+    "anti_air": {
+      "category": "vehicles",
+      "name": "Mobile Anti-Air",
+      "silhouette": "paired missile banks",
+      "files": [
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_a_base.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_a_damaged.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_a_destroyed.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_a_icon.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_b_base.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_b_damaged.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_b_destroyed.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_b_icon.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_c_base.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_c_damaged.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_c_destroyed.svg",
+        "assets/units/roster/vehicles/anti_air/anti_air_faction_c_icon.svg"
+      ]
+    },
+    "artillery": {
+      "category": "vehicles",
+      "name": "Self-Propelled Artillery",
+      "silhouette": "long chassis and extreme barrel",
+      "files": [
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_base.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_damaged.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_destroyed.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_icon.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_base.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_damaged.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_destroyed.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_icon.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_base.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_damaged.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_destroyed.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_icon.svg"
+      ]
+    },
+    "helicopter": {
+      "category": "aircraft",
+      "name": "Attack Helicopter",
+      "silhouette": "cross rotor and thin tail boom",
+      "files": [
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_a_base.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_a_damaged.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_a_destroyed.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_a_icon.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_b_base.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_b_damaged.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_b_destroyed.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_b_icon.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_c_base.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_c_damaged.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_c_destroyed.svg",
+        "assets/units/roster/aircraft/helicopter/helicopter_faction_c_icon.svg"
+      ]
+    },
+    "fighter": {
+      "category": "aircraft",
+      "name": "Fighter Jet",
+      "silhouette": "swept wings and pointed nose",
+      "files": [
+        "assets/units/roster/aircraft/fighter/fighter_faction_a_base.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_a_damaged.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_a_destroyed.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_a_icon.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_b_base.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_b_damaged.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_b_destroyed.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_b_icon.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_c_base.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_c_damaged.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_c_destroyed.svg",
+        "assets/units/roster/aircraft/fighter/fighter_faction_c_icon.svg"
+      ]
+    },
+    "patrol_boat": {
+      "category": "naval",
+      "name": "Patrol Boat",
+      "silhouette": "small narrow pointed hull",
+      "files": [
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_a_base.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_a_damaged.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_a_destroyed.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_a_icon.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_b_base.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_b_damaged.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_b_destroyed.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_b_icon.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_c_base.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_c_damaged.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_c_destroyed.svg",
+        "assets/units/roster/naval/patrol_boat/patrol_boat_faction_c_icon.svg"
+      ]
+    },
+    "destroyer": {
+      "category": "naval",
+      "name": "Destroyer",
+      "silhouette": "long hull with fore and aft guns",
+      "files": [
+        "assets/units/roster/naval/destroyer/destroyer_faction_a_base.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_a_damaged.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_a_destroyed.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_a_icon.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_b_base.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_b_damaged.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_b_destroyed.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_b_icon.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_c_base.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_c_damaged.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_c_destroyed.svg",
+        "assets/units/roster/naval/destroyer/destroyer_faction_c_icon.svg"
+      ]
+    },
+    "landing_transport": {
+      "category": "naval",
+      "name": "Landing Transport",
+      "silhouette": "broad squared hull and open deck",
+      "files": [
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_a_base.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_a_damaged.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_a_destroyed.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_a_icon.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_b_base.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_b_damaged.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_b_destroyed.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_b_icon.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_c_base.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_c_damaged.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_c_destroyed.svg",
+        "assets/units/roster/naval/landing_transport/landing_transport_faction_c_icon.svg"
+      ]
+    }
+  }
+}

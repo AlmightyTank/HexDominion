@@ -50,15 +50,10 @@ static func tracked(canvas: CanvasItem, unit: UnitState, accent: Color, phase: f
 		canvas.draw_circle(Vector2(19, 0), 3, Color("ffe0a0"))
 
 static func draw_unit(canvas: CanvasItem, unit: UnitState, point: Vector2, accent: Color, selected: bool, phase: float, size_scale: float = 1.0) -> void:
-	if selected:
-		canvas.draw_arc(point, 12 * size_scale, 0, TAU, 24, Color("fff0ad"), 1.4 * size_scale, true)
-	canvas.draw_set_transform(point, 0.0 if UnitCatalog.is_infantry(unit.kind) else unit.facing, Vector2.ONE * size_scale)
-	if UnitCatalog.TYPES[unit.kind]["appearance"] == "tracked":
-		tracked(canvas, unit, accent, phase)
-	else:
-		infantry_marker(canvas, unit.kind, accent, false)
-		if unit.attack_flash > 0:
-			canvas.draw_arc(Vector2.ZERO, 11, -0.4, 0.4, 6, Color("ffe0a0"), 2, true)
+	UnitArt.draw(canvas, unit.kind, unit.faction, UnitArt.state_for(unit.health, unit.max_health), point, unit.facing, selected, 28 * size_scale)
+	canvas.draw_set_transform(point, unit.facing, Vector2.ONE * size_scale)
+	if unit.attack_flash > 0:
+		canvas.draw_circle(Vector2(17, 0), 2.5 + sin(phase) * 0.2, Color("ffe0a0"))
 	if unit.damage_flash > 0:
 		canvas.draw_arc(Vector2.ZERO, 8, 0, TAU, 16, Color("fff5db"), 2, true)
 	canvas.draw_set_transform(Vector2.ZERO)
@@ -91,4 +86,16 @@ static func draw_marker(canvas: CanvasItem, kind: String, center: Vector2, accen
 		canvas.draw_rect(Rect2(-6, -6, 12, 8), accent, false, 2)
 		canvas.draw_line(Vector2(0, -7), Vector2(0, 3), accent, 2)
 	canvas.draw_string(ThemeDB.fallback_font, Vector2(-6, 12), str(count), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color("f5efdb"))
+	canvas.draw_set_transform(Vector2.ZERO)
+
+
+static func strategic(canvas: CanvasItem, kind: String, faction: int, center: Vector2, count: int, selected: bool, damaged: bool, scale_factor: float) -> void:
+	UnitArt.draw(canvas, kind, faction, "icon", center, 0, selected, 25 * scale_factor)
+	canvas.draw_set_transform(center, 0, Vector2.ONE * scale_factor)
+	var digits: String = str(count)
+	var width: float = maxf(14, ThemeDB.fallback_font.get_string_size(digits, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 6)
+	canvas.draw_rect(Rect2(5, 6, width, 15), INK)
+	canvas.draw_string(ThemeDB.fallback_font, Vector2(8, 18), digits, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("f5efdb"))
+	if damaged:
+		canvas.draw_line(Vector2(-11, -10), Vector2(-5, -4), Color("fff0ad"), 3, true)
 	canvas.draw_set_transform(Vector2.ZERO)

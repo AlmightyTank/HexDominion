@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Main Battle Tank: faction b, damaged</title>
+  <title>Hex Dominion main battle tank, facing north</title>
+  <desc>Original overhead tank sprite with wide tracks, olive armor, rounded turret, long cannon, and teal faction panel. Transparent background.</desc>
+  <g stroke="#202a28" stroke-width="3" stroke-linejoin="round">
+    <!-- Tracks remain distinct from the hull at small display sizes. -->
+    <rect x="22" y="40" width="20" height="78" rx="5" fill="#303936"/>
+    <rect x="86" y="40" width="20" height="78" rx="5" fill="#303936"/>
+    <path d="M25 51h14m-14 13h14m-14 13h14m-14 13h14m-14 13h14M89 51h14M89 64h14M89 77h14M89 90h14M89 103h14" stroke="#626369" stroke-width="3"/>
+    <!-- The clipped nose and broad rear distinguish the armored chassis. -->
+    <path d="M44 36h40l10 13v57l-9 10H43l-9-10V49Z" fill="#626369"/>
+    <path d="m44 36-10 13v57l9 10h7V49h28l6-13Z" fill="#929298" stroke="none"/>
+    <path d="M84 42 94 55v51l-9 10H50v-10h34Z" fill="#383e46" stroke="none"/>
+    <path d="M42 42h44M43 107h42" fill="none" stroke="#929298" stroke-width="2"/>
+    <path d="M53 99h22v10H53Z" fill="#383e46" stroke-width="2"/>
+    <path d="M57 102h14m-14 4h14" stroke="#626369" stroke-width="2"/>
+    <!-- Rounded turret, with a broad rear panel reserved for faction color. -->
+    <path d="M48 57q16-10 32 0l5 17v15q-21 12-42 0V74Z" fill="#626369"/>
+    <path d="M77 57q-13-5-25 1l-5 17v12l-4 2V74l5-17q16-10 32 0l5 17v15q-21 12-42 0l8-3q15 6 29-1V73Z" fill="#383e46" stroke="none"/>
+    <path d="M47 81q17 7 34 0v8q-17 8-34 0Z" fill="#f08075" stroke-width="2"/>
+    <circle cx="72" cy="70" r="7" fill="#383e46" stroke-width="2"/>
+    <path d="M69 67h6" stroke="#929298" stroke-width="2"/>
+    <!-- Cannon overlaps the turret, pointing up with no perspective skew. -->
+    <path d="M58 56h12v17H58Z" fill="#383e46"/>
+    <path d="M60 16h8v43h-8Z" fill="#626369"/>
+    <path d="M65 18h3v39h-3Z" fill="#383e46" stroke="none"/>
+    <path d="M57 10h14v12H57Z" fill="#383e46"/>
+    <path d="M60 12h8" fill="none" stroke="#929298" stroke-width="2"/>
+  </g>
+<rect x="49" y="92" width="30" height="13" rx="2" fill="#f08075" stroke="#202a28" stroke-width="3"/><circle cx="54" cy="98" r="2" fill="#929298"/><circle cx="74" cy="98" r="2" fill="#929298"/><path d="M45 70 L59 63 L72 72 L63 88 L46 83 Z" fill="#292825" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/><path d="M47 40 L60 52 L55 62 L70 70" fill="none" stroke="#202a28" stroke-width="4" stroke-linejoin="round"/></svg>
