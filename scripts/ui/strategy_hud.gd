@@ -89,6 +89,7 @@ func bind_camera(strategy_camera: StrategyCamera) -> void:
 	radar.configure(_camera.get_parent().get_node("WorldMap"), _camera)
 	_camera.view_changed.connect(_on_view_changed)
 	_on_view_changed(_camera.position, _camera.zoom.x)
+	_layout_for_viewport()
 
 
 func _on_view_changed(world_position: Vector2, zoom_factor: float) -> void:
@@ -142,16 +143,21 @@ func show_command_info(message: String) -> void:
 func _layout_for_viewport() -> void:
 	var viewport_size: Vector2 = get_viewport_rect().size
 	var width: float = minf(280.0, viewport_size.x * 0.45)
+	var map_width: float = viewport_size.x - width
+	var bar_height: float = minf(140.0, viewport_size.y * 0.25)
+	var map_height: float = viewport_size.y - bar_height
 	header_panel.hide()
 	controls_panel.hide()
 	if build_panel != null:
 		build_panel.position = Vector2(viewport_size.x - width, 0)
 		build_panel.size = Vector2(width, viewport_size.y)
 	if match_panel != null:
-		match_panel.position = Vector2(8, 8)
-		match_panel.size.x = minf(340, viewport_size.x - width - 16)
-	help_panel.position = Vector2(8, viewport_size.y - 74)
-	help_panel.size = Vector2(maxf(100, viewport_size.x - width - 16), 66)
+		match_panel.position = Vector2(0, map_height)
+		match_panel.size = Vector2(map_width * 0.4, bar_height)
+	help_panel.position = Vector2(map_width * 0.4, map_height)
+	help_panel.size = Vector2(map_width * 0.6, bar_height)
+	if _camera != null:
+		_camera.configure_map_rect(Rect2(Vector2.ZERO, Vector2(map_width, map_height)))
 	$Help/Margin/Content/HelpTitle.hide()
 	$Help/Margin/Content/DesktopHelp.hide()
 	$Help/Margin/Content/TouchHelp.hide()

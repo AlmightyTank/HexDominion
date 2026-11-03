@@ -65,6 +65,7 @@ static func build(columns: int, rows: int) -> Dictionary:
 				"site_name": "",
 				"is_land": terrain != "ocean",
 			}
+	_preserve_central_america(tiles, columns, rows)
 	# Reserve the nearest unique land cell for each POI; never put a city at sea.
 	for site in definition.get("sites", []):
 		var goal: Vector2 = _pair_to_vector(site["at"])
@@ -89,6 +90,40 @@ static func build(columns: int, rows: int) -> Dictionary:
 		var terrain_name: String = tile["terrain"]
 		counts[terrain_name] = int(counts.get(terrain_name, 0)) + 1
 	return {"columns": columns, "rows": rows, "tiles": tiles, "terrain_counts": counts, "definition_name": String(definition.get("name", "World"))}
+
+static func _preserve_central_america(tiles: Dictionary, columns: int, rows: int) -> void:
+	# Center-only sampling loses the isthmus at coarse resolutions. Rasterize
+	# its geographic spine to adjacent hexes, not a straight ocean shortcut.
+	var spine: Array[Vector2] = [
+		Vector2(-99.1, 19.4), Vector2(-96.0, 17.0), Vector2(-93.0, 16.5),
+		Vector2(-90.5, 15.0), Vector2(-87.2, 14.5), Vector2(-85.0, 12.5),
+		Vector2(-84.0, 10.0), Vector2(-82.8, 8.8), Vector2(-80.5, 8.3),
+		Vector2(-79.5, 9.0), Vector2(-78.0, 8.2), Vector2(-76.5, 7.0),
+		Vector2(-74.1, 4.7),
+	]
+	var previous: Vector2i
+	var first: bool = true
+	for location in spine:
+		var uv: Vector2 = Vector2(0.5 + location.x / 360.0, 0.5 - location.y / 180.0)
+		var fractional_r: float = uv.y * rows - 0.5
+		var fractional_q: float = uv.x * (columns + 0.5) - 0.5 - fractional_r * 0.5
+		var current: Vector2i = HexMath.cube_round(fractional_q, fractional_r)
+		if first:
+			previous = current
+			first = false
+		var steps: int = maxi(1, HexMath.distance(previous, current))
+		for index in range(steps + 1):
+			var point: Vector2 = Vector2(previous).lerp(Vector2(current), float(index) / steps)
+			var hex: Vector2i = HexMath.cube_round(point.x, point.y)
+			if not tiles.has(hex) or tiles[hex]["is_land"]:
+				continue
+			var tile: Dictionary = tiles[hex]
+			tile["is_land"] = true
+			tile["terrain"] = "plains"
+			tile["biome"] = "plains"
+			tile["continent"] = "North America" if location.x < -78.0 else "South America"
+		previous = current
+
 
 static func _add_crossings(tiles: Dictionary, columns: int, rows: int) -> void:
 	for hex in tiles:

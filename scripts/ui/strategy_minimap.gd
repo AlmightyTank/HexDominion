@@ -33,7 +33,8 @@ func _draw() -> void:
 	draw_texture_rect(world.get_node("CachedTerrain").texture, rect, false)
 	var bounds: Rect2 = world.world_bounds()
 	var transform: Transform2D = get_viewport().get_canvas_transform().affine_inverse()
-	var visible_world: Rect2 = Rect2(transform * Vector2.ZERO, get_viewport_rect().size / camera.zoom)
+	var map_rect: Rect2 = camera.map_screen_rect()
+	var visible_world: Rect2 = Rect2(transform * map_rect.position, map_rect.size / camera.zoom)
 	var footprint: Rect2 = Rect2(rect.position + (visible_world.position - bounds.position) / bounds.size * rect.size, visible_world.size / bounds.size * rect.size)
 	draw_rect(footprint.intersection(rect), Color("fff0ad"), false, 2.0)
 	if has_focus():

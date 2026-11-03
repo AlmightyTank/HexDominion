@@ -15,6 +15,17 @@ signal view_changed(world_position: Vector2, zoom_factor: float)
 const START_ZOOM: float = 0.72
 var _world_bounds: Rect2 = Rect2()
 var _has_world_bounds: bool = false
+var _map_rect: Rect2 = Rect2()
+
+
+func map_screen_rect() -> Rect2:
+	return _map_rect if _map_rect.has_area() else get_viewport_rect()
+
+
+func configure_map_rect(rect: Rect2) -> void:
+	_map_rect = rect
+	_clamp_position()
+	_notify_view_changed()
 
 var _mouse_drag_buttons: Dictionary = {}
 var _touch_positions: Dictionary = {}
@@ -134,7 +145,7 @@ func zoom_at_screen_point(screen_point: Vector2, multiplier: float) -> void:
 	var next_zoom: float = clampf(zoom.x * multiplier, min_zoom, max_zoom)
 	if is_equal_approx(next_zoom, zoom.x):
 		return
-	var offset_pixels: Vector2 = screen_point - get_viewport_rect().size * 0.5
+	var offset_pixels: Vector2 = screen_point - map_screen_rect().get_center()
 	var point_before: Vector2 = position + offset_pixels / zoom.x
 	zoom = Vector2.ONE * next_zoom
 	position = point_before - offset_pixels / next_zoom
@@ -143,7 +154,7 @@ func zoom_at_screen_point(screen_point: Vector2, multiplier: float) -> void:
 
 
 func zoom_centered(multiplier: float) -> void:
-	zoom_at_screen_point(get_viewport_rect().size * 0.5, multiplier)
+	zoom_at_screen_point(map_screen_rect().get_center(), multiplier)
 
 
 func configure_world_bounds(bounds: Rect2) -> void:
@@ -156,7 +167,7 @@ func reset_view() -> void:
 	position = _world_bounds.get_center() if _has_world_bounds else Vector2.ZERO
 	var fit_zoom: float = START_ZOOM
 	if _has_world_bounds:
-		var viewport_size: Vector2 = get_viewport_rect().size
+		var viewport_size: Vector2 = map_screen_rect().size
 		fit_zoom = minf(viewport_size.x / _world_bounds.size.x, viewport_size.y / _world_bounds.size.y) * 0.91
 	zoom = Vector2.ONE * clampf(fit_zoom, min_zoom, max_zoom)
 	_mouse_drag_buttons.clear()
@@ -167,7 +178,7 @@ func reset_view() -> void:
 func _clamp_position() -> void:
 	if not _has_world_bounds:
 		return
-	var half_visible: Vector2 = get_viewport_rect().size / (2.0 * zoom.x)
+	var half_visible: Vector2 = map_screen_rect().size / (2.0 * zoom.x)
 	if half_visible.x * 2.0 >= _world_bounds.size.x:
 		position.x = _world_bounds.get_center().x
 	else:
@@ -179,4 +190,7 @@ func _clamp_position() -> void:
 
 
 func _notify_view_changed() -> void:
+	# Position remains the playable area's center, including in saved games.
+	offset = (get_viewport_rect().size * 0.5 - map_screen_rect().get_center()) / zoom
+	force_update_scroll()
 	view_changed.emit(position, zoom.x)
