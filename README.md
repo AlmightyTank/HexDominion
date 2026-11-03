@@ -1,0 +1,227 @@
+# Hex Dominion
+
+**Conquer the world. Hold the line.**
+
+> **Status:** Pre-alpha. v0.1 Slice A contains the Godot project shell, controllable camera, placeholder hex grid, HUD, and a small hex math test suite. Territory gameplay begins in later slices.
+
+**Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
+
+The entire war happens on **one continuous world map**. There are no turns and no separate battle screens: command armies, capture territory, construct bases, and defend your front lines in real time.
+
+## The vision
+
+Every hex matters. A rapidly expanding empire can become difficult to defend, while a smaller faction with strong garrisons and clever positioning can hold a front line against a larger force.
+
+**Our design pillars:**
+
+1. **One map, one war.** All movement, production, expansion, and combat take place on the same hexagonal world map.
+2. **Territory requires defense.** A captured hex remains yours when troops depart, but leaving no garrison exposes it to a rapid counterattack.
+3. **Easy to understand, hard to master.** Clear orders and readable front lines, with depth from terrain, unit counters, production, and logistics.
+4. **RTS first.** Players command units in real time; terrain and territory influence tactics without introducing a turn system.
+5. **Playable at every milestone.** Each major development version should finish with a testable game loop, not just isolated features.
+
+## Core gameplay loop
+
+1. Start with a headquarters, a small force, and a few controlled hexes.
+2. Explore and capture neighboring territories using ground troops.
+3. Secure strategic hexes with garrisons and defenses.
+4. Use captured cities and resource locations to fund expansion.
+5. Construct barracks, factories, and support buildings.
+6. Produce troops and vehicles, set rally points, and launch coordinated assaults.
+7. Defeat enemy armies, cut off their positions, and take their headquarters.
+
+### Territory and capturing
+
+- The world is built from hexagonal land and ocean cells.
+- Faction borders follow controlled hexes, not real-world national borders.
+- Ground troops capture neutral or enemy territory by occupying it uncontested for a short period.
+- Contested hexes cannot complete capture until defenders are removed.
+- Captured hexes retain their owner after troops move away.
+- Troops assigned to a garrison stay to defend; empty territory is vulnerable.
+- Special terrain, cities, and resources make some hexes more valuable than others.
+
+### World map and terrain
+
+The strategic map has **Earth-inspired continents and oceans**, entirely represented by hexagons. It is not intended to simulate exact political borders or real-world geography.
+
+| Terrain | Intended role |
+| --- | --- |
+| Plains | Standard movement and construction |
+| Forest | Defensive advantage for infantry |
+| Mountains | Restricted movement and strong defensive positions |
+| Desert | Open terrain favorable to mobile vehicles |
+| Cities | Economic centers and objectives |
+| Resource areas | Additional income or supplies |
+| Ocean | Naval travel and amphibious operations (later milestone) |
+
+Terrain bonuses and penalties will be tuned through playtesting.
+
+## Armies and combat
+
+The initial roster is intentionally small. More specialized units unlock after the basic combat and economy systems are fun.
+
+| Category | Early units | Main role |
+| --- | --- | --- |
+| Infantry | Rifle squad | Territory capture and defense |
+| Infantry | Rocket squad | Anti-vehicle support (later in v0.x) |
+| Armor | Main battle tank | Main offensive power |
+| Support | Engineer | Repair and construction support (later) |
+| Support | Artillery | Fire support across hexes (later) |
+| Air | Helicopter / fighter | Recon and strikes (later) |
+| Naval | Transport / warship | Ocean movement and naval combat (later) |
+
+Combat happens directly on the map in real time. The strategic zoom should show readable army markers or counts; closer zoom can reveal individual squads and vehicles. This visual scaling is a planned feature, not a current implementation.
+
+## Base building and economy
+
+Planned structures include:
+
+- **Headquarters:** critical command and defeat objective.
+- **Barracks:** train infantry and deploy reinforcements.
+- **Vehicle factory:** produce armored units.
+- **Power plant:** supply power to your infrastructure.
+- **Resource collector / economy building:** generate or process income.
+- **Bunker and defensive turret:** fortify contested front lines.
+- **Radar / airfield:** later strategic and air-force expansion.
+
+Buildings occupy a specific hex or designated building site. Factories support rally points so new units can reinforce assigned positions automatically. Exact building limits, costs, and production rates will be balanced iteratively.
+
+## Game modes
+
+**First priority: Single-player skirmish** against a basic AI opponent.
+
+Later possibilities:
+
+- Multiple AI opponents and selectable difficulty.
+- Different world sizes and starting positions.
+- Alternative victory conditions, including domination and headquarters elimination.
+- Custom maps and map editor.
+- Multiplayer, after the single-player simulation and performance are stable.
+
+## Technology
+
+- **Engine:** Godot 4.x
+- **Language:** GDScript
+- **Presentation:** 2D, top-down hexagonal battlefield
+- **Map:** Hex cells with axial `(q, r)` coordinates and data-driven tile state
+- **Simulation:** Fixed-tick gameplay logic separated from rendering
+- **Initial target:** Desktop development and testing
+- **Later target:** Desktop and mobile-friendly controls and builds
+
+Godot scene nodes should handle presentation and input; core systems should own gameplay state independently of animations or sprites. This separation makes AI, tests, saving, and future multiplayer easier to build.
+
+## Roadmap
+
+The version milestones and slices below are **planned**, not completed.
+
+### v0.1 — First playable world war
+
+- [x] **Slice A:** Godot project setup, main scene, camera pan and zoom, input foundation. (Implemented locally; engine runtime verification remains pending.)
+- [ ] **Slice B:** Earth-inspired hex world, land/ocean masking, basic terrain rendering.
+- [ ] **Slice C:** Unit selection, movement commands, hex pathfinding.
+- [ ] **Slice D:** Territory ownership, capture progress, garrisons, faction borders.
+- [ ] **Slice E:** Rifle squads, tanks, health, damage, and real-time combat.
+- [ ] **Slice F:** Headquarters, barracks, factory, basic resource income, training and rally points.
+- [ ] **Slice G:** Basic AI opponent, win/loss conditions, match restart, and save/load baseline.
+
+**v0.1 acceptance test:** Start a match on a small hexagonal world map, capture territory with infantry, station defenders, produce reinforcements, fight an AI opponent, and win by taking its headquarters. The goal is a complete small skirmish, not final artwork or perfect balance.
+
+**Prototype sizing target:** Approximately 30 × 16 hex positions, with two factions and a limited playable land area. This is a tuning target, not a final map size.
+
+### v0.2 — Economy and construction
+
+Money, power, resources, building placement and cancellation, repairs, selling, construction rules.
+
+### v0.3 — Territorial strategy
+
+Improved terrain rules, supply connections, continent bonuses, fortifications, defended choke points.
+
+### v0.4 — Military expansion
+
+Expanded infantry and armor, artillery, air units, naval units, transports, expanded combat orders.
+
+### v0.5 — Cities and technology
+
+Cities, research, upgrades, radar, scouting, and fog of war.
+
+### v0.6 — Factions
+
+Three asymmetric factions with distinct buildings, units, and battlefield abilities.
+
+### v0.7 — Smarter opponents
+
+Strategic AI, neutral locations, alliances, and diplomacy rules.
+
+### v0.8 — Skirmish customization
+
+Scenario setup, map sizes, game speed, difficulty, and victory mode options.
+
+### v0.9 — Interface and polish
+
+Desktop and mobile-oriented controls, performance optimization, sound, feedback, balance, and usability.
+
+### v1.0 — First complete release
+
+Full single-player testing, stability fixes, documentation, and release builds.
+
+## Proposed project layout
+
+```text
+HexDominion/
+├── README.md
+├── project.godot
+├── scenes/
+│   ├── game/
+│   ├── world/
+│   ├── units/
+│   ├── buildings/
+│   └── ui/
+├── scripts/
+│   ├── core/
+│   ├── systems/
+│   ├── ai/
+│   └── ui/
+├── data/
+│   ├── units/
+│   ├── buildings/
+│   └── terrain/
+├── assets/
+│   ├── sprites/
+│   ├── audio/
+│   └── fonts/
+├── tests/
+└── docs/
+```
+
+*The layout above is the intended long-term structure. Slice A creates the actual `project.godot`, `scenes/`, camera, HUD, and basic `scripts/`, `tests/`, and `docs/`. Other directories will fill in as their slices are implemented.*
+
+## Getting started
+
+> **v0.1 Slice A** is the runnable camera/input foundation. The temporary hex preview is not an Earth map or a complete strategy game.
+
+Once the project exists:
+
+1. Install **Godot 4.7.2 stable**.
+2. Clone the repository and open `project.godot` in Godot.
+3. Press **F5** to run the configured main scene, then pan with WASD/arrows or drag and zoom with the mouse wheel. Touch drag and pinch gestures are also supported.
+4. Read [Slice A acceptance criteria](docs/SLICE-A.md), then run the headless test commands documented there.
+
+## Development guidelines
+
+- Keep each development slice narrow and testable.
+- Use data files or resources for unit stats and building costs rather than scattering values across scenes.
+- Keep hex-grid logic, ownership, pathfinding, and combat independent from visuals.
+- Add smoke tests for core rules, including hex neighbors, movement, capturing, combat, and victory.
+- Run import/parse checks and smoke tests before merging changes.
+- Do not confuse roadmap checkboxes with implemented features.
+- Respect original intellectual property: inspiration comes from strategy mechanics, while code, art, audio, names, and faction designs must be our own or properly licensed.
+
+## Project status and licensing
+
+**Status:** Planning / pre-alpha.
+
+**License:** Not selected. All rights are reserved unless and until the repository owner adds an explicit license. Please do not assume the project is open source solely because its source might be publicly viewable.
+
+---
+
+**Hex Dominion** — *Conquer the world. Hold the line.*
