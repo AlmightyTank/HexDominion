@@ -1,0 +1,15 @@
+# Godot generated metadata
+.godot/
+*.translation
+
+# Local builds
+build/
+dist/
+exports/
+*.pck
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
