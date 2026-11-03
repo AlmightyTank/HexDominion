@@ -32,6 +32,9 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 		if EconomyState.is_complete(site):
 			var repair: bool = economy.credits > REPAIR_RESERVE and site["health"] < EconomyState.BUILD_HEALTH[kind] and not territory.is_contested(hex)
 			economy.set_repair(hex, territory, site, repair)
+	# Without an HQ, cities cannot fund recovery. Re-establish supply first.
+	if counts.get("headquarters", 0) == 0 and _build(economy, "headquarters", tiles, territory, other_buildings, home):
+		return
 	# Recover recruitment using existing assets, never free credits or free buildings.
 	if counts.get("barracks", 0) == 0 and _build(economy, "barracks", tiles, territory, other_buildings, home):
 		return

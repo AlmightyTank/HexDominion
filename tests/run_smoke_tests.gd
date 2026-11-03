@@ -18,6 +18,26 @@ func _check(condition: bool, description: String) -> void:
 		push_error("FAIL: %s" % description)
 
 
+func _test_supply_ui_and_save() -> void:
+	var game: Node2D = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+	game.units.set_physics_process(false)
+	var tiles: Dictionary = game.world_map.map_data["tiles"]
+	var home: Vector2i = game.units.match_state.player_hq
+	game.world_map.inspect_at_world(game.world_map.hex_to_world(home))
+	game._process(0)
+	_check(game.hud.supply_info.visible and "SUPPLIED" in game.hud.supply_info.text and "6.00" in game.hud.supply_info.text, "Selected HQ city displays live supplied income")
+	var snapshot: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home)
+	game.units.economy.damage_building(home, 10000)
+	game._process(0)
+	_check("ISOLATED" in game.hud.supply_info.text and "0.00" in game.hud.supply_info.text and game.units.economy.income_rate(tiles, game.units.territory) == 0, "HQ destruction updates inspected city and faction income immediately")
+	_check(MatchSave.restore(game.units, snapshot), "Supply state snapshot restores without serializing a graph")
+	game._process(0)
+	_check("SUPPLIED" in game.hud.supply_info.text and game.units.economy.income_status(home, tiles, game.units.territory)["income"] == 6, "Load rebuilds supply without stale isolation")
+	_check(snapshot == MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home), "Derived supply caches do not alter saved authoritative state")
+	game.free()
+
+
 func _test_economy_interface() -> void:
 	var game: Node2D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
@@ -220,7 +240,7 @@ func _test_power() -> void:
 		_check(economy.power_balance(territory) == {"supply": 40, "demand": 30} and not economy.low_power(territory), "Faction %d power supply and demand derived from operational structures" % faction)
 		economy.train(factory, "tank", territory)
 		economy.advance(2, tiles, territory)
-		_check(economy.buildings[factory]["elapsed"] == 2 and economy.income_rate(tiles, territory) == 2, "Powered factory and extractor operate normally")
+		_check(economy.buildings[factory]["elapsed"] == 2 and economy.income_rate(tiles, territory) == 0, "Powered factory operates; extractor still needs HQ supply")
 		var enemy: UnitState = UnitState.new(Vector2i(1, 0))
 		enemy.faction = 3 - faction
 		CombatState.attack_extractors(20, [enemy], [economy], {})
@@ -231,7 +251,7 @@ func _test_power() -> void:
 		_check(economy.build(plant, "power_plant", tiles, territory), "Power plant can be rebuilt during outage")
 		_check(economy.low_power(territory), "Unfinished plant supplies no power")
 		economy.advance(8, tiles, territory)
-		_check(not economy.low_power(territory) and economy.buildings[factory]["elapsed"] == 7 and economy.income_rate(tiles, territory) == 2, "Completion restores supply while preserving queued progress")
+		_check(not economy.low_power(territory) and economy.buildings[factory]["elapsed"] == 7 and economy.income_rate(tiles, territory) == 0, "Completion restores power while preserving queued progress; no HQ supply")
 		_check(economy.advance(1, tiles, territory).size() == 1, "Factory resumes full speed after power restoration")
 		territory.contested[plant] = true
 		_check(economy.low_power(territory), "Contested plant loses supply immediately")
@@ -248,7 +268,7 @@ func _test_power() -> void:
 		economy.train(factory, "tank", territory)
 		balance = economy.credits
 		economy.advance(3, tiles, territory)
-		_check(economy.buildings[factory]["elapsed"] == 2.5 and economy.credits == balance + 4, "Power recovery mid-tick applies only to time after completion")
+		_check(economy.buildings[factory]["elapsed"] == 2.5 and economy.credits == balance, "Power recovery mid-tick restores factory speed without bypassing HQ supply")
 
 
 func _test_repairs_and_sales() -> void:
@@ -445,6 +465,8 @@ func _run_tests() -> void:
 	preload("res://tests/rival_economy_tests.gd").run(_check)
 	preload("res://tests/terrain_tests.gd").run(_check)
 	preload("res://tests/road_tests.gd").run(_check)
+	preload("res://tests/supply_tests.gd").run(_check)
+	_test_supply_ui_and_save()
 	_test_ai_integration()
 	game._begin_build("")
 	_check(game.units.build_kind.is_empty(), "Placement can be cancelled")
@@ -480,7 +502,7 @@ func _run_tests() -> void:
 		_check(restarted.units.units.size() == 4 and restarted.units.economy.credits >= 400 and restarted.units.economy.credits < 410 and restarted.units.selected == null, "Restart resets roster, economy and selection (allowing initial income ticks)")
 		restarted.free()
 	current_scene = null
-	print("Hex Dominion v0.3 Slice A: %d passed, %d failed" % [_successes, _failures])
+	print("Hex Dominion v0.3 Slice C: %d passed, %d failed" % [_successes, _failures])
 	quit(1 if _failures > 0 else 0)
 
 
@@ -835,9 +857,9 @@ func _test_credits_accounts() -> void:
 		var before: Dictionary = economy.account.snapshot()
 		_check(not economy.train(home, "rifle", territory) and not economy.build(yard, "barracks", tiles, territory) and economy.account.snapshot() == before, "Faction %d repeated purchases cannot overdraw or log rejected charges" % faction)
 		var recruits: Array[UnitState] = economy.advance(4, tiles, territory)
-		_check(recruits.size() == 1 and recruits[0].faction == faction and economy.credits == 4, "Faction %d production completion does not double-charge" % faction)
+		_check(recruits.size() == 1 and recruits[0].faction == faction and economy.credits == 0, "Faction %d production completion does not double-charge; unsupplied city earns nothing" % faction)
 		economy.credits = -500
-		_check(economy.credits == 4, "Faction %d legacy direct assignment cannot create negative credits" % faction)
+		_check(economy.credits == 0, "Faction %d legacy direct assignment cannot create negative credits" % faction)
 		before = economy.account.snapshot()
 		economy.advance(NAN, tiles, territory)
 		economy.advance(INF, tiles, territory)
@@ -870,7 +892,7 @@ func _test_extractors() -> void:
 		territory.owners[power_site] = faction
 		economy.advance(EconomyState.BUILD_SECONDS["extractor"], tiles, territory)
 		economy.advance(0.5, tiles, territory)
-		_check(economy.credits == 1 and economy.income_rate(tiles, territory) == 2, "Operational extractor earns automated fractional income")
+		_check(economy.credits == 0 and economy.income_rate(tiles, territory) == 0, "Powered extractor without HQ supply earns nothing")
 		_check(not economy.train(deposit, "rifle", territory), "Extractor is not a production building")
 		territory.contested[deposit] = true
 		_check(economy.income_rate(tiles, territory) == 0, "Contesting a deposit suspends extraction")
@@ -878,14 +900,14 @@ func _test_extractors() -> void:
 		territory.owners[deposit] = 3 - faction
 		_check(economy.income_rate(tiles, territory) == 0, "Territory loss immediately stops extraction")
 		territory.owners[deposit] = faction
-		_check(economy.income_rate(tiles, territory) == 2, "Recapture resumes surviving extractor")
+		_check(economy.income_rate(tiles, territory) == 0, "Recapture without HQ does not enable surviving extractor")
 		_check(not economy.damage_extractor(deposit, -1) and not economy.damage_extractor(deposit, INF), "Invalid extractor damage rejected")
 		var enemy: UnitState = UnitState.new(plain)
 		enemy.faction = 3 - faction
 		var roster: Array[UnitState] = [enemy]
 		var economies: Array[EconomyState] = [economy]
 		CombatState.attack_extractors(1, roster, economies, {})
-		_check(economy.buildings[deposit]["health"] == 180 and economy.income_rate(tiles, territory) == 2, "Hostile rifle damages extractor without disabling it prematurely")
+		_check(economy.buildings[deposit]["health"] == 180 and economy.income_rate(tiles, territory) == 0, "Hostile rifle damages unsupplied extractor without destroying it prematurely")
 		var defender: UnitState = UnitState.new(deposit)
 		defender.faction = faction
 		roster.append(defender)
@@ -920,9 +942,9 @@ func _test_city_income() -> void:
 	territory.advance(2.0, tiles, roster)
 	_check(player.income_rate(tiles, territory) == 0, "Neutral city has no income before capture completes")
 	territory.advance(1.0, tiles, roster)
-	_check(player.income_rate(tiles, territory) == 1 and not territory.is_contested(city), "Capturing a city immediately enables its income")
+	_check(player.income_rate(tiles, territory) == 0 and not territory.is_contested(city), "Captured city without HQ remains unsupplied")
 	player.advance(0.5, tiles, territory)
-	_check(player.credits == 0.5, "Controlled city credits fractional passive income")
+	_check(player.credits == 0, "Unsupplied city credits no passive income")
 	var enemy: UnitState = UnitState.new(city)
 	enemy.faction = 2
 	roster.append(enemy)
@@ -930,21 +952,21 @@ func _test_city_income() -> void:
 	_check(territory.is_contested(city) and territory.captures.is_empty() and player.income_rate(tiles, territory) == 0, "Mixed-faction contest interrupts city income even before capture progress exists")
 	player.advance(1.0, tiles, territory)
 	rival.advance(1.0, tiles, territory)
-	_check(player.credits == 0.5 and rival.credits == 0, "Neither faction earns from a contested city")
+	_check(player.credits == 0 and rival.credits == 0, "Neither faction earns from a contested city")
 	roster.erase(enemy)
 	territory.advance(0.1, tiles, roster)
-	_check(not territory.is_contested(city) and player.income_rate(tiles, territory) == 1, "Removing hostile occupants immediately restores city income")
+	_check(not territory.is_contested(city) and player.income_rate(tiles, territory) == 0, "Removing occupants does not bypass HQ supply requirement")
 	roster = [enemy]
 	territory.advance(1.0, tiles, roster)
 	_check(territory.owner_at(city) == 1 and player.income_rate(tiles, territory) == 0 and rival.income_rate(tiles, territory) == 0, "Enemy capture attempt suppresses old owner's income before ownership changes")
 	roster.clear()
 	territory.advance(0.1, tiles, roster)
-	_check(player.income_rate(tiles, territory) == 1, "Abandoning capture resumes the owner's income without a garrison")
+	_check(player.income_rate(tiles, territory) == 0, "Abandoned capture leaves city owned but unsupplied")
 	roster.append(enemy)
 	territory.advance(3.0, tiles, roster)
-	_check(player.income_rate(tiles, territory) == 0 and rival.income_rate(tiles, territory) == 1, "Losing a city immediately transfers its income to the new owner")
+	_check(player.income_rate(tiles, territory) == 0 and rival.income_rate(tiles, territory) == 0, "Captured city needs new owner's HQ supply")
 	rival.advance(0.25, tiles, territory)
-	_check(rival.credits == 0.25, "AI receives identical city income")
+	_check(rival.credits == 0, "AI obeys identical HQ supply requirement")
 	rival.add_building(city, "headquarters")
 	_check(rival.income_rate(tiles, territory) == 6, "HQ bonus remains explicit building income separate from city income")
 	roster.append(squad)

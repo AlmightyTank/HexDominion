@@ -222,6 +222,9 @@ func _move_to(point: Vector2) -> void:
 func _process(_delta: float) -> void:
 	if units != null:
 		hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"])
+		var inspected: Vector2i = world_map.selected_hex
+		var income_economy: EconomyState = units.match_state.rival_economy if units.territory.owner_at(inspected) == 2 else units.economy
+		hud.show_supply(inspected, income_economy, units.territory, world_map.map_data["tiles"])
 		if units.managed_hex != _facility_hex:
 			units.managed_hex = _facility_hex
 			units.queue_redraw()

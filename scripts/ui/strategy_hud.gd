@@ -52,6 +52,7 @@ signal rally_requested
 var facility_buttons: Dictionary = {}
 var facility_list: VBoxContainer
 var economy_summary: Label
+var supply_info: Label
 var rally_button: Button
 var sidebar_scroll: ScrollContainer
 var command_tabs: TabContainer
@@ -372,6 +373,9 @@ func _create_build_menu() -> void:
 	economy_summary = Label.new()
 	economy_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(economy_summary)
+	supply_info = Label.new()
+	supply_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(supply_info)
 	command_tabs = TabContainer.new()
 	command_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(command_tabs)
@@ -477,6 +481,7 @@ func _set_command_cursors(node: Node) -> void:
 func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: TerritoryState, tiles: Dictionary) -> void:
 	build_panel.visible = true
 	_refresh_facilities(hex, economy, territory)
+	economy_summary.text += "\nIncome: +%.2f CR/s" % economy.income_rate(tiles, territory)
 	rally_button.hide()
 	cancel_construction_button.hide()
 	repair_button.hide()
@@ -542,13 +547,22 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 		elif building["kind"] == "headquarters":
 			build_status.text += "\nIncome: +5 credits/s\nBuild barracks to train rifles."
 		elif building["kind"] == "extractor":
-			build_status.text += "\nHP: %.0f / %.0f\nExtraction: %s" % [building["health"], EconomyState.EXTRACTOR_HEALTH, "Offline: low power" if economy.low_power(territory) else ("Paused (contested)" if territory.is_contested(hex) else "+2 credits/s")]
+			build_status.text += "\nExtraction: %.2f CR/s%s" % [economy.income_status(hex, tiles, territory)["income"], " (low power)" if economy.low_power(territory) else ""]
 		elif building["kind"] == "power_plant":
 			build_status.text += "\nSupply: 40 power\nHP: %.0f / 250" % building["health"]
 		if building["kind"] == "factory" and economy.low_power(territory):
 			build_status.text += "\nLOW POWER: production at 50%"
 	else:
 		build_status.text = "Choose a building, then place\non controlled empty land.\nQ rotate • Right-click / Esc cancel"
+
+
+func show_supply(hex: Vector2i, economy: EconomyState, territory: TerritoryState, tiles: Dictionary) -> void:
+	var economic: bool = tiles.get(hex, {}).get("terrain", "") == "city" or (economy.buildings.has(hex) and economy.buildings[hex]["kind"] == "extractor")
+	supply_info.visible = economic
+	if not economic:
+		return
+	var status: Dictionary = economy.income_status(hex, tiles, territory)
+	supply_info.text = "%s | %.2f CR/s\n%s" % ["SUPPLIED" if status["supplied"] else "ISOLATED", status["income"], "Road bonus +10%" if status["road_bonus"] else "No road income bonus"]
 
 
 func _refresh_facilities(selected_hex: Vector2i, economy: EconomyState, territory: TerritoryState) -> void:

@@ -59,7 +59,7 @@ static func run(check: Callable) -> void:
 	for tick in range(100):
 		_step(match_state, tiles, territory, units)
 	check.call(economy.buildings[home]["health"] == EconomyState.BUILD_HEALTH["headquarters"] and not economy.buildings[home].get("repairing", false), "AI repairs finish without exceeding maximum health")
-	# Recovery from zero cash is funded by ordinary city income, not a bailout.
+	# Cities alone cannot fund recovery when the last HQ has been destroyed.
 	economy.buildings.clear()
 	economy.credits = 0
 	units.clear()
@@ -70,13 +70,13 @@ static func run(check: Callable) -> void:
 	for building in economy.buildings.values():
 		recovered_hq = recovered_hq or building["kind"] == "headquarters" and EconomyState.is_complete(building)
 		recovered_barracks = recovered_barracks or building["kind"] == "barracks" and EconomyState.is_complete(building)
-	check.call(recovered_barracks and not units.is_empty(), "Zero-cash city-backed AI rebuilds recruitment instead of economic deadlock")
-	# Give enough time to bank an HQ once the bounded army is funded.
+	check.call(not recovered_barracks and units.is_empty() and economy.credits == 0, "Zero-cash HQ-less AI cannot bypass supply rules or receive a bailout")
+	economy.credits = 300 # Scenario funds sufficient to rebuild the lost supply root.
 	for tick in range(3000):
 		_step(match_state, tiles, territory, units)
 	for building in economy.buildings.values():
 		recovered_hq = recovered_hq or building["kind"] == "headquarters" and EconomyState.is_complete(building)
-	check.call(recovered_hq and CreditsAccount.valid_snapshot(economy.account.snapshot()), "Recovery eventually restores HQ income with a continuous valid ledger")
+	check.call(recovered_hq and not units.is_empty() and CreditsAccount.valid_snapshot(economy.account.snapshot()), "Funded AI restores HQ supply before recruitment with a valid ledger")
 	_test_exploits(check, tiles)
 	_test_military(check, tiles)
 	_test_salvage_and_reachability(check, tiles)

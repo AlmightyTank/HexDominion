@@ -127,6 +127,7 @@ func _draw() -> void:
 		return
 	_draw_territory()
 	_draw_roads()
+	_draw_isolated_locations()
 	for hex in match_state.rival_economy.buildings:
 		var rival_building: Dictionary = match_state.rival_economy.buildings[hex]
 		_draw_building_badge(to_local(world_map.hex_to_world(hex)), rival_building["kind"], faction_color(2), world_map.selected_hex == hex, rival_building.get("rotation", 0))
@@ -181,6 +182,21 @@ func _draw() -> void:
 			draw_rect(Rect2(point - Vector2(10, 10), Vector2(20, 20)), faction_color(unit.faction), false, 2.0)
 		draw_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("12364c"), 2.0)
 		draw_line(point + Vector2(-3, 3), point + Vector2(3, -3), Color("12364c"), 2.0)
+
+
+func _draw_isolated_locations() -> void:
+	var tiles: Dictionary = world_map.map_data["tiles"]
+	for faction_economy in [economy, match_state.rival_economy]:
+		faction_economy.supply.refresh(tiles, territory, faction_economy)
+		for hex in territory.owners:
+			if territory.owner_at(hex) != faction_economy.faction:
+				continue
+			var economic: bool = tiles.get(hex, {}).get("terrain", "") == "city" or (faction_economy.buildings.has(hex) and faction_economy.buildings[hex]["kind"] == "extractor")
+			if economic and not faction_economy.supply.supplied.has(hex):
+				var center: Vector2 = to_local(world_map.hex_to_world(hex))
+				draw_arc(center, 19.0, 0, TAU, 24, Color("f08075"), 2.0, true)
+				draw_line(center + Vector2(12, -18), center + Vector2(18, -12), Color("f08075"), 2.0, true)
+				draw_line(center + Vector2(18, -18), center + Vector2(12, -12), Color("f08075"), 2.0, true)
 
 
 func _draw_roads() -> void:
