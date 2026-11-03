@@ -11,7 +11,8 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 		roster.append({"hex": unit.hex, "path": unit.path.duplicate(), "progress": unit.progress,
 			"kind": unit.kind, "health": unit.health, "faction": unit.faction,
 			"garrisoned": unit.garrisoned, "holding": unit.holding, "title": unit.title,
-			"weapon_elapsed": unit.weapon_elapsed, "facing": unit.facing, "attack_order": unit.attack_order,
+			"weapon_elapsed": unit.weapon_elapsed, "facing": unit.facing, "turret_facing": unit.turret_facing,
+			"carrier": layer.units.find(unit.carrier.get_ref()) if unit.is_embarked() else -1, "attack_order": unit.attack_order,
 			"attack_hex": unit.attack_hex, "attack_target": layer.units.find(unit.attack_target.get_ref()) if unit.attack_target != null else -1})
 	var match_state: MatchState = layer.match_state
 	return {"version": 1, "map": MAP_ID, "units": roster,
@@ -71,6 +72,7 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 		if entry.get("faction") not in [1, 2] or not _number(entry.get("elapsed"), 0, TerritoryState.CAPTURE_SECONDS):
 			return false
+	var passenger_counts: Dictionary = {}
 	for unit in data["units"]:
 		if not unit is Dictionary or not _land(unit.get("hex"), tiles) or not unit.get("path") is Array:
 			return false
@@ -80,6 +82,18 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 		if not _number(unit.get("weapon_elapsed", 0.0), 0, UnitCatalog.TYPES[unit["kind"]]["cooldown"]) or not _number(unit.get("facing", 0.0), -PI, PI):
 			return false
+		if not _number(unit.get("turret_facing", unit.get("facing", 0.0)), -PI, PI) or not unit.get("carrier", -1) is int:
+			return false
+		var carrier_index: int = unit.get("carrier", -1)
+		if carrier_index < -1 or carrier_index >= data["units"].size():
+			return false
+		if carrier_index >= 0:
+			var transport: Variant = data["units"][carrier_index]
+			if not transport is Dictionary or transport.get("kind") != "apc" or transport.get("faction") != unit["faction"] or transport.get("hex") != unit["hex"] or not UnitCatalog.is_infantry(unit["kind"]) or not unit["path"].is_empty() or unit["garrisoned"] or unit.get("attack_order", false):
+				return false
+			passenger_counts[carrier_index] = passenger_counts.get(carrier_index, 0) + 1
+			if passenger_counts[carrier_index] > TransportRules.CAPACITY:
+				return false
 		if not unit.get("attack_order", false) is bool or not unit.get("attack_target", -1) is int:
 			return false
 		var target_index: int = unit.get("attack_target", -1)
@@ -169,10 +183,14 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		unit.progress = entry["progress"]
 		unit.weapon_elapsed = entry.get("weapon_elapsed", 0.0)
 		unit.facing = entry.get("facing", 0.0)
+		unit.turret_facing = entry.get("turret_facing", unit.facing)
 		unit.attack_order = entry.get("attack_order", false)
 		unit.attack_hex = entry.get("attack_hex", Vector2i.ZERO)
 		roster.append(unit)
 	for index in range(roster.size()):
+		var carrier_index: int = data["units"][index].get("carrier", -1)
+		if carrier_index >= 0:
+			roster[index].carrier = weakref(roster[carrier_index])
 		var target_index: int = data["units"][index].get("attack_target", -1)
 		if target_index >= 0:
 			roster[index].attack_target = weakref(roster[target_index])
@@ -183,6 +201,7 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 	for hex in data.get("roads", {}):
 		layer.world_map.map_data["tiles"][hex]["road"] = true
 	layer.select_one(null)
+	layer.expanded_hex = Vector2i(-99999, -99999)
 	layer.build_kind = ""
 	layer.build_rotation = 0
 	layer.combat_targets.clear()

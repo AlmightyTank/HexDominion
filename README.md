@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. v0.4 Slice A adds Riflemen, Rocket Soldiers and Machine Gunners, explicit attack pursuit, configurable weapons and shared procedural unit appearances at three zoom levels. Earlier territory, roads, supply, continent, bunker, construction, power and save systems remain integrated. Headless and rendered fixtures are verified; physical touchscreen acceptance and balance playtesting remain pending.
+> **Status:** Pre-alpha. v0.4 Slice B adds scouts, APC transport and mobile anti-air alongside the main battle tank. Hex armies use a single dominant-role marker and deployed count at every zoom, with a selectable composition panel and optional individual expansion. Earlier territory, economy and save systems remain integrated. Physical touchscreen acceptance and balance playtesting remain pending.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -76,7 +76,7 @@ The initial roster is intentionally small. More specialized units unlock after t
 | Air | Helicopter / fighter | Recon and strikes (later) |
 | Naval | Transport / warship | Ocean movement and naval combat (later) |
 
-Combat happens directly on the map in real time. The strategic zoom should show readable army markers or counts; closer zoom can reveal individual squads and vehicles. This visual scaling is a planned feature, not a current implementation.
+Combat happens directly on the map in real time. Each faction's deployed army in a hex has one marker showing its most numerous role and total count at every zoom. Click it for the composition panel; use Expand to reveal individual units.
 
 ## Base building and economy
 
@@ -164,11 +164,13 @@ Improved terrain rules, supply connections, continent bonuses, fortifications, d
 Expanded infantry and armor, artillery, air units, naval units, transports, expanded combat orders.
 
 - [x] **Slice A: Infantry Expansion and Unit Visual Foundation:** Three barracks infantry roles, weapon cooldowns and counters, attack commands, shared faction-accented soldier silhouettes, grouped zoom presentation and backward-compatible saves. ([Tuning, controls, verification and limitations](docs/V0.4-SLICE-A.md).)
+- [x] **Slice B: Vehicle Expansion:** Main battle tanks, scouts, four-seat APCs, mobile anti-air, stack-first army presentation and backward-compatible transport saves. ([Rules, controls and verification](docs/V0.4-SLICE-B.md).)
 
 #### Infantry controls
 
 - Train all three roles in the **Inf** tab with a completed barracks selected.
-- Click/tap to select. Shift-click or **Add selection** toggles members; drag a box for multiple units. Repeated grouped-marker clicks cycle individual soldiers.
+- Click/tap a marker to select its hex army. Use the existing panel's type rows, **Select all**, and **Expand/Collapse**. Shift-click or **Add selection** toggles whole stacks; drag a box for multiple armies. Expanded units can be picked individually.
+- **Load APC (L)** then click a friendly stack with a stationary APC to board selected stationary, same-hex infantry. **Unload APC (U)** then click nearby land to deploy the selected APCs' passengers. Capacity is four; passengers are lost if their APC is destroyed.
 - Right-click an enemy to attack, or use **Attack (X)** and tap/click the target. Right-click land moves. Touch: select then tap land to move.
 - **Hold (J)** stops pursuit; **Garrison (G)** occupies a friendly bunker (two infantry slots). Accepted movement/attack releases Hold and garrison.
 - Zoom changes presentation only: role/count markers, grouped sprites, then individual soldiers. All simulated units always remain present.

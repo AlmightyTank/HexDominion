@@ -4,7 +4,7 @@ class_name DefenseAI
 static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState], other: Dictionary, home: Vector2i) -> Dictionary:
 	var army: Array[UnitState] = []
 	for unit in units:
-		if unit.faction == economy.faction and unit.is_alive():
+		if unit.faction == economy.faction and unit.is_deployed():
 			army.append(unit)
 	var sites: Array[Vector2i] = []
 	if territory.owner_at(home) == economy.faction:

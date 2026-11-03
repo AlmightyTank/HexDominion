@@ -34,7 +34,7 @@ func advance_ai(delta: float, tiles: Dictionary, territory: TerritoryState, unit
 	var defenders: Dictionary = DefenseAI.plan(rival_economy, tiles, territory, units, other_buildings, rival_hq)
 	var roster_size: int = 0
 	for unit in units:
-		if unit.faction != 2 or not unit.is_alive():
+		if unit.faction != 2 or not unit.is_deployed():
 			continue
 		roster_size += 1
 		if defenders.has(unit) or not unit.path.is_empty():
@@ -46,7 +46,7 @@ func advance_ai(delta: float, tiles: Dictionary, territory: TerritoryState, unit
 		var nearest: int = 6
 		for enemy in units:
 			var distance: int = HexMath.distance(unit.hex, enemy.hex)
-			if enemy.faction == 1 and enemy.is_alive() and distance < nearest:
+			if enemy.faction == 1 and enemy.is_deployed() and distance < nearest:
 				target = enemy
 				nearest = distance
 		if target != null and nearest <= unit.attack_range:

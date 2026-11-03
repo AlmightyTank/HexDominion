@@ -7,15 +7,16 @@ var world_map: WorldMap
 var units: Array[UnitState] = []
 var selected: UnitState
 var selected_units: Array[UnitState] = []
+var expanded_hex: Vector2i = Vector2i(-99999, -99999)
 var animation_time: float = 0.0
 var wrecks: Array[Dictionary] = []
 const WRECK_SECONDS: float = 8.0
 const MAX_WRECKS: int = 128
-var _last_pick_members: Array = []
-var _pick_index: int = 0
 
 
 func select_one(unit: UnitState) -> void:
+	if unit != null and not unit.is_deployed():
+		unit = null
 	selected_units.clear()
 	selected = unit
 	if unit != null:
@@ -23,7 +24,7 @@ func select_one(unit: UnitState) -> void:
 	queue_redraw()
 
 func toggle_selection(unit: UnitState) -> void:
-	if unit == null or unit.faction != 1 or not unit.is_alive():
+	if unit == null or unit.faction != 1 or not unit.is_deployed():
 		return
 	if selected_units.has(unit):
 		selected_units.erase(unit)
@@ -36,16 +37,16 @@ func toggle_selection(unit: UnitState) -> void:
 func select_box(screen_rect: Rect2, canvas_transform: Transform2D) -> void:
 	selected_units.clear()
 	var zoom_factor: float = canvas_transform.get_scale().x
-	var batches: Array[Dictionary] = UnitVisuals.groups(units)
+	var batches: Array[Dictionary] = UnitVisuals.stacks(units)
 	for unit in units:
 		var point: Vector2 = unit_position(unit)
-		if UnitVisuals.tier(zoom_factor) != "close":
+		if unit.hex != expanded_hex or unit.faction != 1:
 			for batch in batches:
 				if batch["members"].has(unit):
 					point = group_position(batch, batches, zoom_factor)
 					break
 		var screen_point: Vector2 = canvas_transform * to_global(point)
-		if unit.faction == 1 and unit.is_alive() and screen_rect.abs().has_point(screen_point):
+		if unit.faction == 1 and unit.is_deployed() and screen_rect.abs().has_point(screen_point):
 			selected_units.append(unit)
 	selected = selected_units[0] if not selected_units.is_empty() else null
 	queue_redraw()
@@ -112,43 +113,33 @@ func unit_position(unit: UnitState) -> Vector2:
 	return _base_position(unit) + UnitVisuals.offset(unit, units)
 
 func group_position(batch: Dictionary, batches: Array[Dictionary], zoom_factor: float) -> Vector2:
-	var point: Vector2 = Vector2.ZERO
-	for member in batch["members"]:
-		point += _base_position(member)
-	var spacing: float = 1.8 if UnitVisuals.tier(zoom_factor) == "medium" else 1.0
-	return point / batch["members"].size() + UnitVisuals.group_offset(batch, batches) * spacing / maxf(zoom_factor, 0.15)
+	var point: Vector2 = to_local(world_map.hex_to_world(batch["hex"]))
+	if economy.buildings.has(batch["hex"]) or match_state.rival_economy.buildings.has(batch["hex"]):
+		point += Vector2(14, 14)
+	return point + UnitVisuals.group_offset(batch, batches) / maxf(zoom_factor, 0.15)
 
 
 func pick(global_point: Vector2, zoom_factor: float) -> UnitState:
 	return pick_faction(global_point, zoom_factor, 1)
 
-func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, cycle: bool = false) -> UnitState:
-	if UnitVisuals.tier(zoom_factor) != "close":
-		var batches: Array[Dictionary] = UnitVisuals.groups(units)
-		var members: Array = []
-		var best_group: float = 17.0 / maxf(zoom_factor, 0.15)
-		for batch in batches:
-			var distance: float = group_position(batch, batches, zoom_factor).distance_to(to_local(global_point))
-			if batch["faction"] == faction and distance < best_group:
-				best_group = distance
-				members = batch["members"]
-		if members.is_empty():
-			return null
-		if cycle:
-			_pick_index = (_pick_index + 1) % members.size() if members == _last_pick_members else 0
-			_last_pick_members = members.duplicate()
-		else:
-			return members[0]
-		return members[_pick_index]
+func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, _cycle: bool = false) -> UnitState:
 	var nearest: UnitState = null
-	var best: float = maxf(10.0, 9.0 / zoom_factor)
-	for unit in units:
-		var distance: float = unit_position(unit).distance_to(to_local(global_point))
-		if unit.faction != faction or not unit.is_alive():
+	var best: float = 18.0 / maxf(zoom_factor, 0.15)
+	var batches: Array[Dictionary] = UnitVisuals.stacks(units)
+	for batch in batches:
+		if batch["faction"] != faction:
 			continue
-		if distance < best:
-			best = distance
-			nearest = unit
+		if batch["hex"] == expanded_hex and faction == 1:
+			for unit in batch["members"]:
+				var distance: float = unit_position(unit).distance_to(to_local(global_point))
+				if distance < best:
+					best = distance
+					nearest = unit
+		else:
+			var distance: float = group_position(batch, batches, zoom_factor).distance_to(to_local(global_point))
+			if distance < best:
+				best = distance
+				nearest = batch["members"][0]
 	return nearest
 
 
@@ -171,10 +162,12 @@ func _physics_process(delta: float) -> void:
 	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units, economy.buildings)
 	combat_targets = CombatState.advance(delta, units, world_map.map_data["tiles"], FortificationRules.protection(units, [economy, match_state.rival_economy], territory))
 	CombatState.attack_extractors(delta, units, economies, combat_targets, world_map.map_data["tiles"])
+	TransportRules.synchronize(units)
 	for index in range(units.size() - 1, -1, -1):
 		if not units[index].is_alive():
 			var lost: UnitState = units[index]
-			wrecks.append({"kind": lost.kind, "faction": lost.faction, "position": unit_position(lost), "facing": lost.facing, "remaining": 0.65 if UnitCatalog.is_infantry(lost.kind) else WRECK_SECONDS})
+			if not lost.is_embarked():
+				wrecks.append({"kind": lost.kind, "faction": lost.faction, "position": unit_position(lost), "facing": lost.facing, "remaining": 0.65 if UnitCatalog.is_infantry(lost.kind) else WRECK_SECONDS})
 			if wrecks.size() > MAX_WRECKS:
 				wrecks.pop_front()
 			selected_units.erase(units[index])
@@ -194,6 +187,7 @@ func _physics_process(delta: float) -> void:
 	for unit in units:
 		if not unit.path.is_empty():
 			unit.advance(delta, world_map.map_data["tiles"])
+	TransportRules.synchronize(units)
 	units.append_array(economy.advance(delta, world_map.map_data["tiles"], territory))
 	units.append_array(match_state.rival_economy.advance(delta, world_map.map_data["tiles"], territory))
 	queue_redraw()
@@ -260,10 +254,7 @@ func _draw_units() -> void:
 		for wreck in wrecks:
 			var opacity: float = clampf(wreck["remaining"] / 0.65, 0, 1) if UnitCatalog.is_infantry(wreck["kind"]) else 1.0
 			UnitArt.draw(self, wreck["kind"], wreck["faction"], "destroyed", wreck["position"], wreck["facing"], false, 28, opacity)
-		for unit in units:
-			UnitAppearance.draw_unit(self, unit, unit_position(unit), faction_color(unit.faction), selected_units.has(unit), animation_time)
-		return
-	var batches: Array[Dictionary] = UnitVisuals.groups(units)
+	var batches: Array[Dictionary] = UnitVisuals.stacks(units)
 	for batch in batches:
 		var members: Array = batch["members"]
 		var point: Vector2 = group_position(batch, batches, zoom_factor)
@@ -275,24 +266,14 @@ func _draw_units() -> void:
 			injured = injured or UnitArt.state_for(member.health, member.max_health, member.kind) == "damaged"
 			health_fraction = minf(health_fraction, member.health / member.max_health)
 		var icon_scale: float = 1.0 / maxf(zoom_factor, 0.15)
-		if detail == "far":
-			UnitAppearance.strategic(self, batch["kind"], batch["faction"], point, members.size(), highlighted, injured, icon_scale)
-		elif UnitCatalog.is_infantry(batch["kind"]):
-			UnitArt.draw(self, batch["kind"], batch["faction"], "damaged" if injured else "base", point, 0, highlighted, 28 * icon_scale)
-			draw_string(ThemeDB.fallback_font, point + Vector2(9, 18) * icon_scale, str(members.size()), HORIZONTAL_ALIGNMENT_LEFT, -1, roundi(11 * icon_scale), Color("f5efdb"))
-			var leader: UnitState = members[0]
-			var heading: Vector2 = Vector2.from_angle(leader.facing)
-			draw_line(point + heading * 13 * icon_scale, point + heading * 18 * icon_scale, faction_color(batch["faction"]), 2 * icon_scale, true)
+		if batch["hex"] == expanded_hex and batch["faction"] == 1:
 			for member in members:
-				if member.damage_flash > 0:
-					UnitArt.badge_outline(self, point, 28 * icon_scale, Color("ed736a"), 2 * icon_scale)
-				if member.attack_flash > 0:
-					draw_circle(point + heading * 20 * icon_scale, 2 * icon_scale, Color("ffe0a0"))
-		else:
-			for index in range(mini(3, members.size())):
-				var offset: Vector2 = Vector2(index * 7.0 - (mini(3, members.size()) - 1) * 3.5, index * 3.0) * icon_scale
-				UnitAppearance.draw_unit(self, members[index], point + offset, faction_color(batch["faction"]), highlighted, animation_time + index, 0.85 * icon_scale)
-			draw_string(ThemeDB.fallback_font, point + Vector2(-12, 21) * icon_scale, "%s %d" % [UnitCatalog.TYPES[batch["kind"]]["marker"], members.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, roundi(10 * icon_scale), faction_color(batch["faction"]))
+				UnitAppearance.draw_unit(self, member, unit_position(member), faction_color(member.faction), selected_units.has(member), animation_time)
+			continue
+		UnitAppearance.strategic(self, batch["kind"], batch["faction"], point, members.size(), highlighted, injured, icon_scale)
+		for member in members:
+			if member.attack_flash > 0:
+				draw_circle(point + Vector2(14, -4) * icon_scale, 2 * icon_scale, Color("ffe0a0"))
 		if health_fraction < 1.0 or highlighted:
 			draw_rect(Rect2(point + Vector2(-9, -15) * icon_scale, Vector2(18, 2) * icon_scale), UnitAppearance.INK)
 			draw_rect(Rect2(point + Vector2(-9, -15) * icon_scale, Vector2(18 * health_fraction, 2) * icon_scale), faction_color(batch["faction"]))

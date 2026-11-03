@@ -21,6 +21,15 @@ var damage_per_second: float:
 	set(value): damage = value * cooldown
 var attack_range: int = 1
 var facing: float = 0.0
+var turret_facing: float = 0.0
+var domain: String = "ground"
+var carrier: WeakRef
+
+func is_embarked() -> bool:
+	return carrier != null and carrier.get_ref() != null
+
+func is_deployed() -> bool:
+	return is_alive() and not is_embarked()
 var attack_order: bool = false
 var attack_hex: Vector2i = Vector2i.ZERO
 var attack_target: WeakRef
@@ -53,7 +62,7 @@ func _init(start: Vector2i = Vector2i.ZERO, unit_title: String = "Rifle squad") 
 
 
 func order_move(tiles: Dictionary, goal: Vector2i) -> bool:
-	if not is_alive():
+	if not is_deployed():
 		return false
 	# Commit the in-flight edge before following a replacement route: no teleporting.
 	var start: Vector2i = path[0] if progress > 0.0 and not path.is_empty() else hex
@@ -83,7 +92,7 @@ func order_hold() -> void:
 
 
 func advance(delta: float, tiles: Dictionary) -> void:
-	if path.is_empty() or not is_finite(delta) or delta <= 0.0:
+	if is_embarked() or path.is_empty() or not is_finite(delta) or delta <= 0.0:
 		return
 	var remaining: float = delta
 	while remaining > 0 and not path.is_empty():

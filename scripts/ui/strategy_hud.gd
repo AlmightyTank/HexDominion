@@ -67,6 +67,13 @@ var structure_grid: GridContainer
 var infantry_grid: GridContainer
 var vehicle_grid: GridContainer
 var selection_info: Label
+signal stack_requested(kind: String)
+var stack_rows: Dictionary = {}
+var stack_panel: ScrollContainer
+var stack_title: Label
+var stack_passengers: Label
+var stack_all: Button
+var stack_expand: Button
 var attack_button: Button
 var add_selection_button: Button
 
@@ -439,6 +446,15 @@ func _create_build_menu() -> void:
 	attack_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	attack_button.pressed.connect(func() -> void: defensive_order_requested.emit("attack"))
 	command_orders.add_child(attack_button)
+	var transport_orders: HBoxContainer = HBoxContainer.new()
+	orders_column.add_child(transport_orders)
+	for action in ["load", "unload"]:
+		var button: Button = Button.new()
+		button.text = "Load APC (L)" if action == "load" else "Unload APC (U)"
+		button.custom_minimum_size.y = 44
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(func() -> void: defensive_order_requested.emit(action))
+		transport_orders.add_child(button)
 	add_selection_button = Button.new()
 	add_selection_button.text = "Add selection"
 	add_selection_button.toggle_mode = true
@@ -447,6 +463,48 @@ func _create_build_menu() -> void:
 	add_selection_button.pressed.connect(func() -> void: defensive_order_requested.emit("add_select"))
 	command_orders.add_child(add_selection_button)
 	command_tabs = TabContainer.new()
+	stack_panel = ScrollContainer.new()
+	stack_panel.custom_minimum_size.y = 200
+	stack_panel.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(stack_panel)
+	var stack_column: VBoxContainer = VBoxContainer.new()
+	stack_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stack_panel.add_child(stack_column)
+	stack_title = Label.new()
+	stack_column.add_child(stack_title)
+	selection_info = Label.new()
+	selection_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack_column.add_child(selection_info)
+	selection_info.hide()
+	for kind in UnitCatalog.TYPES:
+		var row: Button = Button.new()
+		row.custom_minimum_size.y = 44
+		row.toggle_mode = true
+		row.pressed.connect(func() -> void: stack_requested.emit(kind))
+		stack_column.add_child(row)
+		stack_rows[kind] = row
+	stack_passengers = Label.new()
+	stack_passengers.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack_column.add_child(stack_passengers)
+	stack_all = Button.new()
+	stack_all.text = "Select all in hex"
+	stack_all.custom_minimum_size.y = 44
+	stack_all.pressed.connect(func() -> void: stack_requested.emit("all"))
+	stack_column.add_child(stack_all)
+	stack_expand = Button.new()
+	stack_expand.custom_minimum_size.y = 44
+	stack_expand.pressed.connect(func() -> void: stack_requested.emit("expand"))
+	stack_column.add_child(stack_expand)
+	var stack_actions: HBoxContainer = HBoxContainer.new()
+	stack_column.add_child(stack_actions)
+	stack_column.move_child(stack_passengers, 2)
+	stack_column.move_child(stack_actions, 3)
+	stack_all.reparent(stack_actions)
+	stack_all.text = "Select all"
+	stack_all.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stack_expand.reparent(stack_actions)
+	stack_expand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stack_panel.hide()
 	command_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(command_tabs)
 	var pages: Array[VBoxContainer] = []
@@ -459,9 +517,6 @@ func _create_build_menu() -> void:
 		page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		page_scroll.add_child(page)
 		pages.append(page)
-	selection_info = Label.new()
-	selection_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	pages[1].add_child(selection_info)
 	structure_grid = GridContainer.new()
 	structure_grid.columns = 2
 	pages[0].add_child(structure_grid)
@@ -548,6 +603,30 @@ func _create_build_menu() -> void:
 	build_panel.show()
 	_set_command_cursors(build_panel)
 
+
+func show_stack(members: Array[UnitState], roster: Array[UnitState], expanded: Vector2i, selected_roster: Array[UnitState]) -> void:
+	stack_panel.visible = not members.is_empty()
+	if members.is_empty():
+		return
+	var counts: Dictionary = {}
+	var selected_counts: Dictionary = {}
+	var aboard: int = 0
+	for member in members:
+		counts[member.kind] = counts.get(member.kind, 0) + 1
+		if selected_roster.has(member):
+			selected_counts[member.kind] = selected_counts.get(member.kind, 0) + 1
+		if member.kind == "apc":
+			aboard += TransportRules.passengers(member, roster).size()
+	stack_title.text = "HEX ARMY | %d deployed" % members.size()
+	stack_title.tooltip_text = "Hex (%d, %d)\n%s" % [members[0].hex.x, members[0].hex.y, selection_info.text]
+	for kind in stack_rows:
+		stack_rows[kind].visible = counts.has(kind)
+		stack_rows[kind].text = "%s  x%d" % [UnitCatalog.TYPES[kind]["name"], counts.get(kind, 0)]
+		stack_rows[kind].set_pressed_no_signal(selected_counts.has(kind))
+		stack_rows[kind].tooltip_text = "%d of %d selected. Click to select only this type." % [selected_counts.get(kind, 0), counts.get(kind, 0)]
+	stack_passengers.visible = aboard > 0
+	stack_passengers.text = "%d aboard APCs (not deployed)" % aboard
+	stack_expand.text = "Collapse" if expanded == members[0].hex else "Expand"
 
 func show_selection(roster: Array[UnitState], attack_mode: bool) -> void:
 	attack_button.text = "Cancel attack" if attack_mode else "Attack (X)"

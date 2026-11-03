@@ -64,9 +64,10 @@ func run() -> void:
 		var count: int = 0
 		for batch in batches:
 			count += batch["members"].size()
-		check(batches.size() == 12 and count == 24, "Mixed army exact counts at " + str(zoom_factor))
+		check(batches.size() == UnitCatalog.TYPES.size() * 3 and count == UnitCatalog.TYPES.size() * 6, "Mixed army exact counts at " + str(zoom_factor))
 		check(game.units.units == before, "Zoom preserves identities and roster")
-		var point: Vector2 = game.units.group_position(batches[0], batches, zoom_factor) if zoom_factor < 1.5 else game.units.unit_position(before[0])
+		var stacks: Array[Dictionary] = UnitVisuals.stacks(game.units.units)
+		var point: Vector2 = game.units.group_position(stacks[0], stacks, zoom_factor)
 		check(game.units.pick_faction(game.units.to_global(point), zoom_factor, 1) != null, "Mouse/touch shared pick anchor")
 	var lost: UnitState = before[0]
 	lost.health = 0

@@ -148,10 +148,10 @@ static func _test_combat(check: Callable) -> void:
 	check.call(is_equal_approx(_damage("rifle", "rifle", "plains", "mountain"), 15), "Mountain infantry protection is 25 percent")
 	check.call(is_equal_approx(_damage("rifle", "tank", "plains", "mountain"), 15), "Mountain tank protection is 25 percent")
 	check.call(is_equal_approx(_damage("rifle", "rifle", "plains", "city"), 16) and is_equal_approx(_damage("rifle", "tank", "plains", "city"), 16), "City protection is 20 percent for both kinds")
-	check.call(is_equal_approx(_damage("tank", "rifle", "desert", "plains"), 45), "Desert grants no attack bonus")
-	check.call(is_equal_approx(_damage("tank", "rifle", "desert", "city"), 36), "City cover applies without desert attack bonus")
+	check.call(is_equal_approx(_damage("tank", "rifle", "desert", "plains"), 22.5), "Desert grants no attack bonus beyond vehicle counter")
+	check.call(is_equal_approx(_damage("tank", "rifle", "desert", "city"), 18), "City cover applies without desert attack bonus")
 	check.call(is_equal_approx(_damage("rifle", "rifle", "plains", "city", true), 20), "Moving defenders cannot carry stationary city cover between tiles")
-	check.call(is_equal_approx(_damage("rifle", "rifle", "snow", "plains"), 20) and is_equal_approx(_damage("rifle", "rifle", "tundra", "plains"), 20) and is_equal_approx(_damage("tank", "rifle", "snow", "plains"), 45) and is_equal_approx(_damage("tank", "rifle", "tundra", "plains"), 45), "Snow and tundra have no combat penalties for either unit kind")
+	check.call(is_equal_approx(_damage("rifle", "rifle", "snow", "plains"), 20) and is_equal_approx(_damage("rifle", "rifle", "tundra", "plains"), 20) and is_equal_approx(_damage("tank", "rifle", "snow", "plains"), 22.5) and is_equal_approx(_damage("tank", "rifle", "tundra", "plains"), 22.5), "Snow and tundra have no combat penalties for either unit kind")
 	var attacker: UnitState = UnitState.new()
 	attacker.configure_kind("tank")
 	var roster: Array[UnitState] = [attacker]

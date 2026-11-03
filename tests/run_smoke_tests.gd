@@ -88,9 +88,9 @@ func _test_infantry_integration() -> void:
 		unit.progress = 0
 	for zoom_factor in [0.45, 1.0, 2.3]:
 		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * zoom_factor)
-		var batches: Array[Dictionary] = UnitVisuals.groups(game.units.units)
+		var batches: Array[Dictionary] = UnitVisuals.stacks(game.units.units)
 		var first: Dictionary = batches[0]
-		var point: Vector2 = game.units.group_position(first, batches, zoom_factor) if zoom_factor < 1.5 else game.units.unit_position(game.units.units[0])
+		var point: Vector2 = game.units.group_position(first, batches, zoom_factor)
 		_check(game.units.pick_faction(game.units.to_global(point), zoom_factor, 1) == game.units.units[0], "Rendered individual/group can be selected at zoom %.2f" % zoom_factor)
 		game.units.select_box(Rect2(-100000, -100000, 200000, 200000), game.get_viewport().get_canvas_transform())
 		_check(game.units.selected_units.size() == 3, "Box selection preserves exact friendly simulation members")
@@ -106,9 +106,10 @@ func _test_infantry_integration() -> void:
 	_check(game.units.economy.buildings[home]["queue"] == ["rifle", "rocket", "gunner"], "All three HUD production actions use pinned barracks")
 	game.units.select_one(game.units.units[0])
 	game.hud.add_selection_button.button_pressed = true
-	var position: Vector2 = game.units.to_global(game.units.unit_position(game.units.units[1]))
+	var stacks: Array[Dictionary] = UnitVisuals.stacks(game.units.units)
+	var position: Vector2 = game.units.to_global(game.units.group_position(stacks[0], stacks, game.camera.zoom.x))
 	game._select_at(position)
-	_check(game.units.selected_units.size() == 2, "Touch additive-selection toggle uses individual pick path")
+	_check(game.units.selected_units.size() == 3, "Touch additive selection adds remaining members of the hex stack")
 	game.hud.defensive_order_requested.emit("hold")
 	_check(game.units.units[0].holding and game.units.units[1].holding, "HUD Hold acts on multiple infantry roles")
 	game.free()
@@ -1153,10 +1154,10 @@ func _test_combat() -> void:
 	enemy.faction = 2
 	rifle.configure_kind("tank")
 	CombatState.advance(1.0, forces)
-	_check(rifle.health == 230.0 and enemy.health == 35.0, "Tank has distinct durability and damage")
+	_check(rifle.health == 230.0 and enemy.health == 57.5, "Tank has distinct durability and reduced anti-infantry damage")
 	rifle.path.append(Vector2i(1, 0))
 	CombatState.advance(1.0, forces)
-	_check(enemy.health == 35.0 and rifle.health == 210.0, "Moving units take damage but do not fire")
+	_check(enemy.health == 57.5 and rifle.health == 210.0, "Moving units take damage but do not fire")
 	rifle.path.clear()
 	rifle.health = 10.0
 	enemy.health = 10.0

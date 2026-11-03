@@ -6,7 +6,7 @@ const DAMAGE_MULTIPLIER: float = 0.6
 static func occupants(hex: Vector2i, faction: int, units: Array[UnitState]) -> Array[UnitState]:
 	var stationed: Array[UnitState] = []
 	for unit in units:
-		if unit.is_alive() and UnitCatalog.is_infantry(unit.kind) and unit.faction == faction and unit.hex == hex and unit.path.is_empty() and unit.garrisoned and stationed.size() < CAPACITY:
+		if unit.is_deployed() and UnitCatalog.is_infantry(unit.kind) and unit.faction == faction and unit.hex == hex and unit.path.is_empty() and unit.garrisoned and stationed.size() < CAPACITY:
 			stationed.append(unit)
 	return stationed
 
@@ -14,7 +14,7 @@ static func operational(hex: Vector2i, economy: EconomyState, territory: Territo
 	return territory.owner_at(hex) == economy.faction and economy.buildings.has(hex) and economy.buildings[hex]["kind"] == "bunker" and EconomyState.is_complete(economy.buildings[hex]) and economy.buildings[hex].get("health", 0) > 0
 
 static func assign(unit: UnitState, economy: EconomyState, territory: TerritoryState, units: Array[UnitState]) -> bool:
-	if not unit.is_alive() or not UnitCatalog.is_infantry(unit.kind) or unit.faction != economy.faction or not unit.path.is_empty() or not operational(unit.hex, economy, territory):
+	if not unit.is_deployed() or not UnitCatalog.is_infantry(unit.kind) or unit.faction != economy.faction or not unit.path.is_empty() or not operational(unit.hex, economy, territory):
 		return false
 	if not unit.garrisoned and occupants(unit.hex, unit.faction, units).size() >= CAPACITY:
 		return false

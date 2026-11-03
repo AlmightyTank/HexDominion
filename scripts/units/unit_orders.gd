@@ -2,7 +2,7 @@ extends RefCounted
 class_name UnitOrders
 ## Explicit attack pursuit; ordinary movement and Hold keep their existing rules.
 static func attack(unit: UnitState, tiles: Dictionary, goal: Vector2i, target: UnitState = null) -> bool:
-	if target != null and (not target.is_alive() or target.faction == unit.faction):
+	if target != null and (not target.is_deployed() or target.faction == unit.faction or not UnitCatalog.can_target(unit, target)):
 		return false
 	if not unit.order_move(tiles, goal):
 		return false
@@ -21,12 +21,12 @@ static func _trim_route(unit: UnitState) -> void:
 
 static func update(units: Array[UnitState], tiles: Dictionary, economies: Array[EconomyState]) -> void:
 	for unit in units:
-		if not unit.is_alive() or not unit.attack_order:
+		if not unit.is_deployed() or not unit.attack_order:
 			continue
 		var target: UnitState = unit.attack_target.get_ref() if unit.attack_target != null else null
 		var valid: bool = false
 		if unit.attack_target != null:
-			valid = target != null and target.is_alive() and target.faction != unit.faction and units.has(target)
+			valid = target != null and target.is_deployed() and target.faction != unit.faction and units.has(target) and UnitCatalog.can_target(unit, target)
 		else:
 			for economy in economies:
 				valid = valid or (economy.faction != unit.faction and economy.buildings.has(unit.attack_hex))

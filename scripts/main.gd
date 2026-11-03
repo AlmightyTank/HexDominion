@@ -20,6 +20,7 @@ var _facility_hex: Vector2i = NO_FACILITY
 var _facility_site: Dictionary = {}
 var _rally_mode: bool = false
 var _attack_mode: bool = false
+var _transport_mode: String = ""
 const TAP_THRESHOLD: float = 14.0
 
 
@@ -36,12 +37,13 @@ func _ready() -> void:
 	hud.facility_selected.connect(_select_facility)
 	hud.rally_requested.connect(_begin_rally)
 	hud.defensive_order_requested.connect(_defensive_order)
+	hud.stack_requested.connect(_stack_action)
 	hud.cancel_construction_requested.connect(_cancel_construction)
 	hud.building_action_requested.connect(_building_action)
 	hud.match_action_requested.connect(_match_action)
 	hud.save_slot_requested.connect(_save_slot)
 	hud.load_slot_requested.connect(_load_slot)
-	hud.show_command_info("Click/tap selects. Shift-click or Add selection adds units. Right-click enemies attacks; X/Attack then tap also works. J holds, G garrisons. Repeated group clicks cycle soldiers.")
+	hud.show_command_info("Click/tap selects a hex army. Use its panel to select a type or expand individuals. Shift-click adds stacks. Right-click enemies attacks. J holds, G garrisons; L loads and U unloads APCs.")
 	_selection_box = ReferenceRect.new()
 	_selection_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_selection_box.editor_only = false
@@ -55,6 +57,14 @@ func _defensive_order(action: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	if action == "add_select":
+		return
+	_transport_mode = ""
+	if action in ["load", "unload"]:
+		_transport_mode = action
+		_attack_mode = false
+		_rally_mode = false
+		units.build_kind = ""
+		hud.show_command_info("Load: select stationary infantry, then tap a friendly APC on the same hex (four slots)." if action == "load" else "Unload: tap the carrier hex or adjacent land. Esc cancels.")
 		return
 	if action == "attack":
 		_attack_mode = not _attack_mode and not units.selected_units.is_empty()
@@ -79,7 +89,10 @@ func _defensive_order(action: String) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if _attack_mode:
+		if not _transport_mode.is_empty():
+			_transport_mode = ""
+			hud.show_command_info("Transport order cancelled")
+		elif _attack_mode:
 			_attack_mode = false
 			hud.show_command_info("Attack selection cancelled")
 		elif _rally_mode:
@@ -156,6 +169,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_defensive_order("garrison")
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_X:
 		_defensive_order("attack")
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_L, KEY_U]:
+		_defensive_order("load" if event.keycode == KEY_L else "unload")
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_mouse_press = event.position
@@ -217,6 +232,9 @@ func _inspect_world_at(world_point: Vector2) -> void:
 
 
 func _select_at(point: Vector2) -> void:
+	if not _transport_mode.is_empty():
+		_transport_at(point)
+		return
 	if _attack_mode:
 		_attack_at(point)
 		return
@@ -225,16 +243,28 @@ func _select_at(point: Vector2) -> void:
 		return
 	var picked: UnitState = units.pick_faction(point, camera.zoom.x, 1, true)
 	if hud.add_selection_button.button_pressed or Input.is_key_pressed(KEY_SHIFT):
-		units.toggle_selection(picked)
+		if picked != null:
+			var members: Array[UnitState] = _hex_members(picked.hex)
+			var remove: bool = true
+			for member in members:
+				remove = remove and units.selected_units.has(member)
+			for member in members:
+				if remove == units.selected_units.has(member):
+					units.toggle_selection(member)
 	else:
 		units.select_one(picked)
+		if picked != null and picked.hex != units.expanded_hex:
+			units.selected_units = _hex_members(picked.hex)
 	units.queue_redraw()
-	_inspect_world_at(point)
+	_inspect_world_at(world_map.hex_to_world(picked.hex) if picked != null else point)
 	if units.selected != null:
 		hud.show_command_info("%s • %s • Right-click move • J hold • G garrison" % [units.selected.title, "Garrisoned" if units.selected.garrisoned else ("Holding" if units.selected.holding else "Mobile")])
 
 
 func _move_to(point: Vector2) -> void:
+	if not _transport_mode.is_empty():
+		_transport_at(point)
+		return
 	if _rally_mode:
 		_set_facility_rally(point)
 		return
@@ -278,10 +308,64 @@ func _attack_at(point: Vector2, target: UnitState = null) -> void:
 	units.queue_redraw()
 	hud.show_command_info("Attack: %d orders accepted. Move or Hold cancels pursuit." % accepted)
 
+func _transport_at(point: Vector2) -> void:
+	var accepted: int = 0
+	if _transport_mode == "load":
+		var apc: UnitState = units.pick_faction(point, camera.zoom.x, 1)
+		if apc != null and apc.kind != "apc":
+			var hex: Vector2i = apc.hex
+			apc = null
+			for candidate in _hex_members(hex):
+				if candidate.kind == "apc" and candidate.path.is_empty() and TransportRules.passengers(candidate, units.units).size() < TransportRules.CAPACITY:
+					apc = candidate
+					break
+		if apc != null and apc.kind == "apc":
+			for unit in units.selected_units.duplicate():
+				if TransportRules.load(unit, apc, units.units):
+					accepted += 1
+			if accepted > 0:
+				units.select_one(apc)
+	else:
+		for unit in units.selected_units:
+			if TransportRules.unload(unit, world_map.world_to_hex(point), world_map.map_data["tiles"], units.units):
+				accepted += 1
+	if accepted > 0:
+		_transport_mode = ""
+	units.queue_redraw()
+	hud.show_command_info("Transport: %d accepted." % accepted if accepted > 0 else "Transport rejected: need stationary friendly APC, available seats and same-hex infantry; unload on nearby land. Esc cancels.")
+
+func _hex_members(hex: Vector2i) -> Array[UnitState]:
+	var members: Array[UnitState] = []
+	for unit in units.units:
+		if unit.is_deployed() and unit.faction == 1 and unit.hex == hex:
+			members.append(unit)
+	return members
+
+func _stack_action(kind: String) -> void:
+	if _menu_open or units.selected == null:
+		return
+	var hex: Vector2i = units.selected.hex
+	if kind == "expand":
+		units.expanded_hex = Vector2i(-99999, -99999) if units.expanded_hex == hex else hex
+	else:
+		var members: Array[UnitState] = _hex_members(hex)
+		units.selected_units.clear()
+		for member in members:
+			if kind == "all" or member.kind == kind:
+				units.selected_units.append(member)
+		units.selected = units.selected_units[0] if not units.selected_units.is_empty() else null
+	units.queue_redraw()
+
 
 func _process(_delta: float) -> void:
 	if units != null:
 		hud.show_selection(units.selected_units, _attack_mode)
+		if units.selected != null and units.selected.kind == "apc":
+			hud.selection_info.text += "\nPassengers: %d/4. Load/Unload APC buttons choose a map target." % TransportRules.passengers(units.selected, units.units).size()
+		var stack_members: Array[UnitState] = []
+		if units.selected != null:
+			stack_members = _hex_members(units.selected.hex)
+		hud.show_stack(stack_members, units.units, units.expanded_hex, units.selected_units)
 		hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"])
 		var inspected: Vector2i = world_map.selected_hex
 		var income_economy: EconomyState = units.match_state.rival_economy if units.territory.owner_at(inspected) == 2 else units.economy
@@ -305,6 +389,7 @@ func _begin_build(kind: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	_rally_mode = false
+	_transport_mode = ""
 	_attack_mode = false
 	units.build_kind = kind if EconomyState.BUILD_COSTS.has(kind) or kind == "road" else ""
 	units.build_rotation = 0
@@ -367,6 +452,7 @@ func _select_facility(hex: Vector2i) -> void:
 
 
 func _begin_rally() -> void:
+	_transport_mode = ""
 	if _menu_open or units.match_state.result != "playing":
 		return
 	var hex: Vector2i = _economy_hex()
@@ -385,6 +471,7 @@ func _set_facility_rally(point: Vector2) -> void:
 
 
 func _set_menu_open(open: bool) -> void:
+	_transport_mode = ""
 	_attack_mode = false
 	_menu_open = open
 	_rally_mode = false

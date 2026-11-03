@@ -13,12 +13,12 @@ static func ground(tile: Dictionary) -> String:
 static func movement_cost(tiles: Dictionary, from: Vector2i, to: Vector2i, kind: String = "rifle") -> float:
 	if not HexPathfinding.is_walkable(tiles, from) or not HexPathfinding.is_walkable(tiles, to) or HexMath.distance(from, to) != 1:
 		return INF
-	var costs: Dictionary = ARMOR_COST if kind == "tank" else INFANTRY_COST
+	var costs: Dictionary = INFANTRY_COST if UnitCatalog.is_infantry(kind) else ARMOR_COST
 	var cost: float = costs.get(ground(tiles[to]), 1.0)
 	if crosses_river(tiles, from, to):
-		cost += 1.0 if kind == "tank" else 0.6
+		cost += 0.6 if UnitCatalog.is_infantry(kind) else 1.0
 	if tiles[from].get("narrow_crossing", false) or tiles[to].get("narrow_crossing", false):
-		cost += 0.75 if kind == "tank" else 0.4
+		cost += 0.4 if UnitCatalog.is_infantry(kind) else 0.75
 	return cost / RoadRules.SPEED if RoadRules.has_road(tiles, from) and RoadRules.has_road(tiles, to) else cost
 
 static func crosses_river(tiles: Dictionary, from: Vector2i, to: Vector2i) -> bool:
