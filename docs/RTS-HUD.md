@@ -13,6 +13,15 @@ Direction: the user's classic Command & Conquer reference. ENERGY 2 / RHYTHM 1 /
 - Hover and focus feedback are immediate; no decorative animation competes with the battlefield.
 # Reserved playfield
 
+Unit production does not require map selection. Each unit category uses an
+explicit primary facility when available, otherwise the newest completed owned
+facility. Select a facility in Sites and use Set primary production to override
+that default. Captured, destroyed and unfinished sites cannot receive production.
+
+Economy, supply, continent progress and unit orders belong to the bottom command
+bar. The sidebar keeps radar and production tabs so field orders do not push
+construction off screen. The bottom information groups scroll on narrow windows.
+
 The right sidebar and bottom command strip reserve screen space. Camera fit,
 centering, clamping, cursor zoom and the radar footprint use only the remaining
 map rectangle. Objectives sit in the bottom strip rather than covering terrain.

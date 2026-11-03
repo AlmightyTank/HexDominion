@@ -92,6 +92,30 @@ func can_build(hex: Vector2i, kind: String, tiles: Dictionary, territory: Territ
 		return false
 	return true
 
+func production_site(kind: String, territory: TerritoryState) -> Variant:
+	var candidates: Array = buildings.keys()
+	candidates.reverse()
+	var newest: Variant = null
+	for hex in candidates:
+		var site: Dictionary = buildings[hex]
+		if site["kind"] != UnitCatalog.producer(kind) or not is_complete(site) or territory.owner_at(hex) != faction:
+			continue
+		if site.get("primary", false):
+			return hex
+		if newest == null:
+			newest = hex
+	return newest
+
+
+func set_primary(hex: Vector2i, territory: TerritoryState) -> bool:
+	if not buildings.has(hex) or territory.owner_at(hex) != faction or not is_complete(buildings[hex]) or not buildings[hex]["kind"] in ["barracks", "factory"]:
+		return false
+	for site in buildings.values():
+		if site["kind"] == buildings[hex]["kind"]:
+			site["primary"] = is_same(site, buildings[hex])
+	return true
+
+
 func train(hex: Vector2i, kind: String, territory: TerritoryState) -> bool:
 	if not buildings.has(hex) or not is_complete(buildings[hex]) or territory.owner_at(hex) != faction or not TRAIN_COSTS.has(kind):
 		return false

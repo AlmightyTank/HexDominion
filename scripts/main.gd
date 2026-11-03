@@ -341,7 +341,8 @@ func _cancel_construction(hex: Vector2i, site: Dictionary) -> void:
 func _train_selected(kind: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
-	var accepted: bool = units.economy.train(_economy_hex(), kind, units.territory)
+	var producer: Variant = units.economy.production_site(kind, units.territory)
+	var accepted: bool = producer != null and units.economy.train(producer, kind, units.territory)
 	hud.show_command_info("Training queued" if accepted else "Training unavailable: check building, credits and queue")
 
 
