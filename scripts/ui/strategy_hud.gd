@@ -49,6 +49,7 @@ var train_buttons: Dictionary = {}
 var training_progress: ProgressBar
 signal facility_selected(hex: Vector2i)
 signal rally_requested
+signal defensive_order_requested(action: String)
 var facility_buttons: Dictionary = {}
 var facility_list: VBoxContainer
 var economy_summary: Label
@@ -393,6 +394,15 @@ func _create_build_menu() -> void:
 	continent_overview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	continent_overview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	continent_panel.add_child(continent_overview)
+	var defensive_orders: HBoxContainer = HBoxContainer.new()
+	column.add_child(defensive_orders)
+	for action in ["hold", "garrison"]:
+		var order_button: Button = Button.new()
+		order_button.text = "Hold (J)" if action == "hold" else "Garrison (G)"
+		order_button.custom_minimum_size.y = 44
+		order_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		order_button.pressed.connect(func() -> void: defensive_order_requested.emit(action))
+		defensive_orders.add_child(order_button)
 	command_tabs = TabContainer.new()
 	command_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(command_tabs)
@@ -435,13 +445,13 @@ func _create_build_menu() -> void:
 	road_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	road_button.pressed.connect(func() -> void: build_requested.emit("road"))
 	structure_grid.add_child(road_button)
-	for kind in ["barracks", "factory", "extractor", "power_plant"]:
+	for kind in ["barracks", "factory", "extractor", "power_plant", "bunker"]:
 		var button: Button = Button.new()
 		button.text = "%s  |  %d CR" % [String(kind).capitalize(), EconomyState.BUILD_COSTS[kind]]
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.custom_minimum_size = Vector2(0, 72)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.tooltip_text = {"headquarters": "Command center • +5 credits/sec • 20 power • Limit: one", "barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "10 power • Disabled under low power • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP"}[kind]
+		button.tooltip_text = {"headquarters": "Command center • +5 credits/sec • 20 power • Limit: one", "barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "10 power • Disabled under low power • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP", "bunker": "Two infantry • G assigns garrison • J holds • 40% less incoming damage; passable"}[kind]
 		button.pressed.connect(func() -> void: build_requested.emit(kind))
 		structure_grid.add_child(button)
 		build_buttons[kind] = button
@@ -575,11 +585,15 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 
 func show_supply(hex: Vector2i, economy: EconomyState, territory: TerritoryState, tiles: Dictionary) -> void:
 	show_continents(territory.continents)
-	var economic: bool = tiles.get(hex, {}).get("terrain", "") == "city" or (economy.buildings.has(hex) and economy.buildings[hex]["kind"] == "extractor")
+	var bunker: bool = economy.buildings.has(hex) and economy.buildings[hex]["kind"] == "bunker"
+	var economic: bool = bunker or tiles.get(hex, {}).get("terrain", "") == "city" or (economy.buildings.has(hex) and economy.buildings[hex]["kind"] == "extractor")
 	supply_info.visible = economic
 	if not economic:
 		return
 	var status: Dictionary = economy.income_status(hex, tiles, territory)
+	if bunker:
+		supply_info.text = "%s | Bunker holds two infantry\nGarrison protection does not require supply" % ("SUPPLIED" if status["supplied"] else "ISOLATED")
+		return
 	supply_info.text = "%s | %.2f CR/s\n%s" % ["SUPPLIED" if status["supplied"] else "ISOLATED", status["income"], "Road bonus +10%" if status["road_bonus"] else "No road income bonus"]
 
 

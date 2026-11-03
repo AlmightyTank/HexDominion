@@ -18,6 +18,31 @@ func _check(condition: bool, description: String) -> void:
 		push_error("FAIL: %s" % description)
 
 
+func _test_fortification_save() -> void:
+	var game: Node2D = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+	game.units.set_physics_process(false)
+	var squad: UnitState = game.units.units[0]
+	var hex: Vector2i = game.units.units[1].hex
+	game.units.economy.add_building(hex, "bunker")
+	squad.hex = hex
+	game.units.select_one(squad)
+	game.hud.defensive_order_requested.emit("garrison")
+	_check(squad.holding and squad.garrisoned, "HUD garrison command stations selected infantry")
+	var snapshot: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, hex)
+	_check(MatchSave.restore(game.units, snapshot) and game.units.units[0].holding and game.units.units[0].garrisoned, "Save restores hold order and bunker assignment")
+	_check(FortificationRules.protection(game.units.units, [game.units.economy], game.units.territory).size() == 1, "Loaded bunker shelter is reconstructed once")
+	var invalid: Dictionary = snapshot.duplicate(true)
+	invalid["units"][0]["holding"] = "yes"
+	_check(not MatchSave.restore(game.units, invalid), "Malformed held-order save rejected atomically")
+	game.units.select_one(game.units.units[0])
+	game.hud.defensive_order_requested.emit("hold")
+	_check(game.units.units[0].holding, "HUD hold command uses shared unit order")
+	game.units.economy.sell_building(hex, game.units.territory, game.units.economy.buildings[hex])
+	FortificationRules.protection(game.units.units, [game.units.economy], game.units.territory)
+	_check(not game.units.units[0].garrisoned and game.units.units[0].holding, "Sold loaded bunker clears assignment without dropping hold")
+	game.free()
+
 func _test_supply_ui_and_save() -> void:
 	var game: Node2D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
@@ -447,7 +472,7 @@ func _run_tests() -> void:
 	_check(game.units.selected_units.size() == 1, "Click replaces group selection")
 	game.units.select_box(Rect2(-100000, -100000, 1, 1), Transform2D.IDENTITY)
 	_check(game.units.selected_units.is_empty() and game.units.selected == null, "Empty box clears selection")
-	_check(game.hud.build_buttons.size() == 4 and not game.hud.build_buttons.has("headquarters"), "HQ-victory construction menu excludes headquarters and retains power plants")
+	_check(game.hud.build_buttons.size() == 5 and game.hud.build_buttons.has("bunker") and not game.hud.build_buttons.has("headquarters"), "HQ-victory construction menu includes bunkers and power plants")
 	game.hud.show_tile_actions(game.units.units[0].hex, game.units.economy, game.units.territory, tiles)
 	_check(game.hud.build_panel.visible and game.hud.command_tabs.get_tab_count() == 4 and game.hud.build_buttons["barracks"].visible, "Tabbed construction sidebar remains available while inspecting buildings")
 	game.hud.show_tile_actions(Vector2i(-9999, -9999), game.units.economy, game.units.territory, tiles)
@@ -476,6 +501,8 @@ func _run_tests() -> void:
 	preload("res://tests/road_tests.gd").run(_check)
 	preload("res://tests/supply_tests.gd").run(_check)
 	preload("res://tests/continent_tests.gd").run(_check)
+	preload("res://tests/fortification_tests.gd").run(_check)
+	_test_fortification_save()
 	_test_supply_ui_and_save()
 	_test_ai_integration()
 	game._begin_build("")
@@ -512,7 +539,7 @@ func _run_tests() -> void:
 		_check(restarted.units.units.size() == 4 and restarted.units.economy.credits >= 400 and restarted.units.economy.credits < 410 and restarted.units.selected == null, "Restart resets roster, economy and selection (allowing initial income ticks)")
 		restarted.free()
 	current_scene = null
-	print("Hex Dominion v0.3 Slice D: %d passed, %d failed" % [_successes, _failures])
+	print("Hex Dominion v0.3 Slice E: %d passed, %d failed" % [_successes, _failures])
 	quit(1 if _failures > 0 else 0)
 
 
@@ -1090,7 +1117,7 @@ func _test_territory() -> void:
 	_check(state.owner_at(rival.hex) == 0 and state.captures[rival.hex]["faction"] == 2, "New captor resets previous progress")
 	state.advance(1.0, tiles, forces)
 	_check(state.owner_at(rival.hex) == 2, "Rival can capture territory")
-	_check(not rival.order_move(tiles, Vector2i.ZERO), "Garrison refuses movement")
+	_check(rival.order_move(tiles, Vector2i.ZERO) and not rival.garrisoned, "Movement releases garrison")
 	rival.garrisoned = false
 	_check(rival.order_move(tiles, Vector2i.ZERO), "Released garrison can move")
 	state.advance(10.0, tiles, forces)

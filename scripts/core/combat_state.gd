@@ -2,7 +2,7 @@ extends RefCounted
 class_name CombatState
 ## Continuous DPS resolved simultaneously. Stable roster order breaks distance ties.
 
-static func advance(delta: float, units: Array[UnitState], tiles: Dictionary = {}) -> Dictionary:
+static func advance(delta: float, units: Array[UnitState], tiles: Dictionary = {}, protection: Dictionary = {}) -> Dictionary:
 	var targets: Dictionary = {}
 	var damage: Dictionary = {}
 	if not is_finite(delta) or delta <= 0.0:
@@ -22,7 +22,7 @@ static func advance(delta: float, units: Array[UnitState], tiles: Dictionary = {
 		if target != null:
 			targets[attacker] = target
 			var modifier: float = TerrainRules.attack_multiplier(tiles.get(attacker.hex, {}), attacker.kind) * TerrainRules.defense_multiplier(tiles.get(target.hex, {}), target.kind, target.path.is_empty())
-			damage[target] = damage.get(target, 0.0) + attacker.damage_per_second * delta * modifier
+			damage[target] = damage.get(target, 0.0) + attacker.damage_per_second * delta * modifier * protection.get(target, 1.0)
 	for target in damage:
 		target.health = maxf(0.0, target.health - damage[target])
 	return targets

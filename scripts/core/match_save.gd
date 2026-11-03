@@ -10,7 +10,7 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 	for unit in layer.units:
 		roster.append({"hex": unit.hex, "path": unit.path.duplicate(), "progress": unit.progress,
 			"kind": unit.kind, "health": unit.health, "faction": unit.faction,
-			"garrisoned": unit.garrisoned, "title": unit.title})
+			"garrisoned": unit.garrisoned, "holding": unit.holding, "title": unit.title})
 	var match_state: MatchState = layer.match_state
 	return {"version": 1, "map": MAP_ID, "units": roster,
 		"owners": layer.territory.owners.duplicate(true), "captures": layer.territory.captures.duplicate(true),
@@ -78,6 +78,8 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 		if (unit["path"].is_empty() and unit["progress"] != 0) or (unit["garrisoned"] and not unit["path"].is_empty()):
 			return false
+		if not unit.get("holding", false) is bool or (unit.get("holding", false) and not unit["path"].is_empty()):
+			return false
 		var previous: Vector2i = unit["hex"]
 		for step in unit["path"]:
 			if not _land(step, tiles) or HexMath.distance(previous, step) != 1:
@@ -144,6 +146,7 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		unit.faction = entry["faction"]
 		unit.health = entry["health"]
 		unit.garrisoned = entry["garrisoned"]
+		unit.holding = entry.get("holding", false)
 		unit.path.assign(entry["path"])
 		unit.progress = entry["progress"]
 		roster.append(unit)

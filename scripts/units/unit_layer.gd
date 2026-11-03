@@ -102,7 +102,7 @@ func _physics_process(delta: float) -> void:
 	if world_map == null or match_state.result != "playing":
 		return
 	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units, economy.buildings)
-	combat_targets = CombatState.advance(delta, units, world_map.map_data["tiles"])
+	combat_targets = CombatState.advance(delta, units, world_map.map_data["tiles"], FortificationRules.protection(units, [economy, match_state.rival_economy], territory))
 	var economies: Array[EconomyState] = [economy, match_state.rival_economy]
 	CombatState.attack_extractors(delta, units, economies, combat_targets, world_map.map_data["tiles"])
 	for index in range(units.size() - 1, -1, -1):
@@ -134,8 +134,12 @@ func _draw() -> void:
 	_draw_isolated_locations()
 	for hex in match_state.rival_economy.buildings:
 		var rival_building: Dictionary = match_state.rival_economy.buildings[hex]
-		_draw_building_badge(to_local(world_map.hex_to_world(hex)), rival_building["kind"], faction_color(2), world_map.selected_hex == hex, rival_building.get("rotation", 0))
-		_draw_construction(to_local(world_map.hex_to_world(hex)), rival_building, faction_color(2))
+		var rival_color: Color = faction_color(2)
+		if rival_building["kind"] == "bunker":
+			rival_color = faction_color(territory.owner_at(hex)) if territory.owner_at(hex) > 0 else Color("889099")
+		_draw_building_badge(to_local(world_map.hex_to_world(hex)), rival_building["kind"], rival_color, world_map.selected_hex == hex, rival_building.get("rotation", 0))
+		_draw_construction(to_local(world_map.hex_to_world(hex)), rival_building, rival_color)
+		_draw_bunker_status(hex, match_state.rival_economy)
 	if not build_kind.is_empty():
 		var valid: bool = can_place(build_hex, build_kind)
 		var preview_color: Color = Color("65ebd0") if valid else Color("f08075")
@@ -152,8 +156,11 @@ func _draw() -> void:
 		var building: Dictionary = economy.buildings[hex]
 		var center: Vector2 = to_local(world_map.hex_to_world(hex))
 		var color: Color = Color("ffd87c") if territory.owner_at(hex) == 1 else Color("889099")
+		if building["kind"] == "bunker" and territory.owner_at(hex) > 0:
+			color = faction_color(territory.owner_at(hex))
 		_draw_building_badge(center, building["kind"], color, managed_hex == hex, building.get("rotation", 0))
 		_draw_construction(center, building, color)
+		_draw_bunker_status(hex, economy)
 		if not building["queue"].is_empty():
 			var fraction: float = building["elapsed"] / EconomyState.TRAIN_SECONDS[building["queue"][0]]
 			draw_arc(center, 16.0, -PI / 2.0, -PI / 2.0 + TAU * fraction, 48, color, 2.5, true)
@@ -184,9 +191,21 @@ func _draw() -> void:
 		draw_rect(Rect2(point + Vector2(-10, -17), Vector2(20.0 * unit.health / unit.max_health, 3)), faction_color(unit.faction))
 		if unit.garrisoned:
 			draw_rect(Rect2(point - Vector2(10, 10), Vector2(20, 20)), faction_color(unit.faction), false, 2.0)
+		if unit.holding:
+			draw_line(point + Vector2(-7, 12), point + Vector2(7, 12), Color("fff0ad"), 3.0)
 		draw_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("12364c"), 2.0)
 		draw_line(point + Vector2(-3, 3), point + Vector2(3, -3), Color("12364c"), 2.0)
 
+
+func _draw_bunker_status(hex: Vector2i, owner_economy: EconomyState) -> void:
+	if owner_economy.buildings[hex]["kind"] != "bunker":
+		return
+	var center: Vector2 = to_local(world_map.hex_to_world(hex))
+	var count: int = FortificationRules.occupants(hex, owner_economy.faction, units).size() if FortificationRules.operational(hex, owner_economy, territory) else 0
+	draw_string(ThemeDB.fallback_font, center + Vector2(-9, 25), "%d/2" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, faction_color(territory.owner_at(hex)))
+	owner_economy.supply.refresh(world_map.map_data["tiles"], territory, owner_economy)
+	if not owner_economy.supply.supplied.has(hex):
+		draw_string(ThemeDB.fallback_font, center + Vector2(-3, -21), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("f08075"))
 
 func _draw_isolated_locations() -> void:
 	var tiles: Dictionary = world_map.map_data["tiles"]
@@ -267,6 +286,9 @@ func _draw_building_icon(center: Vector2, kind: String, color: Color, highlighte
 		_building_polygon(center, [Vector2(-10, 8), Vector2(-7, -9), Vector2(-2, -9), Vector2(0, 8)], color)
 		_building_polygon(center, [Vector2(1, 8), Vector2(3, -6), Vector2(7, -6), Vector2(10, 8)], color)
 		draw_line(center + Vector2(-11, 9), center + Vector2(11, 9), color, 2.0)
+	elif kind == "bunker":
+		draw_rect(Rect2(center + Vector2(-10, -5), Vector2(20, 12)), color)
+		draw_rect(Rect2(center + Vector2(-7, -2), Vector2(14, 3)), ink)
 	elif kind == "factory":
 		# Sawtooth roof, smokestack, and a wide vehicle bay.
 		_building_polygon(center, [Vector2(-9, 7), Vector2(-9, -2), Vector2(-3, -6), Vector2(-3, -2), Vector2(3, -6), Vector2(3, -2), Vector2(9, -2), Vector2(9, 7)], color)

@@ -31,13 +31,17 @@ func advance_ai(delta: float, tiles: Dictionary, territory: TerritoryState, unit
 		return
 	ai_countdown = 1.0
 	RivalEconomyAI.plan(rival_economy, tiles, territory, units, other_buildings, rival_hq)
+	var defenders: Dictionary = DefenseAI.plan(rival_economy, tiles, territory, units, other_buildings, rival_hq)
 	var roster_size: int = 0
 	for unit in units:
 		if unit.faction != 2 or not unit.is_alive():
 			continue
 		roster_size += 1
-		if not unit.path.is_empty() or unit.garrisoned:
+		if defenders.has(unit) or not unit.path.is_empty():
 			continue
+		if unit.holding or unit.garrisoned:
+			unit.holding = false
+			unit.garrisoned = false
 		var target: UnitState = null
 		var nearest: int = 6
 		for enemy in units:
@@ -57,7 +61,7 @@ func advance_ai(delta: float, tiles: Dictionary, territory: TerritoryState, unit
 			continue
 		if target == null and territory.owner_at(unit.hex) != 2:
 			continue # Finish the three-second capture before advancing.
-		var goal: Vector2i = target.hex if target != null else player_hq
+		var goal: Vector2i = target.hex if target != null else DefenseAI.weak_target(unit.hex, player_hq, other_buildings, units, 2)
 		if target == null and roster_size == 1:
 			goal = RivalEconomyAI.expansion_goal(unit.hex, rival_hq, tiles, territory, rival_economy)
 			if goal == unit.hex:

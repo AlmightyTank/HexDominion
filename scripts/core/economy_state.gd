@@ -1,10 +1,10 @@
 extends RefCounted
 class_name EconomyState
 ## Faction economy and production. All money mutations use the shared account.
-const BUILD_COSTS: Dictionary = {"headquarters": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150}
+const BUILD_COSTS: Dictionary = {"headquarters": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100}
 const EXTRACTOR_HEALTH: float = 200.0
-const BUILD_SECONDS: Dictionary = {"headquarters": 12.0, "barracks": 6.0, "factory": 10.0, "extractor": 5.0, "power_plant": 8.0}
-const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0}
+const BUILD_SECONDS: Dictionary = {"headquarters": 12.0, "barracks": 6.0, "factory": 10.0, "extractor": 5.0, "power_plant": 8.0, "bunker": 8.0}
+const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0, "bunker": 400.0}
 const POWER_SUPPLY: Dictionary = {"headquarters": 20, "power_plant": 40}
 const POWER_DEMAND: Dictionary = {"factory": 20, "extractor": 10}
 const CANCEL_REFUND_FRACTION: float = 0.5

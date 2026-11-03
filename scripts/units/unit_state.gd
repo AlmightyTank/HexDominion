@@ -9,6 +9,7 @@ var seconds_per_hex: float = 0.45
 var title: String
 var faction: int = 1
 var garrisoned: bool = false
+var holding: bool = false
 var kind: String = "rifle"
 var max_health: float = 100.0
 var health: float = 100.0
@@ -34,7 +35,7 @@ func _init(start: Vector2i = Vector2i.ZERO, unit_title: String = "Rifle squad") 
 
 
 func order_move(tiles: Dictionary, goal: Vector2i) -> bool:
-	if garrisoned or not is_alive():
+	if not is_alive():
 		return false
 	# Commit the in-flight edge before following a replacement route: no teleporting.
 	var start: Vector2i = path[0] if progress > 0.0 and not path.is_empty() else hex
@@ -47,7 +48,16 @@ func order_move(tiles: Dictionary, goal: Vector2i) -> bool:
 	else:
 		progress = 0.0
 	path = route
+	garrisoned = false
+	holding = false
 	return true
+
+func order_hold() -> void:
+	if not is_alive():
+		return
+	path.clear()
+	progress = 0.0
+	holding = true
 
 
 func advance(delta: float, tiles: Dictionary) -> void:

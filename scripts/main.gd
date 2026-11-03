@@ -1,5 +1,5 @@
 extends Node2D
-## Slice C: selection and land movement orders, independent of camera dragging.
+## Selection, construction and unit orders, independent of camera dragging.
 
 @onready var camera: StrategyCamera = $Camera2D
 @onready var hud: StrategyHUD = $HUD/Overlay
@@ -34,6 +34,7 @@ func _ready() -> void:
 	hud.train_requested.connect(_train_selected)
 	hud.facility_selected.connect(_select_facility)
 	hud.rally_requested.connect(_begin_rally)
+	hud.defensive_order_requested.connect(_defensive_order)
 	hud.cancel_construction_requested.connect(_cancel_construction)
 	hud.building_action_requested.connect(_building_action)
 	hud.match_action_requested.connect(_match_action)
@@ -47,6 +48,23 @@ func _ready() -> void:
 	_selection_box.hide()
 	hud.add_child(_selection_box)
 
+
+func _defensive_order(action: String) -> void:
+	if _menu_open or units.match_state.result != "playing":
+		return
+	var accepted: int = 0
+	for unit in units.selected_units:
+		if action == "hold":
+			unit.order_hold()
+			accepted += 1
+		elif action == "garrison":
+			if unit.garrisoned:
+				unit.garrisoned = false
+				accepted += 1
+			elif FortificationRules.assign(unit, units.economy, units.territory, units.units):
+				accepted += 1
+	hud.show_command_info("%s: %d accepted. Garrison needs completed friendly bunker, stationary infantry, two slots. Move cancels hold." % [action.capitalize(), accepted])
+	units.queue_redraw()
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
@@ -118,13 +136,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_begin_build(build_keys[event.keycode])
 		elif train_keys.has(event.keycode):
 			_train_selected(train_keys[event.keycode])
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J:
+		_defensive_order("hold")
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G:
-		if units.selected != null:
-			if units.selected.path.is_empty() and units.territory.owner_at(units.selected.hex) == units.selected.faction:
-				units.selected.garrisoned = not units.selected.garrisoned
-				hud.show_command_info("Garrison %s • G toggles • Garrisoned squads cannot move" % ("assigned" if units.selected.garrisoned else "released"))
-			else:
-				hud.show_command_info("Garrison requires a stationary squad on owned territory")
+		_defensive_order("garrison")
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_mouse_press = event.position
@@ -191,7 +206,7 @@ func _select_at(point: Vector2) -> void:
 	units.queue_redraw()
 	_inspect_world_at(point)
 	if units.selected != null:
-		hud.show_command_info("%s • %s • Right-click move • G garrison" % [units.selected.title, "Garrisoned" if units.selected.garrisoned else "Mobile"])
+		hud.show_command_info("%s • %s • Right-click move • J hold • G garrison" % [units.selected.title, "Garrisoned" if units.selected.garrisoned else ("Holding" if units.selected.holding else "Mobile")])
 
 
 func _move_to(point: Vector2) -> void:
