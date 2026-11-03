@@ -29,7 +29,7 @@ static func find_path(tiles: Dictionary, start: Vector2i, goal: Vector2i, kind: 
 				distances[neighbor] = cost
 				previous[neighbor] = current
 				serial += 1
-				_push(frontier, [cost + 0.8 * HexMath.distance(neighbor, goal), serial, neighbor, cost])
+				_push(frontier, [cost + (0.8 / RoadRules.SPEED) * HexMath.distance(neighbor, goal), serial, neighbor, cost])
 	return empty
 
 static func _less(a: Array, b: Array) -> bool:

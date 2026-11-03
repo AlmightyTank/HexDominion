@@ -4,10 +4,20 @@ static func run(check: Callable) -> void:
 	var tiles: Dictionary = _tiles()
 	var start: Vector2i = Vector2i.ZERO
 	var goal: Vector2i = Vector2i(2, 0)
+	for terrain in ["plains", "forest", "mountain", "desert", "city", "snow", "tundra"]:
+		tiles[Vector2i(1, 0)]["terrain"] = terrain
+		for kind in ["rifle", "tank"]:
+			var expected: float = 1.25 if terrain == "mountain" else (1.0 / 1.1 if terrain == "desert" and kind == "tank" else 1.0)
+			check.call(is_equal_approx(TerrainRules.movement_cost(tiles, start, Vector2i(1, 0), kind), expected), "Exact simplified terrain cost %s %s" % [terrain, kind])
+			tiles[start]["road"] = true
+			tiles[Vector2i(1, 0)]["road"] = true
+			check.call(is_equal_approx(TerrainRules.movement_cost(tiles, start, Vector2i(1, 0), kind), expected / 1.3 if RoadRules.supports(tiles[Vector2i(1, 0)]) else expected), "Road bonus respects terrain eligibility %s %s" % [terrain, kind])
+			tiles[start].erase("road")
+			tiles[Vector2i(1, 0)].erase("road")
 	tiles[Vector2i(1, 0)]["terrain"] = "mountain"
 	var infantry: Array[Vector2i] = HexPathfinding.find_path(tiles, start, goal, "rifle")
 	var armor: Array[Vector2i] = HexPathfinding.find_path(tiles, start, goal, "tank")
-	check.call(infantry.size() == 3 and armor.size() == 4 and Vector2i(1, 0) not in armor, "Armor avoids costly mountain shortcut while infantry takes it")
+	check.call(infantry.size() == 3 and armor.size() == 3, "Modest mountain penalty keeps faster direct route for both units")
 	tiles.erase(Vector2i(0, 1))
 	tiles.erase(Vector2i(1, 1))
 	check.call(HexPathfinding.find_path(tiles, start, goal, "tank").size() == 3, "Only available mountain route remains legal for heavy vehicles")
@@ -15,8 +25,8 @@ static func run(check: Callable) -> void:
 	tiles[Vector2i(1, 0)]["terrain"] = "forest"
 	for hex in [Vector2i(0, 1), Vector2i(1, 1)]:
 		tiles[hex]["terrain"] = "desert"
-	check.call(HexPathfinding.find_path(tiles, start, goal, "tank").size() == 4 and HexPathfinding.find_path(tiles, start, goal, "rifle").size() == 3, "Armor prefers a longer fast desert route; infantry prefers forest shortcut")
-	check.call(is_equal_approx(TerrainRules.movement_cost(tiles, start, Vector2i(0, 1), "tank"), 0.9), "Desert armor movement advantage is limited to ten percent")
+	check.call(HexPathfinding.find_path(tiles, start, goal, "tank").size() == 3 and HexPathfinding.find_path(tiles, start, goal, "rifle").size() == 3, "Small desert bonus does not outweigh extra distance")
+	check.call(is_equal_approx(TerrainRules.movement_cost(tiles, start, Vector2i(0, 1), "tank"), 1.0 / 1.1), "Desert armor speed is exactly ten percent faster")
 	tiles = _tiles()
 	tiles[start]["river_neighbors"] = [Vector2i(1, 0)]
 	check.call(TerrainRules.crosses_river(tiles, Vector2i(1, 0), start), "River crossing detection is symmetric even with one-bank metadata")
@@ -116,7 +126,7 @@ static func _test_movement(check: Callable) -> void:
 		check.call(is_equal_approx(partitioned.progress, single.progress), "Nonfinite movement delta rejected %s" % kind)
 		single.advance(1000, tiles)
 		check.call(single.hex == Vector2i(2, 0) and single.path.is_empty() and single.progress == 0, "Large terrain tick completes path exactly %s" % kind)
-	check.call(TerrainRules.movement_cost({Vector2i.ZERO: {"is_land": true}, Vector2i(1, 0): {"is_land": true, "terrain": "resource", "biome": "mountain"}}, Vector2i.ZERO, Vector2i(1, 0), "tank") == 4.0, "Resource markers preserve underlying terrain restrictions")
+	check.call(TerrainRules.movement_cost({Vector2i.ZERO: {"is_land": true}, Vector2i(1, 0): {"is_land": true, "terrain": "resource", "biome": "mountain"}}, Vector2i.ZERO, Vector2i(1, 0), "tank") == 1.25, "Resource markers preserve underlying terrain restrictions")
 
 static func _damage(attacker_kind: String, defender_kind: String, attack_ground: String, defense_ground: String, moving: bool = false) -> float:
 	var attacker: UnitState = UnitState.new()
@@ -135,11 +145,11 @@ static func _damage(attacker_kind: String, defender_kind: String, attack_ground:
 static func _test_combat(check: Callable) -> void:
 	check.call(is_equal_approx(_damage("rifle", "rifle", "plains", "forest"), 17), "Forest grants stationary infantry 15 percent cover")
 	check.call(is_equal_approx(_damage("rifle", "tank", "plains", "forest"), 20), "Forest cover is infantry-specific")
-	check.call(is_equal_approx(_damage("rifle", "rifle", "plains", "mountain"), 16), "Mountain infantry defenders take 20 percent less damage")
-	check.call(is_equal_approx(_damage("rifle", "tank", "plains", "mountain"), 18), "Mountains grant armored defenders ten percent protection")
-	check.call(is_equal_approx(_damage("rifle", "rifle", "plains", "city"), 15) and is_equal_approx(_damage("rifle", "tank", "plains", "city"), 17), "Cities provide infantry and armor defensive positions")
-	check.call(is_equal_approx(_damage("tank", "rifle", "desert", "plains"), 49.5), "Desert armor gains ten percent outgoing damage")
-	check.call(is_equal_approx(_damage("tank", "rifle", "desert", "city"), 37.125), "Attacker terrain and defender cover combine multiplicatively")
+	check.call(is_equal_approx(_damage("rifle", "rifle", "plains", "mountain"), 15), "Mountain infantry protection is 25 percent")
+	check.call(is_equal_approx(_damage("rifle", "tank", "plains", "mountain"), 15), "Mountain tank protection is 25 percent")
+	check.call(is_equal_approx(_damage("rifle", "rifle", "plains", "city"), 16) and is_equal_approx(_damage("rifle", "tank", "plains", "city"), 16), "City protection is 20 percent for both kinds")
+	check.call(is_equal_approx(_damage("tank", "rifle", "desert", "plains"), 45), "Desert grants no attack bonus")
+	check.call(is_equal_approx(_damage("tank", "rifle", "desert", "city"), 36), "City cover applies without desert attack bonus")
 	check.call(is_equal_approx(_damage("rifle", "rifle", "plains", "city", true), 20), "Moving defenders cannot carry stationary city cover between tiles")
 	check.call(is_equal_approx(_damage("rifle", "rifle", "snow", "plains"), 20) and is_equal_approx(_damage("rifle", "rifle", "tundra", "plains"), 20) and is_equal_approx(_damage("tank", "rifle", "snow", "plains"), 45) and is_equal_approx(_damage("tank", "rifle", "tundra", "plains"), 45), "Snow and tundra have no combat penalties for either unit kind")
 	var attacker: UnitState = UnitState.new()
@@ -150,7 +160,7 @@ static func _test_combat(check: Callable) -> void:
 	economy.add_building(Vector2i(1, 0), "barracks")
 	var economies: Array[EconomyState] = [economy]
 	CombatState.attack_extractors(1, roster, economies, {}, {Vector2i.ZERO: {"terrain": "desert"}})
-	check.call(is_equal_approx(economy.buildings[Vector2i(1, 0)]["health"], 250.5), "Terrain outgoing damage also applies to infrastructure attacks")
+	check.call(is_equal_approx(economy.buildings[Vector2i(1, 0)]["health"], 255), "Desert grants no infrastructure attack bonus")
 
 static func _test_world(check: Callable) -> void:
 	var world: Dictionary = WorldMapData.build(120, 70)

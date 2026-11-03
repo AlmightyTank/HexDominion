@@ -54,6 +54,11 @@ var facility_list: VBoxContainer
 var economy_summary: Label
 var rally_button: Button
 var sidebar_scroll: ScrollContainer
+var command_tabs: TabContainer
+var radar: Control
+var structure_grid: GridContainer
+var infantry_grid: GridContainer
+var vehicle_grid: GridContainer
 
 
 func _ready() -> void:
@@ -77,6 +82,7 @@ func _ready() -> void:
 
 func bind_camera(strategy_camera: StrategyCamera) -> void:
 	_camera = strategy_camera
+	radar.configure(_camera.get_parent().get_node("WorldMap"), _camera)
 	_camera.view_changed.connect(_on_view_changed)
 	_on_view_changed(_camera.position, _camera.zoom.x)
 
@@ -110,7 +116,10 @@ func show_world_stats(world: Dictionary) -> void:
 	world_stats_label.text = "%d × %d HEXES  •  %d LAND" % [int(world.get("columns", 0)), int(world.get("rows", 0)), land]
 
 
+var _terrain_info: String = ""
+
 func show_tile_info(tile: Dictionary) -> void:
+	_terrain_info = TerrainRules.description(tile) if not tile.is_empty() else ""
 	if tile.is_empty():
 		tile_info_label.text = "Select a hex to inspect terrain and coordinates"
 		return
@@ -119,40 +128,29 @@ func show_tile_info(tile: Dictionary) -> void:
 	var location: String = String(tile["continent"])
 	var title: String = site if not site.is_empty() else terrain
 	var axial: Vector2i = tile["axial"]
-	tile_info_label.text = "%s  •  %s  •  (%d,%d)" % [title, location, axial.x, axial.y]
+	tile_info_label.text = "%s  •  %s  •  (%d,%d)\n%s" % [title, location, axial.x, axial.y, _terrain_info]
 
 
 func show_command_info(message: String) -> void:
-	tile_info_label.text = message
+	tile_info_label.text = message + ("\n" + _terrain_info if not _terrain_info.is_empty() else "")
 
 
 func _layout_for_viewport() -> void:
 	var viewport_size: Vector2 = get_viewport_rect().size
-	var narrow: bool = viewport_size.x < 760.0
-	var stacked: bool = viewport_size.x < 1100.0
-	if match_panel != null:
-		match_panel.position = Vector2(12.0 if stacked else (viewport_size.x - 360.0) / 2.0, 220.0 if narrow else (150.0 if stacked else 18.0))
-		match_panel.size.x = minf(360.0, viewport_size.x - 24.0)
+	var width: float = minf(280.0, viewport_size.x * 0.45)
+	header_panel.hide()
+	controls_panel.hide()
 	if build_panel != null:
-		build_panel.position = Vector2(maxf(12.0, viewport_size.x - 292.0), 350.0 if narrow else (280.0 if stacked else 102.0))
-		build_panel.size.x = minf(274.0, viewport_size.x - 24.0)
-		build_panel.size.y = maxf(100.0, viewport_size.y - build_panel.position.y - 12.0)
-	for panel in [header_panel, controls_panel, help_panel]:
-		panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	if narrow:
-		header_panel.position = Vector2(12.0, 12.0)
-		header_panel.size = Vector2(minf(312.0, viewport_size.x - 24.0), 120.0)
-		controls_panel.position = Vector2(12.0, 143.0)
-		controls_panel.size = Vector2(minf(288.0, viewport_size.x - 24.0), 66.0)
-		help_panel.position = Vector2(12.0, viewport_size.y - 178.0)
-		help_panel.size = Vector2(minf(437.0, viewport_size.x - 24.0), 160.0)
-	else:
-		header_panel.position = Vector2(18.0, 18.0)
-		header_panel.size = Vector2(312.0, 120.0)
-		controls_panel.position = Vector2(viewport_size.x - 306.0, 18.0)
-		controls_panel.size = Vector2(288.0, 66.0)
-		help_panel.position = Vector2(18.0, viewport_size.y - 178.0)
-		help_panel.size = Vector2(minf(540.0, viewport_size.x - 36.0), 160.0)
+		build_panel.position = Vector2(viewport_size.x - width, 0)
+		build_panel.size = Vector2(width, viewport_size.y)
+	if match_panel != null:
+		match_panel.position = Vector2(8, 8)
+		match_panel.size.x = minf(340, viewport_size.x - width - 16)
+	help_panel.position = Vector2(8, viewport_size.y - 74)
+	help_panel.size = Vector2(maxf(100, viewport_size.x - width - 16), 66)
+	$Help/Margin/Content/HelpTitle.hide()
+	$Help/Margin/Content/DesktopHelp.hide()
+	$Help/Margin/Content/TouchHelp.hide()
 
 
 func _create_match_menu() -> void:
@@ -354,11 +352,15 @@ func _create_build_menu() -> void:
 		margin.add_theme_constant_override("margin_" + side, 10)
 	build_panel.add_child(margin)
 	var column: VBoxContainer = VBoxContainer.new()
-	sidebar_scroll = ScrollContainer.new()
-	sidebar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	margin.add_child(sidebar_scroll)
-	sidebar_scroll.add_child(column)
+	margin.add_child(column)
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var options: Button = Button.new()
+	options.text = "OPTIONS  /  ESC"
+	options.custom_minimum_size.y = 44
+	options.pressed.connect(func() -> void: match_action_requested.emit("pause"))
+	column.add_child(options)
+	radar = preload("res://scripts/ui/strategy_minimap.gd").new()
+	column.add_child(radar)
 	var title: Label = Label.new()
 	context_title = title
 	title.text = "CONSTRUCTION"
@@ -370,29 +372,57 @@ func _create_build_menu() -> void:
 	economy_summary = Label.new()
 	economy_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(economy_summary)
+	command_tabs = TabContainer.new()
+	command_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(command_tabs)
+	var pages: Array[VBoxContainer] = []
+	for page_name in ["Build", "Inf", "Veh", "Sites"]:
+		var page_scroll: ScrollContainer = ScrollContainer.new()
+		page_scroll.name = page_name
+		page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		command_tabs.add_child(page_scroll)
+		var page: VBoxContainer = VBoxContainer.new()
+		page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		page_scroll.add_child(page)
+		pages.append(page)
+	structure_grid = GridContainer.new()
+	structure_grid.columns = 2
+	pages[0].add_child(structure_grid)
+	infantry_grid = GridContainer.new()
+	infantry_grid.columns = 2
+	pages[1].add_child(infantry_grid)
+	vehicle_grid = GridContainer.new()
+	vehicle_grid.columns = 2
+	pages[2].add_child(vehicle_grid)
+	for index in [1, 2]:
+		var hint: Label = Label.new()
+		hint.text = "Select a barracks to train infantry." if index == 1 else "Select a factory to build vehicles."
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		pages[index].add_child(hint)
+	column = pages[3]
 	facility_list = VBoxContainer.new()
 	var roster_scroll: ScrollContainer = ScrollContainer.new()
-	roster_scroll.custom_minimum_size.y = 156
+	roster_scroll.custom_minimum_size.y = 96
 	roster_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	column.add_child(roster_scroll)
 	roster_scroll.add_child(facility_list)
 	facility_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var catalog_toggle: Button = Button.new()
-	catalog_toggle.text = "Available structures (expand / collapse)"
-	catalog_toggle.custom_minimum_size.y = 44
-	column.add_child(catalog_toggle)
-	var catalog: VBoxContainer = VBoxContainer.new()
-	column.add_child(catalog)
-	catalog_toggle.pressed.connect(func() -> void: catalog.visible = not catalog.visible)
-	catalog.hide()
-	for kind in ["headquarters", "barracks", "factory", "extractor", "power_plant"]:
+	var road_button: Button = Button.new()
+	road_button.text = "Road\n100 CR / hex"
+	road_button.tooltip_text = "30% faster ground travel. Place on owned land."
+	road_button.custom_minimum_size.y = 72
+	road_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	road_button.pressed.connect(func() -> void: build_requested.emit("road"))
+	structure_grid.add_child(road_button)
+	for kind in ["barracks", "factory", "extractor", "power_plant"]:
 		var button: Button = Button.new()
 		button.text = "%s  |  %d CR" % [String(kind).capitalize(), EconomyState.BUILD_COSTS[kind]]
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		button.custom_minimum_size.y = 44
+		button.custom_minimum_size = Vector2(0, 72)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.tooltip_text = {"headquarters": "Command center • +5 credits/sec • 20 power • Limit: one", "barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "10 power • Disabled under low power • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP"}[kind]
 		button.pressed.connect(func() -> void: build_requested.emit(kind))
-		catalog.add_child(button)
+		structure_grid.add_child(button)
 		build_buttons[kind] = button
 	build_status = Label.new()
 	build_status.text = "Choose a building"
@@ -428,9 +458,20 @@ func _create_build_menu() -> void:
 		button.text = "%s • %d • %ds" % ["Rifle squad" if kind == "rifle" else "Tank", EconomyState.TRAIN_COSTS[kind], EconomyState.TRAIN_SECONDS[kind]]
 		button.custom_minimum_size.y = 44
 		button.pressed.connect(func() -> void: train_requested.emit(kind))
-		column.add_child(button)
+		(infantry_grid if kind == "rifle" else vehicle_grid).add_child(button)
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		button.custom_minimum_size.y = 72
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		train_buttons[kind] = button
-	build_panel.hide()
+	build_panel.show()
+	_set_command_cursors(build_panel)
+
+
+func _set_command_cursors(node: Node) -> void:
+	if node is BaseButton:
+		node.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	for child in node.get_children():
+		_set_command_cursors(child)
 
 
 func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: TerritoryState, tiles: Dictionary) -> void:
@@ -446,7 +487,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 	if training_progress.visible:
 		var production: Dictionary = economy.buildings[hex]
 		training_progress.value = 100.0 * production["elapsed"] / EconomyState.TRAIN_SECONDS[production["queue"][0]]
-	context_title.text = "ECONOMY & BUILD"
+	context_title.text = "COMMAND"
 	for kind in build_buttons:
 		build_buttons[kind].visible = true
 		build_buttons[kind].disabled = not economy.account.can_afford(EconomyState.BUILD_COSTS[kind])
@@ -463,10 +504,11 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 		var unavailable: String = ""
 		if build_buttons[kind].disabled:
 			unavailable = "\nNeed %d CR" % EconomyState.BUILD_COSTS[kind] if not economy.account.can_afford(EconomyState.BUILD_COSTS[kind]) else "\nHQ limit reached"
-		build_buttons[kind].text = "%s | %d CR | %ds\n%s\n%s%s" % [String(kind).capitalize(), EconomyState.BUILD_COSTS[kind], EconomyState.BUILD_SECONDS[kind], power_text, requirement, unavailable]
+		build_buttons[kind].text = "%s\n%d CR  /  %ds" % [String(kind).capitalize(), EconomyState.BUILD_COSTS[kind], EconomyState.BUILD_SECONDS[kind]]
+		build_buttons[kind].tooltip_text = "%s\n%s%s" % [power_text, requirement, unavailable]
 	for kind in train_buttons:
 		var compatible: bool = has_building and EconomyState.is_complete(economy.buildings[hex]) and economy.buildings[hex]["kind"] == ("barracks" if kind == "rifle" else "factory")
-		train_buttons[kind].visible = compatible
+		train_buttons[kind].visible = true
 		train_buttons[kind].disabled = not compatible or not economy.account.can_afford(EconomyState.TRAIN_COSTS[kind]) or economy.buildings[hex]["queue"].size() >= 5
 	if has_building:
 		var building: Dictionary = economy.buildings[hex]
@@ -545,20 +587,22 @@ func _refresh_facilities(selected_hex: Vector2i, economy: EconomyState, territor
 			status += " | " + ("50% speed" if kind == "factory" else "Offline")
 		facility_buttons[hex].text = "%s (%d, %d)\n%s" % [kind.capitalize(), hex.x, hex.y, status]
 		facility_buttons[hex].set_pressed_no_signal(hex == selected_hex)
-	economy_summary.text = "POWER %d / %d used%s\nYOUR STRUCTURES: %d%s" % [power["demand"], power["supply"], " (LOW)" if economy.low_power(territory) else "", count, "\nNo controlled structures" if count == 0 else "\nSelect a site to keep its controls pinned."]
+	economy_summary.text = "%d CR    |    POWER %d / %d%s" % [economy.credits, power["demand"], power["supply"], " LOW" if economy.low_power(territory) else ""]
+	if count == 0:
+		economy_summary.text += "\nNo controlled structures"
 
 
 func _apply_strategy_theme() -> void:
 	var skin: Theme = Theme.new()
 	skin.default_font_size = 13
 	skin.set_color("font_color", "Label", Color("e5edf4"))
-	var panel: StyleBoxFlat = _ui_box(Color("101e2d"), Color("30495d"), 10)
+	var panel: StyleBoxFlat = _ui_box(Color("191e1b"), Color("777762"), 0)
 	panel.shadow_color = Color(0, 0, 0, 0.35)
 	panel.shadow_size = 8
 	skin.set_stylebox("panel", "PanelContainer", panel)
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
-		var fill: Color = Color("1c3245")
-		var border: Color = Color("38556b")
+		var fill: Color = Color("30392f")
+		var border: Color = Color("777762")
 		if state == "hover" or state == "focus":
 			fill = Color("274c5b")
 			border = Color("65ebd0")
@@ -567,10 +611,10 @@ func _apply_strategy_theme() -> void:
 		elif state == "disabled":
 			fill = Color("152332")
 			border = Color("243646")
-		skin.set_stylebox(state, "Button", _ui_box(fill, border, 6))
+		skin.set_stylebox(state, "Button", _ui_box(fill, border, 0))
 	skin.set_color("font_color", "Button", Color("e5edf4"))
-	skin.set_color("font_disabled_color", "Button", Color("697e90"))
-	skin.set_constant("separation", "VBoxContainer", 9)
+	skin.set_color("font_disabled_color", "Button", Color("a8b5b9"))
+	skin.set_constant("separation", "VBoxContainer", 4)
 	skin.set_stylebox("background", "ProgressBar", _ui_box(Color("091420"), Color("30495d"), 4))
 	skin.set_stylebox("fill", "ProgressBar", _ui_box(Color("49c9aa"), Color("65ebd0"), 4))
 	theme = skin

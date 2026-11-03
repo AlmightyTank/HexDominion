@@ -15,6 +15,7 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 	return {"version": 1, "map": MAP_ID, "units": roster,
 		"owners": layer.territory.owners.duplicate(true), "captures": layer.territory.captures.duplicate(true),
 		"contested": layer.territory.contested.duplicate(true),
+		"roads": RoadRules.snapshot(layer.world_map.map_data["tiles"]),
 		"economy": _economy_data(layer.economy), "rival_economy": _economy_data(match_state.rival_economy),
 		"player_hq": match_state.player_hq, "rival_hq": match_state.rival_hq,
 		"result": match_state.result, "ai_countdown": match_state.ai_countdown,
@@ -50,6 +51,11 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 		return false
 	for hex in data["owners"]:
 		if not _land(hex, tiles) or data["owners"][hex] not in [1, 2]:
+			return false
+	if not data.get("roads", {}) is Dictionary:
+		return false
+	for hex in data.get("roads", {}):
+		if not hex is Vector2i or not tiles.has(hex) or not RoadRules.supports(tiles[hex]) or data["roads"][hex] != true:
 			return false
 	if data.has("contested"):
 		if not data["contested"] is Dictionary:
@@ -142,6 +148,10 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		unit.progress = entry["progress"]
 		roster.append(unit)
 	layer.units = roster
+	for hex in layer.world_map.map_data["tiles"]:
+		layer.world_map.map_data["tiles"][hex].erase("road")
+	for hex in data.get("roads", {}):
+		layer.world_map.map_data["tiles"][hex]["road"] = true
 	layer.select_one(null)
 	layer.build_kind = ""
 	layer.build_rotation = 0

@@ -30,6 +30,21 @@ func _test_economy_interface() -> void:
 	for hex in [first, second, site]:
 		game.units.territory.owners[hex] = 1
 	game.units.economy.credits = 2000
+	var road_hex: Vector2i = game.units.match_state.player_hq
+	game._begin_build("road")
+	game._place_build(game.world_map.hex_to_world(road_hex))
+	_check(tiles[road_hex].get("road", false) and game.units.build_kind == "road" and game.units.economy.credits == 1900, "Road tool builds under HQ and remains active for highway")
+	var road_save: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, road_hex)
+	_check(MatchSave.validate(road_save, tiles), "Road snapshot validates")
+	tiles[road_hex].erase("road")
+	_check(MatchSave.restore(game.units, road_save) and tiles[road_hex].get("road", false), "Road snapshot restores roads")
+	var bad_road: Dictionary = road_save.duplicate(true)
+	bad_road["roads"][Vector2i(-999, -999)] = true
+	_check(not MatchSave.restore(game.units, bad_road) and tiles[road_hex].get("road", false), "Invalid road load leaves live roads unchanged")
+	var legacy: Dictionary = road_save.duplicate(true)
+	legacy.erase("roads")
+	_check(MatchSave.restore(game.units, legacy) and not tiles[road_hex].get("road", false), "Legacy snapshot clears newer roads")
+	game.units.economy.credits = 2000
 	game.units.economy.add_building(first, "factory")
 	game.units.economy.add_building(second, "factory")
 	game._process(0)
@@ -62,7 +77,7 @@ func _test_economy_interface() -> void:
 	game._process(0)
 	_check(game._economy_hex() == second and game.hud.train_buttons["tank"].visible, "Placing construction does not steal selected factory controls")
 	_check(game.hud.facility_buttons[site].text.contains("Construction 0%") and game.hud.facility_buttons[first].text.contains("tank"), "Roster exposes construction and production jobs simultaneously")
-	_check(game.hud.build_buttons["extractor"].text.contains("resource deposit") and game.hud.build_buttons["factory"].text.contains("20 power") and game.hud.build_buttons["factory"].text.contains("200 CR"), "Construction catalog exposes costs, time, power and terrain requirements")
+	_check(game.hud.build_buttons["extractor"].tooltip_text.contains("resource deposit") and game.hud.build_buttons["factory"].tooltip_text.contains("20 power") and game.hud.build_buttons["factory"].text.contains("200 CR"), "Construction tiles expose costs and tooltips expose power and terrain requirements")
 	_check(game.hud.economy_summary.text.contains("LOW") and game.hud.facility_buttons[second].text.contains("50% speed"), "Grid deficit and reduced production speed are visible")
 	game.units.economy.buildings[first]["elapsed"] = 2.0
 	game.hud.facility_buttons[first].pressed.emit()
@@ -403,9 +418,9 @@ func _run_tests() -> void:
 	_check(game.units.selected_units.size() == 1, "Click replaces group selection")
 	game.units.select_box(Rect2(-100000, -100000, 1, 1), Transform2D.IDENTITY)
 	_check(game.units.selected_units.is_empty() and game.units.selected == null, "Empty box clears selection")
-	_check(game.hud.build_buttons.size() == 5, "Construction menu exposes five building choices including power plants")
+	_check(game.hud.build_buttons.size() == 4 and not game.hud.build_buttons.has("headquarters"), "HQ-victory construction menu excludes headquarters and retains power plants")
 	game.hud.show_tile_actions(game.units.units[0].hex, game.units.economy, game.units.territory, tiles)
-	_check(game.hud.build_panel.visible and game.hud.context_title.text == "ECONOMY & BUILD" and game.hud.build_buttons["barracks"].visible, "Construction sidebar remains available while inspecting buildings")
+	_check(game.hud.build_panel.visible and game.hud.command_tabs.get_tab_count() == 4 and game.hud.build_buttons["barracks"].visible, "Tabbed construction sidebar remains available while inspecting buildings")
 	game.hud.show_tile_actions(Vector2i(-9999, -9999), game.units.economy, game.units.territory, tiles)
 	_check(game.hud.build_panel.visible, "Construction sidebar remains available without a valid selected tile")
 	var before_selection: float = game.units.economy.credits
@@ -429,6 +444,7 @@ func _run_tests() -> void:
 	_test_economy_interface()
 	preload("res://tests/rival_economy_tests.gd").run(_check)
 	preload("res://tests/terrain_tests.gd").run(_check)
+	preload("res://tests/road_tests.gd").run(_check)
 	_test_ai_integration()
 	game._begin_build("")
 	_check(game.units.build_kind.is_empty(), "Placement can be cancelled")

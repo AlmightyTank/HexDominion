@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. Implemented through v0.2 Slice J and v0.3 Slice A: Earth hex skirmishes, terrain-aware movement and combat, territory, construction, power, economy, AI, HQ victory/defeat, restart and named saves. Headless regression coverage is in place; interactive acceptance and balance playtesting remain pending.
+> **Status:** Pre-alpha. Implemented through v0.2 Slice J and v0.3 Slice B: Earth hex skirmishes, terrain-aware movement and combat, roads, territory, construction, power, economy, AI, HQ victory/defeat, restart and named saves. Headless regression coverage is in place; interactive acceptance and balance playtesting remain pending.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -153,7 +153,8 @@ Money, power, resources, building placement and cancellation, repairs, selling, 
 
 Improved terrain rules, supply connections, continent bonuses, fortifications, defended choke points.
 
-- [x] **Slice A: Advanced Terrain Rules:** Unit-specific travel costs and weighted routes, infantry forest cover, mountain and city defense, desert armor advantages, and river/narrow-crossing movement penalties. All land remains traversable; oceans and disconnected land still block routes. ([Rules and verification](docs/V0.3-SLICE-A.md).)
+- [x] **Slice A: Terrain Advantages:** Forest infantry protection 15%, mountain ground speed -20% and protection 25%, desert vehicle speed +10%, city protection 20%. Weighted routing, hex inspection and existing crossing rules remain integrated. ([Rules and verification](docs/V0.3-SLICE-A.md).)
+- [x] **Slice B: Roads and Transportation:** Persistent 100 CR roads on controlled land, continuous connections, 30% faster ground travel and road-aware routing. ([Rules and verification](docs/V0.3-SLICE-B.md).)
 
 ### v0.4 — Military expansion
 

@@ -229,6 +229,8 @@ func _process(_delta: float) -> void:
 		units.build_hex = world_map.world_to_hex(get_global_mouse_position())
 		if not units.build_kind.is_empty():
 			hud.build_status.text = "%s • %d°\n%s\nLeft-click place • Q rotate\nRight-click / Esc cancel" % [units.build_kind.capitalize(), units.build_rotation * 60, "VALID — controlled empty hex" if units.can_place(units.build_hex, units.build_kind) else "BLOCKED — ownership / terrain / structure / credits"]
+			if units.build_kind == "road":
+				hud.build_status.text = "ROAD | 100 CR / hex\n%s\nClick consecutive hexes. Esc cancels." % ("VALID: controlled road terrain" if units.can_place(units.build_hex, "road") else "BLOCKED: terrain / owner / road / credits")
 			units.queue_redraw()
 		hud.world_stats_label.text = "%d CR   |   +%.0f / SEC" % [int(units.economy.credits), units.economy.income_rate(world_map.map_data["tiles"], units.territory)]
 		var power: Dictionary = units.economy.power_balance(units.territory)
@@ -239,12 +241,14 @@ func _begin_build(kind: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	_rally_mode = false
-	units.build_kind = kind if EconomyState.BUILD_COSTS.has(kind) else ""
+	units.build_kind = kind if EconomyState.BUILD_COSTS.has(kind) or kind == "road" else ""
 	units.build_rotation = 0
 	_box_active = false
 	_selection_box.hide()
 	units.queue_redraw()
 	hud.show_command_info("Construction cancelled" if kind.is_empty() else "Choose controlled empty land • Left-click place • Q rotate • Esc cancel")
+	if kind == "road":
+		hud.show_command_info("Road tool: click owned plains, forest, desert or city. 100 CR per hex. Esc cancels.")
 
 
 func _building_action(action: String, hex: Vector2i, site: Dictionary) -> void:
@@ -333,6 +337,9 @@ func _set_menu_open(open: bool) -> void:
 
 
 func _match_action(action: String) -> void:
+	if action == "pause":
+		_set_menu_open(true)
+		return
 	if action == "resume":
 		_set_menu_open(false)
 		return
@@ -379,6 +386,11 @@ func _restart_match() -> void:
 func _place_build(point: Vector2) -> void:
 	var hex: Vector2i = world_map.world_to_hex(point)
 	if _menu_open or units.match_state.result != "playing" or units.build_kind.is_empty():
+		return
+	if units.build_kind == "road":
+		var accepted: bool = RoadRules.build(hex, world_map.map_data["tiles"], units.territory, units.economy)
+		hud.show_command_info("Road completed (100 CR). Choose next hex; Esc cancels." if accepted else "Road blocked: need 100 CR and controlled uncontested plains, forest, desert or city without a road")
+		units.queue_redraw()
 		return
 	if units.economy.build(hex, units.build_kind, world_map.map_data["tiles"], units.territory, units.build_rotation, units.match_state.rival_economy.buildings):
 		world_map.inspect_at_world(point)

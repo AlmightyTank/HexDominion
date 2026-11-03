@@ -38,6 +38,8 @@ func faction_color(faction: int) -> Color:
 	return Color("65ebd0") if faction == 1 else Color("f08075")
 
 func can_place(hex: Vector2i, kind: String) -> bool:
+	if kind == "road":
+		return RoadRules.can_build(hex, world_map.map_data["tiles"], territory, economy)
 	return economy.can_build(hex, kind, world_map.map_data["tiles"], territory, match_state.rival_economy.buildings)
 
 
@@ -124,6 +126,7 @@ func _draw() -> void:
 	if world_map == null:
 		return
 	_draw_territory()
+	_draw_roads()
 	for hex in match_state.rival_economy.buildings:
 		var rival_building: Dictionary = match_state.rival_economy.buildings[hex]
 		_draw_building_badge(to_local(world_map.hex_to_world(hex)), rival_building["kind"], faction_color(2), world_map.selected_hex == hex, rival_building.get("rotation", 0))
@@ -136,7 +139,10 @@ func _draw() -> void:
 		for index in range(6):
 			corners.append(ghost_center + Vector2.from_angle(deg_to_rad(index * 60.0 - 30.0)) * WorldMap.HEX_RADIUS)
 		draw_colored_polygon(corners, Color(preview_color, 0.35))
-		_draw_building_badge(ghost_center, build_kind, preview_color, true, build_rotation)
+		if build_kind == "road":
+			draw_line(ghost_center - Vector2(12, 0), ghost_center + Vector2(12, 0), preview_color, 5.0, true)
+		else:
+			_draw_building_badge(ghost_center, build_kind, preview_color, true, build_rotation)
 	for hex in economy.buildings:
 		var building: Dictionary = economy.buildings[hex]
 		var center: Vector2 = to_local(world_map.hex_to_world(hex))
@@ -175,6 +181,20 @@ func _draw() -> void:
 			draw_rect(Rect2(point - Vector2(10, 10), Vector2(20, 20)), faction_color(unit.faction), false, 2.0)
 		draw_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("12364c"), 2.0)
 		draw_line(point + Vector2(-3, 3), point + Vector2(3, -3), Color("12364c"), 2.0)
+
+
+func _draw_roads() -> void:
+	var tiles: Dictionary = world_map.map_data["tiles"]
+	for hex in tiles:
+		if not tiles[hex].get("road", false):
+			continue
+		var center: Vector2 = to_local(world_map.hex_to_world(hex))
+		draw_circle(center, 3.0, Color("c8b78f"))
+		for neighbor in RoadRules.neighbors(tiles, hex):
+			if neighbor.x > hex.x or (neighbor.x == hex.x and neighbor.y > hex.y):
+				var end: Vector2 = to_local(world_map.hex_to_world(neighbor))
+				draw_line(center, end, Color("38372f"), 7.0, true)
+				draw_line(center, end, Color("c8b78f"), 3.5, true)
 
 
 func _draw_construction(center: Vector2, building: Dictionary, color: Color) -> void:
