@@ -35,7 +35,9 @@ func _run_tests() -> void:
 			var key: Vector2i = WorldMapData.offset_to_axial(column, row)
 			_check(WorldMapData.axial_to_offset(key) == Vector2i(column, row), "Offset/axial round trip %s,%s" % [column, row])
 
-	var world: Dictionary = WorldMapData.build(66, 36)
+	var columns: int = WorldMap.COLUMNS
+	var rows: int = WorldMap.ROWS
+	var world: Dictionary = WorldMapData.build(columns, rows)
 	_check(not world.is_empty(), "World definition parses")
 	if world.is_empty():
 		print("Hex Dominion v0.1 Slice B: %d passed, %d failed" % [_successes, _failures])
@@ -43,9 +45,9 @@ func _run_tests() -> void:
 		return
 	var tiles: Dictionary = world["tiles"]
 	var counts: Dictionary = world["terrain_counts"]
-	_check(tiles.size() == 66 * 36, "All world hexes created")
+	_check(tiles.size() == columns * rows, "All world hexes created")
 	var num_land: int = tiles.size() - int(counts.get("ocean", 0))
-	_check(num_land > 300 and num_land < 1700, "Ocean/land ratio is plausible")
+	_check(float(num_land) / tiles.size() > 0.2 and float(num_land) / tiles.size() < 0.5, "Ocean/land ratio is plausible")
 	_check(int(counts.get("city", 0)) == 14, "14 unique city hexes")
 	_check(int(counts.get("resource", 0)) == 10, "10 unique resource hexes")
 	for terrain in WorldMapData.TERRAIN_TYPES:
@@ -59,7 +61,33 @@ func _run_tests() -> void:
 			_check(not String(tile["site_name"]).is_empty(), "Special site has name")
 	_check(continents.size() == 6, "All six continent regions have hexes")
 	var sample: Vector2i = WorldMapData.offset_to_axial(12, 12)
-	var second_world: Dictionary = WorldMapData.build(66, 36)
+	# Geographic regression samples are deliberately away from coastlines.
+	for sample_location in [
+		[-100.0, 40.0, "North America"], [-60.0, -10.0, "South America"],
+		[20.0, 10.0, "Africa"], [90.0, 50.0, "Eurasia"],
+		[135.0, -25.0, "Australia"], [0.0, -85.0, "Antarctica"],
+		[-40.0, 72.0, "North America"], [-140.0, 0.0, "Open Ocean"],
+		[-30.0, 0.0, "Open Ocean"], [80.0, -25.0, "Open Ocean"],
+	]:
+		var row: int = clampi(int((90.0 - float(sample_location[1])) / 180.0 * rows), 0, rows - 1)
+		var column: int = clampi(roundi((float(sample_location[0]) + 180.0) / 360.0 * (columns + 0.5) - 0.5 - 0.5 * (row & 1)), 0, columns - 1)
+		var tile: Dictionary = tiles[WorldMapData.offset_to_axial(column, row)]
+		_check(tile["continent"] == sample_location[2], "Earth geography at %s" % str(sample_location))
+	var second_world: Dictionary = WorldMapData.build(columns, rows)
+	for climate in [
+		[-40.0, 72.0, "snow"], [0.0, -85.0, "snow"],
+		[100.0, 70.0, "tundra"], [20.0, 25.0, "desert"],
+		[-60.0, -5.0, "forest"], [-140.0, 82.0, "ocean"],
+	]:
+		var row: int = clampi(int((90.0 - float(climate[1])) / 180.0 * rows), 0, rows - 1)
+		var column: int = clampi(roundi((float(climate[0]) + 180.0) / 360.0 * (columns + 0.5) - 0.5 - 0.5 * (row & 1)), 0, columns - 1)
+		var tile: Dictionary = tiles[WorldMapData.offset_to_axial(column, row)]
+		_check(tile["biome"] == climate[2], "Earth climate at %s" % str(climate))
+	var climate_preserves_land: bool = true
+	for tile in tiles.values():
+		if tile["is_land"] != (tile["biome"] != "ocean"):
+			climate_preserves_land = false
+	_check(climate_preserves_land, "Climate preserves land/ocean classification")
 	_check(tiles[sample] == second_world["tiles"][sample], "Map generation deterministic")
 	_check(world["terrain_counts"] == second_world["terrain_counts"], "Distribution deterministic")
 	print("Hex Dominion v0.1 Slice B: %d passed, %d failed" % [_successes, _failures])

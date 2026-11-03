@@ -4,7 +4,7 @@ class_name WorldMapData
 ## World definition coordinates use normalized [0, 1] X/Y in map space.
 
 const DEFINITION_PATH: String = "res://data/world/earth_regions.json"
-const TERRAIN_TYPES: Array[String] = ["ocean", "plains", "forest", "desert", "mountain", "city", "resource"]
+const TERRAIN_TYPES: Array[String] = ["ocean", "plains", "forest", "desert", "mountain", "snow", "tundra", "city", "resource"]
 
 
 static func offset_to_axial(column: int, row: int) -> Vector2i:
@@ -36,20 +36,22 @@ static func build(columns: int, rows: int) -> Dictionary:
 	var counts: Dictionary = {}
 	var continents: Array = definition.get("continents", [])
 	var biomes: Array = definition.get("biomes", [])
+	for region in continents + biomes:
+		region["prepared"] = _prepare_polygons(region.get("polygons", []))
 	for row in range(rows):
 		for column in range(columns):
-			var uv: Vector2 = Vector2((float(column) + 0.5) / float(columns), (float(row) + 0.5) / float(rows))
+			var uv: Vector2 = cell_uv(column, row, columns, rows)
 			var axial: Vector2i = offset_to_axial(column, row)
 			var continent_name: String = "Open Ocean"
 			for continent in continents:
-				if _inside_any_polygon(uv, continent.get("polygons", [])):
+				if _inside_prepared(uv, continent["prepared"]):
 					continent_name = String(continent.get("name", "Unknown"))
 					break
 			var terrain: String = "ocean"
 			if continent_name != "Open Ocean":
 				terrain = "plains"
 				for biome in biomes:
-					if _inside_any_polygon(uv, biome.get("polygons", [])):
+					if _inside_prepared(uv, biome["prepared"]):
 						terrain = String(biome.get("terrain", "plains"))
 						break
 			tiles[axial] = {
@@ -71,7 +73,7 @@ static func build(columns: int, rows: int) -> Dictionary:
 			var tile: Dictionary = tiles[key]
 			if not tile["is_land"] or tile["site_name"] != "":
 				continue
-			var center: Vector2 = Vector2((float(tile["column"]) + 0.5) / float(columns), (float(tile["row"]) + 0.5) / float(rows))
+			var center: Vector2 = cell_uv(int(tile["column"]), int(tile["row"]), columns, rows)
 			var distance_sq: float = center.distance_squared_to(goal)
 			if distance_sq < best_distance:
 				best_distance = distance_sq
@@ -87,27 +89,33 @@ static func build(columns: int, rows: int) -> Dictionary:
 	return {"columns": columns, "rows": rows, "tiles": tiles, "terrain_counts": counts, "definition_name": String(definition.get("name", "World"))}
 
 
-static func _inside_any_polygon(point: Vector2, polygons: Array) -> bool:
+static func cell_uv(column: int, row: int, columns: int, rows: int) -> Vector2:
+	# Match the actual staggered hex centers, including half a cell at the edges.
+	return Vector2((float(column) + 0.5 + 0.5 * float(row & 1)) / (float(columns) + 0.5), (float(row) + 0.5) / float(rows))
+
+
+static func _prepare_polygons(polygons: Array) -> Array:
+	var prepared: Array = []
 	for polygon in polygons:
-		if _point_in_polygon(point, polygon):
+		var points: PackedVector2Array = PackedVector2Array()
+		for pair in polygon:
+			points.append(_pair_to_vector(pair))
+		if points.size() < 3:
+			continue
+		var bounds: Rect2 = Rect2(points[0], Vector2.ZERO)
+		for point in points:
+			bounds = bounds.expand(point)
+		prepared.append({"bounds": bounds.grow(0.000001), "points": points})
+	return prepared
+
+
+static func _inside_prepared(point: Vector2, polygons: Array) -> bool:
+	for polygon in polygons:
+		var bounds: Rect2 = polygon["bounds"]
+		if bounds.has_point(point) and Geometry2D.is_point_in_polygon(point, polygon["points"]):
 			return true
 	return false
 
 
 static func _pair_to_vector(pair: Array) -> Vector2:
 	return Vector2(float(pair[0]), float(pair[1]))
-
-
-static func _point_in_polygon(point: Vector2, polygon: Array) -> bool:
-	if polygon.size() < 3:
-		return false
-	var inside: bool = false
-	var previous: Vector2 = _pair_to_vector(polygon[polygon.size() - 1])
-	for entry in polygon:
-		var current: Vector2 = _pair_to_vector(entry)
-		if (current.y > point.y) != (previous.y > point.y):
-			var cut_x: float = (previous.x - current.x) * (point.y - current.y) / (previous.y - current.y) + current.x
-			if point.x < cut_x:
-				inside = not inside
-		previous = current
-	return inside

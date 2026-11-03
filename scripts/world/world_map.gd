@@ -1,11 +1,11 @@
 extends Node2D
 class_name WorldMap
-## Slice B: authored Earth-inspired continent silhouettes represented as hexes.
-## Geometry and classification are generated once. No per-hex scene nodes.
+## Real Earth coastlines sampled onto a dense hex grid.
+## Terrain is rendered once into a texture; selection stays a live overlay.
 
-const HEX_RADIUS: float = 26.0
-const COLUMNS: int = 66
-const ROWS: int = 36
+const HEX_RADIUS: float = 18.0
+const COLUMNS: int = 120
+const ROWS: int = 70
 
 const COLOR_OUTER: Color = Color("071522")
 const COLOR_GRID: Color = Color("233e48", 0.53)
@@ -19,17 +19,24 @@ const COLOR_DESERT: Color = Color("bc9d60")
 const COLOR_MOUNTAIN: Color = Color("858a81")
 const COLOR_CITY: Color = Color("4e8f84")
 const COLOR_RESOURCE: Color = Color("85804c")
+const COLOR_SNOW: Color = Color("e2ecec")
+const COLOR_TUNDRA: Color = Color("9cae9c")
+const COLOR_SEA_ICE: Color = Color("b4d3dd")
 
 const COLOR_BY_TERRAIN: Dictionary = {
 	"ocean": COLOR_OCEAN, "plains": COLOR_PLAINS, "forest": COLOR_FOREST,
 	"desert": COLOR_DESERT, "mountain": COLOR_MOUNTAIN,
 	"city": COLOR_CITY, "resource": COLOR_RESOURCE,
+	"snow": COLOR_SNOW, "tundra": COLOR_TUNDRA,
 }
 
 var map_data: Dictionary = {}
 var selected_hex: Vector2i = Vector2i(-9999, -9999)
 var _origin: Vector2 = Vector2.ZERO
 var _bounds: Rect2 = Rect2()
+var _selection_overlay: Node2D
+var _terrain_viewport: SubViewport
+var _terrain_canvas: Node2D
 
 
 func _ready() -> void:
@@ -37,7 +44,36 @@ func _ready() -> void:
 	var center_span: Vector2 = Vector2(HexMath.SQRT_3 * HEX_RADIUS * (float(COLUMNS - 1) + 0.5), 1.5 * HEX_RADIUS * float(ROWS - 1))
 	_origin = -center_span * 0.5
 	_bounds = Rect2(_origin - Vector2.ONE * HEX_RADIUS, center_span + Vector2.ONE * HEX_RADIUS * 2.0)
+	_create_terrain_cache()
+	_selection_overlay = Node2D.new()
+	_selection_overlay.name = "SelectionOverlay"
+	_selection_overlay.draw.connect(_draw_selection)
+	add_child(_selection_overlay)
 	queue_redraw()
+
+
+func _create_terrain_cache() -> void:
+	# The static map used tens of thousands of draw calls every frame. Bake it
+	# at world resolution (~28 MB) once, not again when the camera moves.
+	_terrain_viewport = SubViewport.new()
+	_terrain_viewport.name = "TerrainCache"
+	_terrain_viewport.size = Vector2i(ceili(_bounds.size.x), ceili(_bounds.size.y))
+	_terrain_viewport.world_2d = World2D.new()
+	_terrain_viewport.disable_3d = true
+	_terrain_viewport.transparent_bg = true
+	_terrain_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	add_child(_terrain_viewport)
+	_terrain_canvas = Node2D.new()
+	_terrain_canvas.position = -_bounds.position
+	_terrain_canvas.draw.connect(_draw_terrain)
+	_terrain_viewport.add_child(_terrain_canvas)
+	var terrain_sprite: Sprite2D = Sprite2D.new()
+	terrain_sprite.name = "CachedTerrain"
+	terrain_sprite.centered = false
+	terrain_sprite.position = _bounds.position
+	terrain_sprite.texture = _terrain_viewport.get_texture()
+	terrain_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	add_child(terrain_sprite)
 
 
 func world_bounds() -> Rect2:
@@ -66,12 +102,15 @@ func inspect_at_world(global_point: Vector2) -> Dictionary:
 		selected_hex = Vector2i(-9999, -9999)
 	else:
 		selected_hex = tile["axial"]
-	queue_redraw()
+	_selection_overlay.queue_redraw()
 	return tile
 
 
 func _draw() -> void:
 	draw_rect(_bounds.grow(220.0), COLOR_OUTER)
+
+
+func _draw_terrain() -> void:
 	if map_data.is_empty():
 		return
 	var tiles: Dictionary = map_data["tiles"]
@@ -82,27 +121,47 @@ func _draw() -> void:
 			var center: Vector2 = _origin + HexMath.axial_to_world(hex, HEX_RADIUS)
 			var corners: PackedVector2Array = _hex_corners(center)
 			var terrain: String = tile["terrain"]
-			var fill_color: Color = COLOR_BY_TERRAIN.get(terrain, COLOR_PLAINS)
+			# Sites keep their natural ground color; their markers identify them.
+			var ground: String = String(tile["biome"])
+			var fill_color: Color = COLOR_BY_TERRAIN.get(ground, COLOR_PLAINS)
 			if terrain == "ocean" and (column * 13 + row * 7) % 9 < 3:
 				fill_color = COLOR_OCEAN_DEEP
-			draw_colored_polygon(corners, fill_color)
+			if tile["is_land"]:
+				# Stable, subtle variation avoids flat rectangular color bands.
+				var shade: float = float((column * 17 + row * 31) % 11 - 5) * 0.006
+				fill_color = fill_color.lightened(shade) if shade > 0.0 else fill_color.darkened(-shade)
+			else:
+				var latitude: float = 90.0 - WorldMapData.cell_uv(column, row, COLUMNS, ROWS).y * 180.0
+				# Illustrative static polar sea ice. These remain ocean gameplay cells.
+				var ice_edge: float = 77.0 + sin(float(column) * 0.37) * 2.0
+				if latitude > ice_edge or latitude < -70.0 - sin(float(column) * 0.23) * 2.0:
+					fill_color = COLOR_SEA_ICE.lerp(COLOR_SNOW, 0.3 + float((column + row) % 3) * 0.1)
+			_terrain_canvas.draw_colored_polygon(corners, fill_color)
 			var border: PackedVector2Array = corners.duplicate()
 			border.append(corners[0])
-			draw_polyline(border, COLOR_GRID, 1.15, true)
+			_terrain_canvas.draw_polyline(border, COLOR_GRID, 0.35, true)
 			if tile["is_land"]:
 				_draw_coast_edges(corners, hex, tiles)
-				_draw_terrain_symbol(center, tile)
-			elif (row * 11 + column * 7) % 13 == 0:
-				draw_line(center + Vector2(-7.0, 2.0), center + Vector2(7.0, 2.0), Color("3b728a", 0.5), 1.3, true)
-			if selected_hex == hex:
-				draw_polyline(border, COLOR_HIGHLIGHT, 3.4, true)
+				_terrain_canvas.draw_set_transform(center, 0.0, Vector2.ONE * (HEX_RADIUS / 26.0))
+				_draw_terrain_symbol(Vector2.ZERO, tile)
+				_terrain_canvas.draw_set_transform(Vector2.ZERO)
+
+
+func _draw_selection() -> void:
+	# Selection does not rebuild the terrain draw commands.
+	if map_data.is_empty() or not map_data["tiles"].has(selected_hex):
+		return
+	var center: Vector2 = _origin + HexMath.axial_to_world(selected_hex, HEX_RADIUS)
+	var border: PackedVector2Array = _hex_corners(center)
+	border.append(border[0])
+	_selection_overlay.draw_polyline(border, COLOR_HIGHLIGHT, 1.8, true)
 
 
 func _hex_corners(center: Vector2) -> PackedVector2Array:
 	var corners: PackedVector2Array = PackedVector2Array()
 	for index in range(6):
 		var radians: float = deg_to_rad(float(index * 60 - 30))
-		corners.append(center + Vector2(cos(radians), sin(radians)) * (HEX_RADIUS - 1.0))
+		corners.append(center + Vector2(cos(radians), sin(radians)) * HEX_RADIUS)
 	return corners
 
 
@@ -115,7 +174,7 @@ func _draw_coast_edges(corners: PackedVector2Array, hex: Vector2i, tiles: Dictio
 	for index in range(6):
 		var neighbor: Dictionary = tiles.get(hex + directions[index], {})
 		if neighbor.is_empty() or not neighbor["is_land"]:
-			draw_line(corners[index], corners[(index + 1) % 6], COLOR_COAST, 2.1, true)
+			_terrain_canvas.draw_line(corners[index], corners[(index + 1) % 6], COLOR_COAST, 0.65, true)
 
 
 func _draw_terrain_symbol(center: Vector2, tile: Dictionary) -> void:
@@ -124,19 +183,25 @@ func _draw_terrain_symbol(center: Vector2, tile: Dictionary) -> void:
 		"forest":
 			for offset in [Vector2(-7.0, 5.0), Vector2(0.0, -4.0), Vector2(7.0, 5.0)]:
 				var trunk: Vector2 = center + offset
-				draw_line(trunk, trunk + Vector2(0.0, 6.0), Color("142d26"), 2.1, true)
-				draw_circle(trunk, 4.4, Color("193f32"))
+				_terrain_canvas.draw_line(trunk, trunk + Vector2(0.0, 6.0), Color("142d26"), 2.1, true)
+				_terrain_canvas.draw_circle(trunk, 4.4, Color("193f32"))
 		"mountain":
 			var peak: PackedVector2Array = PackedVector2Array([center + Vector2(-10.0, 7.0), center + Vector2(0.0, -9.0), center + Vector2(11.0, 7.0)])
-			draw_colored_polygon(peak, Color("475456"))
-			draw_line(center + Vector2(-3.0, -4.0), center, Color("e1ddd0"), 2.2, true)
+			_terrain_canvas.draw_colored_polygon(peak, Color("475456"))
+			var snow_cap: PackedVector2Array = PackedVector2Array([center + Vector2(-4.0, -2.5), center + Vector2(0.0, -9.0), center + Vector2(4.5, -2.5), center + Vector2(1.0, -4.0), center + Vector2(-1.0, -1.0)])
+			_terrain_canvas.draw_colored_polygon(snow_cap, COLOR_SNOW)
+		"snow":
+			_terrain_canvas.draw_line(center + Vector2(-8.0, 4.0), center + Vector2(-1.0, 2.0), Color("b3cdd6"), 1.1, true)
+			_terrain_canvas.draw_line(center + Vector2(2.0, -3.0), center + Vector2(8.0, -4.0), Color("f7faf8"), 1.5, true)
+		"tundra":
+			_terrain_canvas.draw_line(center + Vector2(-6.0, 4.0), center + Vector2(-2.0, 2.0), Color("748c80"), 1.3, true)
 		"desert":
-			draw_arc(center + Vector2(0.0, 6.0), 8.0, PI, TAU, 14, Color("e7c887", 0.75), 1.7, true)
+			_terrain_canvas.draw_arc(center + Vector2(0.0, 6.0), 8.0, PI, TAU, 14, Color("e7c887", 0.75), 1.7, true)
 		"city":
-			draw_circle(center, 11.0, Color("112e39", 0.9))
-			draw_rect(Rect2(center + Vector2(-5.0, -5.0), Vector2(10.0, 10.0)), Color("f5e7b1"))
-			draw_rect(Rect2(center + Vector2(-2.0, -9.0), Vector2(4.0, 4.0)), Color("f5e7b1"))
+			_terrain_canvas.draw_circle(center, 11.0, Color("112e39", 0.9))
+			_terrain_canvas.draw_rect(Rect2(center + Vector2(-5.0, -5.0), Vector2(10.0, 10.0)), Color("f5e7b1"))
+			_terrain_canvas.draw_rect(Rect2(center + Vector2(-2.0, -9.0), Vector2(4.0, 4.0)), Color("f5e7b1"))
 		"resource":
-			draw_circle(center, 10.0, Color("23362e", 0.94))
+			_terrain_canvas.draw_circle(center, 10.0, Color("23362e", 0.94))
 			var diamond: PackedVector2Array = PackedVector2Array([center + Vector2(0.0, -7.0), center + Vector2(6.0, 0.0), center + Vector2(0.0, 7.0), center + Vector2(-6.0, 0.0)])
-			draw_colored_polygon(diamond, Color("f1d777"))
+			_terrain_canvas.draw_colored_polygon(diamond, Color("f1d777"))

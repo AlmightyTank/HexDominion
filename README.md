@@ -42,7 +42,13 @@ Every hex matters. A rapidly expanding empire can become difficult to defend, wh
 
 ### World map and terrain
 
-The strategic map has **Earth-inspired continents and oceans**, entirely represented by hexagons. It is not intended to simulate exact political borders or real-world geography.
+The strategic map uses **real Earth land outlines** from public-domain Natural Earth 1:110m data, sampled onto **120 × 70 hexes** (8,400 cells). This reduced density keeps the world footprint while cutting the earlier 33,360-cell map by about 75%. The flat equirectangular map preserves recognizable continent locations, with simplified geographic terrain bands and no political borders. Small islands and narrow coastlines remain limited by hex resolution.
+
+Snow covers Antarctica, Greenland, and the high Arctic, with tundra across northern Canada and Siberia, snow-capped mountain symbols, and illustrative static polar sea ice. These are simplified climate regions, not seasonal weather or surveyed snow cover. Sea ice remains ocean for gameplay, and city/resource markers retain the underlying biome color.
+
+To refresh the bundled geography, run `python data/world/import_earth.py` (requires internet access). The game itself uses the bundled JSON offline. Source and license links are included in `data/world/earth_regions.json`.
+
+Static terrain is rendered once into a cached texture; camera movement and hex selection do not redraw the terrain. The 8,400 selectable hexes are unchanged. Run `godot --path . --script res://tests/profile_map.gd --disable-vsync` with a display to benchmark full-map and zoomed/panning rendering, validate the cache and selection, and check the 100-draw-call budget. Headless smoke tests do not measure graphics performance.
 
 | Terrain | Intended role |
 | --- | --- |
