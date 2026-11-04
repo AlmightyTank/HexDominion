@@ -167,7 +167,11 @@ func group_position(batch: Dictionary, batches: Array[Dictionary], zoom_factor: 
 	var point: Vector2 = to_local(world_map.hex_to_world(batch["hex"]))
 	if economy.buildings.has(batch["hex"]) or match_state.rival_economy.buildings.has(batch["hex"]):
 		point += Vector2(14, 14)
-	return point + UnitVisuals.group_offset(batch, batches) / maxf(zoom_factor, 0.15)
+	var offset: Vector2 = UnitVisuals.group_offset(batch, batches)
+	if zoom_factor < UnitVisuals.FAR_ZOOM:
+		# Far markers are screen-sized, so keep their spacing screen-sized too.
+		offset /= maxf(zoom_factor, 0.15)
+	return point + offset
 
 
 func pick(global_point: Vector2, zoom_factor: float) -> UnitState:
@@ -175,7 +179,7 @@ func pick(global_point: Vector2, zoom_factor: float) -> UnitState:
 
 func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, _cycle: bool = false) -> UnitState:
 	var nearest: UnitState = null
-	var best: float = 18.0 / maxf(zoom_factor, 0.15)
+	var best: float = UnitVisuals.pick_radius(zoom_factor)
 	var batches: Array[Dictionary] = military_batches()
 	for batch in batches:
 		if batch["faction"] != faction:
@@ -327,9 +331,11 @@ func _draw() -> void:
 		var target: UnitState = combat_targets[attacker]
 		if attacker.kind != "artillery" and attacker.is_alive() and target.is_alive():
 			draw_line(unit_position(attacker), unit_position(target), Color("ffc875"), 1.5, true)
-	if selected != null and not selected.path.is_empty():
-		var points: PackedVector2Array = PackedVector2Array([unit_position(selected)])
-		for hex in selected.path:
+	for unit in selected_units:
+		if not unit.is_alive() or unit.path.is_empty():
+			continue
+		var points: PackedVector2Array = PackedVector2Array([unit_position(unit)])
+		for hex in unit.path:
 			points.append(to_local(world_map.hex_to_world(hex)))
 		draw_polyline(points, Color("fff0ad"), 2.0, true)
 		draw_arc(points[-1], 8.0, 0.0, TAU, 24, Color("fff0ad"), 2.0, true)
@@ -367,7 +373,7 @@ func _draw_units() -> void:
 	var zoom_factor: float = get_canvas_transform().get_scale().x
 	for wreck in wrecks:
 		var opacity: float = clampf(wreck["remaining"] / 0.65, 0, 1) if UnitCatalog.is_infantry(wreck["kind"]) else 1.0
-		UnitArt.draw(self, wreck["kind"], wreck["faction"], "destroyed", wreck["position"], wreck["facing"], false, 28, opacity)
+		UnitArt.draw(self, wreck["kind"], wreck["faction"], "destroyed", wreck["position"], wreck["facing"], false, UnitVisuals.UNIT_BOX, opacity)
 	var batches: Array[Dictionary] = military_batches()
 	for batch in batches:
 		var members: Array = batch["members"]
@@ -379,7 +385,7 @@ func _draw_units() -> void:
 			highlighted = highlighted or selected_units.has(member)
 			injured = injured or UnitArt.state_for(member.health, member.max_health, member.kind) == "damaged"
 			health_fraction = minf(health_fraction, member.health / member.max_health)
-		var icon_scale: float = 1.0 / maxf(zoom_factor, 0.15)
+		var icon_scale: float = UnitVisuals.badge_scale(zoom_factor) / maxf(zoom_factor, 0.15)
 		if individual_view(zoom_factor, batch["hex"], batch["faction"]):
 			for member in members:
 				UnitAppearance.draw_unit(self, member, unit_position(member), faction_color(member.faction), selected_units.has(member), animation_time, 0.85 if member.domain == "air" and zoom_factor < UnitVisuals.CLOSE_ZOOM else 1.0)
@@ -387,12 +393,18 @@ func _draw_units() -> void:
 					draw_string(ThemeDB.fallback_font, unit_position(member) + Vector2(-9, 21), "%d/%d" % [TransportRules.used(member, units), TransportRules.capacity(member)], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("fff0ad"))
 			continue
 		if zoom_factor >= far_zoom_threshold:
-			# Army view: a few small sprites per role with the true unit count.
-			var scale_factor: float = 0.55 / maxf(zoom_factor, 0.15)
-			var shown: int = mini(members.size(), 3)
-			for index in shown:
-				UnitAppearance.draw_unit(self, members[index], point + Vector2((index - (shown - 1) * 0.5) * 13.0, 0.0) / zoom_factor, faction_color(batch["faction"]), selected_units.has(members[index]), animation_time, scale_factor)
-			draw_string(ThemeDB.fallback_font, point + Vector2(10.0, 14.0) / zoom_factor, str(members.size()), HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(8, roundi(10.0 / zoom_factor)), Color.WHITE)
+			# Army view: one readable sprite per role with the true unit count.
+			var box: float = UnitVisuals.sprite_box(zoom_factor)
+			var scale_factor: float = box / UnitVisuals.UNIT_BOX
+			var representative: UnitState = members[0]
+			for member in members:
+				if member.attack_flash > 0:
+					representative = member
+					break
+			UnitAppearance.draw_unit(self, representative, point, faction_color(batch["faction"]), highlighted, animation_time, scale_factor, false)
+			if health_fraction < 1.0 or highlighted:
+				UnitAppearance.stack_health_bar(self, point, health_fraction, faction_color(batch["faction"]), box)
+			UnitAppearance.count_badge(self, point + Vector2(box * 0.42, box * 0.30), members.size(), zoom_factor)
 			continue
 		var firing_member: UnitState = null
 		for member in members:

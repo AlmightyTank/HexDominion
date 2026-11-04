@@ -87,8 +87,9 @@ Categories are infantry, vehicles, aircraft, naval. Icons live with their source
 class rather than in a duplicate icon tree. The four original root SVGs remain
 editable source inputs. All sources have transparent 128x128 canvases, center pivot
 (64,64), north-facing units, no baked text or environment.
-Godot imports SVGs as Texture2D. Runtime scales them to 28 world pixels, with linear
-filtering inherited from the project. This is vector-style art, not pixel art.
+Godot imports SVGs as Texture2D. Runtime scales unit sprites to 42 world pixels at
+close zoom and 34-42 world pixels in the medium army tier, with linear filtering
+inherited from the project. This is vector-style art, not pixel art.
 Strategic icons retain the shared overhead silhouette and remain independent files.
 Portraits are not added: the current text selection panel does not need them.
 

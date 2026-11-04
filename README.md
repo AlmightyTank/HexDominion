@@ -76,7 +76,7 @@ The roster is now complete: thirteen roles across infantry, vehicles, aircraft a
 Combat happens directly on the map in real time. The world map presents an army in three zoom tiers, and the zoom only changes presentation — it never merges, duplicates or removes a simulated unit:
 
 - **Far zoom (world strategy view):** one compact marker per hex, faction and unit type with the true unit count.
-- **Medium zoom (army view):** small grouped sprites per role with the true unit count and a health bar.
+- **Medium zoom (army view):** one readable representative sprite per role with a count badge and a health bar.
 - **Close zoom (tactical view):** individual unit sprites with facing, health, selection and attack feedback.
 
 ### Tactical orders

@@ -23,11 +23,9 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	var hud: StrategyHUD = current_scene.get_node("HUD/Overlay")
-	for index in range(3):
-		hud.command_tabs.current_tab = index
-		await _capture("tab-%d" % index)
-	hud.command_tabs.current_tab = 1
-	for index in range(3):
+	assert(hud.command_tabs.get_tab_count() == 1 and not hud.command_tabs.tabs_visible)
+	await _capture("production-sidebar")
+	for index in range(4):
 		hud.production_tabs.current_tab = index
 		await _capture("production-%d" % index)
 	current_scene.set_process(false)
@@ -40,14 +38,16 @@ func _run() -> void:
 	economy.advance(1, {}, territory)
 	var rifle: UnitState = UnitState.new(Vector2i.ZERO, "rifle")
 	rifle.configure_kind("rifle")
-	hud.production_tabs.current_tab = 1
+	hud.production_tabs.current_tab = 2
 	hud.show_selection([rifle], false)
 	hud.show_stack([rifle], [rifle], Vector2i(-1, -1), [rifle])
 	hud.show_tile_actions(Vector2i(9, 9), economy, territory, {})
-	assert(hud.command_tabs.current_tab == 1 and hud.production_tabs.current_tab == 1)
+	assert(hud.command_tabs.current_tab == 0 and hud.production_tabs.current_tab == 2)
 	assert("1 queued" in hud.production_queue.text)
 	await _capture("production-fighting")
 	hud.command_tabs.current_tab = 0
+	hud.context_expanded = true
+	hud._layout_for_viewport()
 	await _capture("army-selected")
 	current_scene.set_process(true)
 	hud.match_action_requested.emit("pause")
@@ -75,10 +75,10 @@ func _run() -> void:
 	assert(not "\n" in hud.economy_summary.text)
 	current_scene.set_process(true)
 	hud.match_action_requested.emit("resume")
-	root.size = Vector2i(960, 640)
+	root.size = Vector2i(760, 640)
 	await process_frame
 	await process_frame
-	hud.command_tabs.current_tab = 1
+	hud.command_tabs.current_tab = 0
 	assert(hud.mobile_layout)
 	assert(not hud.production_open)
 	await _capture("compact")
@@ -87,6 +87,8 @@ func _run() -> void:
 	root.size = Vector2i(390, 844)
 	await process_frame
 	await process_frame
+	if not hud.production_open:
+		hud.production_toggle.pressed.emit()
 	await _capture("phone-production")
 	var match_state: MatchState = MatchState.new()
 	match_state.result = "victory"
@@ -94,5 +96,5 @@ func _run() -> void:
 	assert(hud.match_panel.is_visible_in_tree())
 	assert(hud.match_label.text.begins_with("VICTORY"))
 	await _capture("victory")
-	print("UI review passed: management and production tabs, pause/resume, empty saves, save-name validation, power states, compact capture, visible victory banner")
+	print("UI review passed: production-only sidebar and four categories, pause/resume, empty saves, save-name validation, power states, compact capture, visible victory banner")
 	quit()

@@ -39,7 +39,7 @@ func _run() -> void:
 				game.units.units.append(unit)
 	game.units.select_one(game.units.units[0])
 	game.units.selected_units.append(game.units.units[6])
-	game.hud.command_tabs.current_tab = 1
+	game.hud.production_tabs.current_tab = 2
 	for entry in [["far", 0.45], ["medium", 1.0], ["close", 2.3]]:
 		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * entry[1])
 		game.units.queue_redraw()

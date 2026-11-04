@@ -51,9 +51,18 @@ static func layer_texture(kind: String, faction: int, state: String, part: Strin
 static func building_texture(kind: String, faction: int, state: String = "base") -> Texture2D:
 	if kind in ["airfield", "shipyard"]:
 		var air_path: String = "res://assets/buildings/%s.svg" % kind
-		if not _textures.has(air_path):
-			_textures[air_path] = load(air_path)
-		return _textures[air_path]
+		var faction_key: String = "%s:%d" % [air_path, faction_slot(faction)]
+		if not _textures.has(faction_key):
+			var source: Texture2D = load(air_path)
+			var image: Image = source.get_image()
+			var primary: Color = Color(["55aff0", "ef7770", "e8c768"][faction_slot(faction)])
+			for y in range(image.get_height()):
+				for x in range(image.get_width()):
+					var pixel: Color = image.get_pixel(x, y)
+					if pixel.a > 0 and (pixel.is_equal_approx(Color("b5b29b")) or pixel.is_equal_approx(Color("b3b39a")) or pixel.is_equal_approx(Color("92997a"))):
+						image.set_pixel(x, y, Color(primary, pixel.a))
+			_textures[faction_key] = ImageTexture.create_from_image(image)
+		return _textures[faction_key]
 	if state not in ["base", "damaged", "destroyed"]:
 		return null
 	var suffix: String = "" if state == "base" else "_" + state

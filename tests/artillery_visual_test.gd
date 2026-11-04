@@ -41,7 +41,7 @@ func run() -> void:
 	game.units.territory.set_owner(target, 2)
 	var gun: UnitState = game.units.units[0]
 	game.units.select_one(gun)
-	game.hud.command_tabs.current_tab = 2
+	game.hud.production_tabs.current_tab = 3
 	game._process(0)
 	for entry in [["artillery-far", 0.45], ["artillery-medium", 1.0], ["artillery-close", 2.3]]:
 		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * entry[1])

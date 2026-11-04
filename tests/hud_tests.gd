@@ -11,14 +11,18 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	var hud: StrategyHUD = current_scene.get_node("HUD/Overlay")
-	assert(hud.command_tabs.get_tab_count() == 3)
-	assert(hud.production_tabs.get_tab_count() == 3)
-	for index in range(3):
-		hud.command_tabs.current_tab = index
+	assert(hud.command_tabs.get_tab_count() == 1)
+	assert(not hud.command_tabs.tabs_visible)
+	assert(hud.production_tabs.get_tab_count() == 4)
+	assert(hud.structure_grid.columns == 1 and hud.infantry_grid.columns == 1)
+	assert(hud.defense_grid.is_ancestor_of(hud.build_buttons["bunker"]))
+	assert(hud.production_tabs.get_tab_bar().get_tab_rect(3).end.x <= hud.production_tabs.size.x)
+	assert(hud.radar.position.x < 30 and hud.radar.position.y >= hud.tactical_deck.position.y)
+	for index in range(4):
+		hud.production_tabs.current_tab = index
 		await process_frame
-		assert(hud.command_tabs.get_current_tab_control().visible)
-		assert(hud.command_tabs.get_tab_icon(index) != null)
-		assert(hud.production_tabs.get_tab_icon(index) != null)
+		assert(hud.production_tabs.get_current_tab_control().visible)
+		assert(not hud.production_tabs.get_tab_title(index).is_empty())
 	var requests: Array[String] = []
 	hud.build_requested.connect(func(kind: String) -> void: requests.append(kind))
 	hud.build_buttons["barracks"].pressed.emit()
@@ -29,11 +33,17 @@ func _run() -> void:
 	assert(not hud.help_panel.visible)
 	assert(hud.build_panel.is_ancestor_of(hud.match_panel))
 	assert(hud.field_command_panel.is_ancestor_of(hud.tile_info_label))
-	assert(hud.field_command_panel.visible)
-	assert(map_rect.end.y <= hud.field_command_panel.position.y)
+	assert(not hud.field_command_panel.visible)
+	assert(map_rect.end.y <= hud.tactical_deck.position.y)
 	assert(hud.resource_strip.is_ancestor_of(hud.economy_summary))
-	assert(map_rect.position.y == hud.resource_strip.size.y)
-	assert(not hud.power_rail.visible)
+	assert(map_rect.position.y == hud.tactical_header.size.y)
+	assert(hud.tactical_header.size.y <= 64)
+	assert(hud.tactical_deck.size.y <= 130)
+	assert(hud.top_actions.get_child(2).custom_minimum_size.x >= 110)
+	assert(hud.top_actions.get_child(2).custom_minimum_size.y >= 44)
+	assert(hud.power_rail.visible)
+	assert(hud.power_rail.size.x == 18)
+	assert(hud.power_rail.get_rect().end.x <= hud.build_panel.position.x)
 	assert(hud.resource_strip.get_rect().end.y <= hud.build_panel.position.y)
 	hud.power_gauge.set_balance(20, 30)
 	assert(hud.power_gauge.demand > hud.power_gauge.supply)
@@ -44,11 +54,11 @@ func _run() -> void:
 	hud.power_gauge.set_balance(0, 0)
 	assert(hud.power_gauge.capacity > 0 and "Power sufficient" in hud.power_gauge.tooltip_text)
 	assert(hud.field_command_panel.is_ancestor_of(hud.supply_info))
-	assert(hud.build_panel.is_ancestor_of(hud.continent_overview))
-	assert(hud.selection_panel.is_ancestor_of(hud.attack_button))
-	assert(hud.selection_panel.is_ancestor_of(hud.add_selection_button))
-	assert(hud.build_panel.is_ancestor_of(hud.stack_panel))
-	hud.command_tabs.current_tab = 1
+	assert(not hud.continent_overview.is_visible_in_tree())
+	assert(hud.order_grid.is_ancestor_of(hud.attack_button))
+	assert(hud.order_grid.is_ancestor_of(hud.add_selection_button))
+	assert(hud.field_command_panel.is_ancestor_of(hud.stack_panel))
+	hud.command_tabs.current_tab = 0
 	hud.production_tabs.current_tab = 2
 	var tank: UnitState = UnitState.new(Vector2i.ZERO, "tank")
 	tank.configure_kind("tank")
@@ -56,12 +66,12 @@ func _run() -> void:
 	assert(not hud.order_buttons["garrison"].visible)
 	assert(not hud.order_buttons["load"].visible)
 	assert(not hud.order_buttons["unload"].visible)
-	assert(hud.command_tabs.current_tab == 1 and hud.production_tabs.current_tab == 2)
+	assert(hud.command_tabs.current_tab == 0 and hud.production_tabs.current_tab == 2)
 	var rifle: UnitState = UnitState.new(Vector2i.ZERO, "rifle")
 	rifle.configure_kind("rifle")
 	hud.show_selection([rifle], false)
 	assert(hud.order_buttons["garrison"].visible)
-	assert(hud.command_tabs.current_tab == 1 and hud.production_tabs.current_tab == 2)
+	assert(hud.command_tabs.current_tab == 0 and hud.production_tabs.current_tab == 2)
 	hud.show_selection([], false)
 	assert(not hud.order_grid.visible)
 	var stack_requests: Array[String] = []
@@ -94,19 +104,32 @@ func _run() -> void:
 	territory.set_owner(factory_hex, economy.faction)
 	economy.add_building(factory_hex, "barracks")
 	assert(economy.train(factory_hex, "rifle", territory))
-	hud.command_tabs.current_tab = 1
+	hud.command_tabs.current_tab = 0
 	hud.production_tabs.current_tab = 1
 	hud.show_tile_actions(factory_hex, economy, territory, {})
+	assert(hud.tactical_header.values["credits"] == "%.2f" % economy.credits)
+	assert(hud.economy_summary.text.begins_with("%.2f CR" % economy.credits))
 	var queue_text: String = hud.production_queue.text
 	assert("Rifleman" in queue_text and "1 queued" in queue_text)
 	hud.show_selection([tank], false)
 	hud.show_tile_actions(Vector2i(9, 9), economy, territory, {})
 	assert(hud.production_queue.text == queue_text)
-	assert(hud.command_tabs.current_tab == 1 and hud.production_tabs.current_tab == 1)
+	assert(hud.command_tabs.current_tab == 0 and hud.production_tabs.current_tab == 1)
 	economy.advance(1, {}, territory)
 	hud.show_tile_actions(Vector2i(9, 9), economy, territory, {})
 	assert(hud.production_queue.text != queue_text)
 	assert(economy.buildings[factory_hex]["queue"] == ["rifle"])
+	hud.show_selection([], false)
+	economy.buildings[factory_hex]["health"] -= 10
+	hud.show_tile_actions(factory_hex, economy, territory, {})
+	hud.show_match_status(MatchState.new())
+	assert(not hud.allied_repair.disabled and not hud.allied_sell.disabled)
+	var building_actions: Array[String] = []
+	hud.building_action_requested.connect(func(action: String, _hex: Vector2i, _site: Dictionary) -> void: building_actions.append(action))
+	hud.allied_repair.pressed.emit()
+	hud.allied_sell.pressed.emit()
+	assert(building_actions == ["repair", "sell"])
+	hud.show_tile_actions(factory_hex, economy, territory, {})
 	economy.advance(4, {}, territory)
 	assert(hud.command_alert.visible and "ready" in hud.command_alert.text)
 	var old_economy: EconomyState = economy
@@ -132,5 +155,7 @@ func _run() -> void:
 	assert(hud.production_open and hud.build_panel.get_rect().end.x <= 390)
 	hud.context_toggle.pressed.emit()
 	assert(hud.context_expanded)
-	print("HUD tests passed: responsive power/map bounds, six labeled tab icons, persistent production while selecting units, relevant orders, build signal, radar, pause/resume")
+	assert(not hud.command_tabs.tabs_visible and not hud.sidebar_options.visible)
+	assert(hud.production_tabs.get_tab_bar().get_tab_rect(3).end.x <= hud.production_tabs.size.x)
+	print("HUD tests passed: reference resource bar, production lists, bottom minimap/deck, real orders/repair/sell, persistent queues, radar touch and phone sheet")
 	quit()

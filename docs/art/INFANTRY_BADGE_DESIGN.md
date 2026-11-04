@@ -20,8 +20,9 @@ ENERGY 2 / RHYTHM 1 / MOTION 1.
 ## Technical frame
 
 Transparent 128x128 SVG, center pivot (64,64), north-facing source, linear filtering.
-Normal unit rendering uses 28 world pixels; strategic rendering uses the existing
-stack scale and real counts. Current stack/expansion rules remain unchanged.
+Normal unit rendering uses 42 world pixels (34-42 in the medium army tier); strategic
+rendering uses the existing stack scale and real counts. Current stack/expansion rules
+remain unchanged.
 Only artwork rotates; health, counts and selection remain upright.
 
 Infantry below 50% health use damaged art; exactly 50% remains normal. Existing

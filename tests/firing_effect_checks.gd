@@ -30,11 +30,11 @@ func run() -> void:
 	for kind in UnitCatalog.TYPES:
 		assert(not UnitAppearance.muzzle_points(kind, 0.14).is_empty(), kind)
 		assert(not UnitAppearance.muzzle_points(kind, 0.14, true).is_empty(), kind)
-	assert(UnitAppearance.muzzle_points("rifle", 0.14)[0].is_equal_approx(Vector2(47, 15) * 28 / 128))
-	assert(UnitAppearance.muzzle_points("tank", 0.14)[0].is_equal_approx(Vector2(67 * 28.0 / 128.0 - 2, 0)))
-	assert(UnitAppearance.muzzle_points("tank", 0)[0].is_equal_approx(Vector2(67 * 28.0 / 128.0, 0)))
-	assert(UnitAppearance.muzzle_points("artillery", 0.14)[0].is_equal_approx(Vector2(81 * 28.0 / 128.0 - 4, 0)))
-	assert(UnitAppearance.muzzle_points("artillery", 0)[0].is_equal_approx(Vector2(81 * 28.0 / 128.0, 0)))
+	assert(UnitAppearance.muzzle_points("rifle", 0.14)[0].is_equal_approx(Vector2(47, 15) * UnitVisuals.UNIT_BOX / 128))
+	assert(UnitAppearance.muzzle_points("tank", 0.14)[0].is_equal_approx(Vector2(67 * UnitVisuals.UNIT_BOX / 128.0 - 2 * UnitVisuals.UNIT_BOX / UnitAppearance.CHROME_BASE, 0)))
+	assert(UnitAppearance.muzzle_points("tank", 0)[0].is_equal_approx(Vector2(67 * UnitVisuals.UNIT_BOX / 128.0, 0)))
+	assert(UnitAppearance.muzzle_points("artillery", 0.14)[0].is_equal_approx(Vector2(81 * UnitVisuals.UNIT_BOX / 128.0 - 4 * UnitVisuals.UNIT_BOX / UnitAppearance.CHROME_BASE, 0)))
+	assert(UnitAppearance.muzzle_points("artillery", 0)[0].is_equal_approx(Vector2(81 * UnitVisuals.UNIT_BOX / 128.0, 0)))
 	assert(UnitAppearance.muzzle_points("anti_air", 0.14).size() == 2)
 	if DisplayServer.get_name() == "headless":
 		print("Firing effect anchor checks passed")

@@ -7,21 +7,21 @@ const HEX_RADIUS: float = 18.0
 const COLUMNS: int = 120
 const ROWS: int = 70
 
-const COLOR_OUTER: Color = Color("071522")
-const COLOR_GRID: Color = Color("233e48", 0.53)
+const COLOR_OUTER: Color = Color("243a3a")
+const COLOR_GRID: Color = Color("86afa1", 0.25)
 const COLOR_COAST: Color = Color("9cc5b4", 0.70)
-const COLOR_HIGHLIGHT: Color = Color("fff0ad")
-const COLOR_OCEAN: Color = Color("12364c")
-const COLOR_OCEAN_DEEP: Color = Color("103044")
-const COLOR_PLAINS: Color = Color("60876b")
-const COLOR_FOREST: Color = Color("28624c")
-const COLOR_DESERT: Color = Color("bc9d60")
-const COLOR_MOUNTAIN: Color = Color("858a81")
-const COLOR_CITY: Color = Color("4e8f84")
-const COLOR_RESOURCE: Color = Color("85804c")
-const COLOR_SNOW: Color = Color("e2ecec")
-const COLOR_TUNDRA: Color = Color("9cae9c")
-const COLOR_SEA_ICE: Color = Color("b4d3dd")
+const COLOR_HIGHLIGHT: Color = Color("6dd5fa")
+const COLOR_OCEAN: Color = Color("263f46")
+const COLOR_OCEAN_DEEP: Color = Color("263f46")
+const COLOR_PLAINS: Color = Color("497c64")
+const COLOR_FOREST: Color = Color("466a5e")
+const COLOR_DESERT: Color = Color("656d58")
+const COLOR_MOUNTAIN: Color = Color("566a57")
+const COLOR_CITY: Color = Color("4c7860")
+const COLOR_RESOURCE: Color = Color("66735a")
+const COLOR_SNOW: Color = Color("96aba1")
+const COLOR_TUNDRA: Color = Color("748c7d")
+const COLOR_SEA_ICE: Color = Color("6e8785")
 
 const COLOR_BY_TERRAIN: Dictionary = {
 	"ocean": COLOR_OCEAN, "plains": COLOR_PLAINS, "forest": COLOR_FOREST,
@@ -142,9 +142,10 @@ func _draw_terrain() -> void:
 			_terrain_canvas.draw_polyline(border, COLOR_GRID, 0.35, true)
 			if tile["is_land"]:
 				_draw_coast_edges(corners, hex, tiles)
-				_terrain_canvas.draw_set_transform(center, 0.0, Vector2.ONE * (HEX_RADIUS / 26.0))
-				_draw_terrain_symbol(Vector2.ZERO, tile)
-				_terrain_canvas.draw_set_transform(Vector2.ZERO)
+				if terrain in ["city", "resource"]:
+					_terrain_canvas.draw_set_transform(center, 0.0, Vector2.ONE * (HEX_RADIUS / 26.0))
+					_draw_terrain_symbol(Vector2.ZERO, tile)
+					_terrain_canvas.draw_set_transform(Vector2.ZERO)
 
 
 func _draw_selection() -> void:
@@ -153,6 +154,7 @@ func _draw_selection() -> void:
 		return
 	var center: Vector2 = _origin + HexMath.axial_to_world(selected_hex, HEX_RADIUS)
 	var border: PackedVector2Array = _hex_corners(center)
+	_selection_overlay.draw_colored_polygon(border, Color("2073aa", 0.28))
 	border.append(border[0])
 	_selection_overlay.draw_polyline(border, COLOR_HIGHLIGHT, 1.8, true)
 

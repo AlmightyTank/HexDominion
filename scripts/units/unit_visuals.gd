@@ -3,6 +3,29 @@ class_name UnitVisuals
 ## Presentation-only batches. Members always remain independent simulation objects.
 const FAR_ZOOM: float = 0.65
 const CLOSE_ZOOM: float = 1.5
+## Sprite boxes in world pixels. A hex is 31.2 wide, so a close-zoom sprite fills
+## most of its hex and the medium tier stays large enough to read the unit type.
+const UNIT_BOX: float = 42.0
+const STACK_BOX: float = 34.0
+## Far tier markers stay a constant screen size so a hex reads at a glance.
+const ICON_BOX: float = 25.0
+
+static func badge_scale(zoom_factor: float) -> float:
+	return clampf(zoom_factor / FAR_ZOOM, 1.0, 1.8)
+
+## Sprite box for the drawn unit art, in world pixels.
+static func sprite_box(zoom_factor: float) -> float:
+	if zoom_factor >= CLOSE_ZOOM:
+		return UNIT_BOX
+	if zoom_factor <= FAR_ZOOM:
+		return STACK_BOX
+	return lerpf(STACK_BOX, UNIT_BOX, (zoom_factor - FAR_ZOOM) / (CLOSE_ZOOM - FAR_ZOOM))
+
+## Hit radius in world pixels around a unit marker.
+static func pick_radius(zoom_factor: float) -> float:
+	if zoom_factor < FAR_ZOOM:
+		return 18.0 / maxf(zoom_factor, 0.15)
+	return sprite_box(zoom_factor) * 0.55
 
 static func tier(zoom_factor: float) -> String:
 	return "far" if zoom_factor < FAR_ZOOM else ("medium" if zoom_factor < CLOSE_ZOOM else "close")

@@ -13,6 +13,17 @@ func set_balance(available: float, used: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	if size.x < 36:
+		var compact_track: Rect2 = Rect2(2, 8, maxf(4, size.x - 4), maxf(40, size.y - 16))
+		draw_rect(compact_track, Color("101611"))
+		draw_rect(Rect2(compact_track.position + Vector2(0, compact_track.size.y * (1 - supply / capacity)), Vector2(compact_track.size.x, compact_track.size.y * supply / capacity)), Color("f08075") if demand > supply else Color("a9bf73"))
+		for step in range(1, 24):
+			var segment_y: float = compact_track.position.y + compact_track.size.y * step / 24.0
+			draw_line(Vector2(compact_track.position.x, segment_y), Vector2(compact_track.end.x, segment_y), Color("101923"), 2)
+		draw_rect(compact_track, Color("969baa"), false)
+		var marker_y: float = compact_track.end.y - compact_track.size.y * demand / capacity
+		draw_line(Vector2(0, marker_y), Vector2(size.x, marker_y), Color.WHITE, 2)
+		return
 	var font: Font = ThemeDB.fallback_font
 	var pale: Color = Color("f5efdb")
 	var low: bool = demand > supply

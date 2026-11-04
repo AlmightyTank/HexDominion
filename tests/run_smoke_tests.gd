@@ -551,7 +551,7 @@ func _run_tests() -> void:
 	game.hud.show_tile_actions(game.units.units[0].hex, game.units.economy, game.units.territory, tiles)
 	game.hud.production_open = true
 	game.hud._layout_for_viewport()
-	_check(game.hud.build_panel.visible and game.hud.command_tabs.get_tab_count() == 3 and game.hud.production_tabs.get_tab_count() == 3 and game.hud.build_buttons["barracks"].visible, "Management and production categories remain available while inspecting buildings")
+	_check(game.hud.build_panel.visible and game.hud.command_tabs.get_tab_count() == 1 and game.hud.production_tabs.get_tab_count() == 4 and game.hud.build_buttons["barracks"].visible, "Production-only sidebar remains available while inspecting buildings")
 	game.hud.show_tile_actions(Vector2i(-9999, -9999), game.units.economy, game.units.territory, tiles)
 	_check(game.hud.build_panel.visible, "Construction sidebar remains available without a valid selected tile")
 	var before_selection: float = game.units.economy.credits

@@ -16,3 +16,4 @@ exports/
 *.uid
 __pycache__/
 *.import
+/.playwright-mcp
