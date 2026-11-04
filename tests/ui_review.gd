@@ -14,6 +14,7 @@ func _capture(label: String) -> void:
 
 
 func _run() -> void:
+	root.size = Vector2i(1280, 720)
 	change_scene_to_file("res://scenes/main.tscn")
 	await process_frame
 	await process_frame
@@ -74,9 +75,15 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	hud.command_tabs.current_tab = 1
-	assert(hud.power_gauge.size.y == hud.power_rail.size.y)
-	assert(hud.power_rail.get_rect().end.y == hud.get_viewport_rect().size.y)
+	assert(hud.mobile_layout)
+	assert(not hud.production_open)
 	await _capture("compact")
+	hud.production_toggle.pressed.emit()
+	await _capture("compact-production")
+	root.size = Vector2i(390, 844)
+	await process_frame
+	await process_frame
+	await _capture("phone-production")
 	var match_state: MatchState = MatchState.new()
 	match_state.result = "victory"
 	hud.show_match_status(match_state)

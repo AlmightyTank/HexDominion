@@ -50,6 +50,8 @@ func restore_view(saved_position: Vector2, saved_zoom: Vector2) -> void:
 
 
 func _process(delta: float) -> void:
+	if get_viewport().gui_get_focus_owner() != null:
+		return
 	var movement: Vector2 = Vector2.ZERO
 	if Input.is_action_pressed("ui_left") or Input.is_key_pressed(KEY_A):
 		movement.x -= 1.0
@@ -63,6 +65,14 @@ func _process(delta: float) -> void:
 		position += movement.normalized() * keyboard_pan_speed * delta / zoom.x
 		_clamp_position()
 		_notify_view_changed()
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch and not event.pressed:
+		_touch_positions.erase(event.index)
+		_reset_pinch_reference()
+	elif event is InputEventMouseButton and not event.pressed:
+		_mouse_drag_buttons.erase(event.button_index)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -101,6 +111,8 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 
 
 func _handle_screen_drag(event: InputEventScreenDrag) -> void:
+	if not _touch_positions.has(event.index):
+		return
 	_touch_positions[event.index] = event.position
 	if _touch_positions.size() == 1:
 		pan_screen_pixels(event.relative)

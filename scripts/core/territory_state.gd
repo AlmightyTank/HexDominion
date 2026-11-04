@@ -1,5 +1,6 @@
 extends RefCounted
 class_name TerritoryState
+signal ownership_changed
 ## Sparse ownership separate from cached terrain. Zero is neutral.
 const CAPTURE_SECONDS: float = 3.0
 var continents: ContinentControl = ContinentControl.new()
@@ -7,6 +8,7 @@ var owners: Dictionary = {}:
 	set(value):
 		owners = value
 		continents.recount(owners)
+		ownership_changed.emit()
 var captures: Dictionary = {}
 var contested: Dictionary = {}
 
@@ -17,6 +19,8 @@ func set_owner(hex: Vector2i, faction: int) -> void:
 	var previous: int = owner_at(hex)
 	owners[hex] = faction
 	continents.ownership_changed(hex, previous, faction)
+	if previous != faction:
+		ownership_changed.emit()
 
 func is_contested(hex: Vector2i) -> bool:
 	return contested.has(hex) or captures.has(hex)

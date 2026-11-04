@@ -1,6 +1,7 @@
 extends RefCounted
 class_name EconomyState
 signal building_destroyed(hex: Vector2i, kind: String, rotation: int, owner: int)
+signal command_event(message: String, hex: Vector2i)
 ## Faction economy and production. All money mutations use the shared account.
 const BUILD_COSTS: Dictionary = {"headquarters": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100}
 const EXTRACTOR_HEALTH: float = 200.0
@@ -188,6 +189,7 @@ func damage_building(hex: Vector2i, amount: float) -> bool:
 	if not is_finite(amount) or amount <= 0 or not buildings.has(hex):
 		return false
 	buildings[hex]["health"] = maxf(0.0, buildings[hex].get("health", BUILD_HEALTH[buildings[hex]["kind"]]) - amount)
+	command_event.emit("%s under attack" % str(buildings[hex]["kind"]).capitalize(), hex)
 	if buildings[hex]["health"] <= 0:
 		var lost: Dictionary = buildings[hex]
 		buildings.erase(hex)
@@ -231,6 +233,7 @@ func _advance_interval(delta: float, tiles: Dictionary, territory: TerritoryStat
 			unit.faction = faction
 			unit.order_move(tiles, building["rally"])
 			recruits.append(unit)
+			command_event.emit("%s ready" % UnitCatalog.TYPES[kind]["name"], hex)
 		if building["queue"].is_empty():
 			building["elapsed"] = 0.0
 	for hex in buildings:
@@ -244,4 +247,6 @@ func _advance_interval(delta: float, tiles: Dictionary, territory: TerritoryStat
 				building["repairing"] = false
 		if not is_complete(building) and territory.owner_at(hex) == faction and not territory.is_contested(hex):
 			building["construction"] = minf(BUILD_SECONDS[building["kind"]], building["construction"] + delta)
+			if is_complete(building):
+				command_event.emit("%s completed" % str(building["kind"]).capitalize(), hex)
 	return recruits

@@ -7,6 +7,7 @@ var _failures: int = 0
 
 
 func _init() -> void:
+	root.size = Vector2i(1280, 720)
 	call_deferred("_run_tests")
 
 
@@ -122,11 +123,11 @@ func _test_supply_ui_and_save() -> void:
 	var home: Vector2i = game.units.match_state.player_hq
 	game.world_map.inspect_at_world(game.world_map.hex_to_world(home))
 	game._process(0)
-	_check(game.hud.supply_info.visible and "SUPPLIED" in game.hud.supply_info.text and "6.00" in game.hud.supply_info.text, "Selected HQ city displays live supplied income")
+	_check(game.hud.supply_info.visible and "SUPPLIED" in game.hud.supply_info.text and "360 CR/min" in game.hud.supply_info.text, "Selected HQ city displays live supplied income per minute")
 	var snapshot: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home)
 	game.units.economy.damage_building(home, 10000)
 	game._process(0)
-	_check("ISOLATED" in game.hud.supply_info.text and "0.00" in game.hud.supply_info.text and game.units.economy.income_rate(tiles, game.units.territory) == 0, "HQ destruction updates inspected city and faction income immediately")
+	_check("NO SUPPLY" in game.hud.supply_info.text and "0 CR/min" in game.hud.supply_info.text and game.units.economy.income_rate(tiles, game.units.territory) == 0, "HQ destruction updates inspected city and faction income immediately")
 	_check(MatchSave.restore(game.units, snapshot), "Supply state snapshot restores without serializing a graph")
 	game._process(0)
 	_check("SUPPLIED" in game.hud.supply_info.text and game.units.economy.income_status(home, tiles, game.units.territory)["income"] == 6, "Load rebuilds supply without stale isolation")
@@ -180,10 +181,10 @@ func _test_economy_interface() -> void:
 	game._process(0)
 	_check(game._economy_hex() == first and game.units.managed_hex == first, "Terrain inspection preserves pinned factory and world highlight")
 	game.hud.train_buttons["tank"].pressed.emit()
-	_check(game.units.economy.buildings[second]["queue"] == ["tank"] and game.units.economy.buildings[first]["queue"].is_empty(), "Training uses newest factory rather than pinned selection")
+	_check(game.units.economy.buildings[first]["queue"] == ["tank"] and game.units.economy.buildings[second]["queue"].is_empty(), "Training uses selected compatible factory")
 	game.hud.primary_button.pressed.emit()
 	game.hud.train_buttons["tank"].pressed.emit()
-	_check(game.units.economy.buildings[first]["queue"] == ["tank"], "Set primary routes sidebar production to chosen factory")
+	_check(game.units.economy.buildings[first]["queue"] == ["tank", "tank"], "Selected primary factory retains its queue")
 	game.hud.rally_button.pressed.emit()
 	game._select_at(game.world_map.hex_to_world(site))
 	_check(game._economy_hex() == first and game.units.economy.buildings[first]["rally"] == site and game.units.economy.buildings[second]["rally"] == second, "Explicit rally destination preserves selection and other factory rally")
@@ -225,7 +226,7 @@ func _test_economy_interface() -> void:
 	game._process(0)
 	_check(game._economy_hex() == game.NO_FACILITY and not game.hud.facility_buttons.has(second), "Ownership loss clears pinned selection and removes uncontrolled roster entry")
 	game.hud.show_tile_actions(Vector2i.ZERO, EconomyState.new(), TerritoryState.new(), tiles)
-	_check(game.hud.economy_summary.text.contains("No controlled structures"), "Empty economy has explicit roster empty state")
+	_check(game.hud.facility_buttons.is_empty(), "Empty economy has no stale facility controls")
 	root.remove_child(game)
 	game.free()
 
@@ -548,6 +549,8 @@ func _run_tests() -> void:
 	_check(game.units.selected_units.is_empty() and game.units.selected == null, "Empty box clears selection")
 	_check(game.hud.build_buttons.size() == 5 and game.hud.build_buttons.has("bunker") and not game.hud.build_buttons.has("headquarters"), "HQ-victory construction menu includes bunkers and power plants")
 	game.hud.show_tile_actions(game.units.units[0].hex, game.units.economy, game.units.territory, tiles)
+	game.hud.production_open = true
+	game.hud._layout_for_viewport()
 	_check(game.hud.build_panel.visible and game.hud.command_tabs.get_tab_count() == 3 and game.hud.production_tabs.get_tab_count() == 3 and game.hud.build_buttons["barracks"].visible, "Management and production categories remain available while inspecting buildings")
 	game.hud.show_tile_actions(Vector2i(-9999, -9999), game.units.economy, game.units.territory, tiles)
 	_check(game.hud.build_panel.visible, "Construction sidebar remains available without a valid selected tile")

@@ -4,6 +4,17 @@ extends Control
 var world: WorldMap
 var camera: StrategyCamera
 var _dragging: bool = false
+var territory: TerritoryState:
+	set(value):
+		if territory == value:
+			return
+		if territory != null:
+			territory.ownership_changed.disconnect(queue_redraw)
+		territory = value
+		if territory != null:
+			territory.ownership_changed.connect(queue_redraw)
+		queue_redraw()
+var _touch_index: int = -1
 
 
 func configure(map: WorldMap, view: StrategyCamera) -> void:
@@ -32,6 +43,13 @@ func _draw() -> void:
 	var rect: Rect2 = _map_rect()
 	draw_texture_rect(world.get_node("CachedTerrain").texture, rect, false)
 	var bounds: Rect2 = world.world_bounds()
+	if territory != null:
+		for hex in territory.owners:
+			var owner: int = territory.owner_at(hex)
+			if owner <= 0:
+				continue
+			var point: Vector2 = rect.position + (world.hex_to_world(hex) - bounds.position) / bounds.size * rect.size
+			draw_circle(point, 1.8, Color("79b8e8") if owner == 1 else Color("f19b95"))
 	var transform: Transform2D = get_viewport().get_canvas_transform().affine_inverse()
 	var map_rect: Rect2 = camera.map_screen_rect()
 	var visible_world: Rect2 = Rect2(transform * map_rect.position, map_rect.size / camera.zoom)
@@ -51,7 +69,17 @@ func _navigate(point: Vector2) -> void:
 func _gui_input(event: InputEvent) -> void:
 	if camera == null:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+	if event is InputEventScreenTouch:
+		if event.pressed and _touch_index == -1:
+			_touch_index = event.index
+			_navigate(event.position)
+		elif not event.pressed and event.index == _touch_index:
+			_touch_index = -1
+		accept_event()
+	elif event is InputEventScreenDrag and event.index == _touch_index:
+		_navigate(event.position)
+		accept_event()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_dragging = event.pressed
 		if event.pressed:
 			grab_focus()

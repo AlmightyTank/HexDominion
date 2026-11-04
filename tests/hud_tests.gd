@@ -6,6 +6,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	root.size = Vector2i(1280, 720)
 	change_scene_to_file("res://scenes/main.tscn")
 	await process_frame
 	await process_frame
@@ -24,15 +25,15 @@ func _run() -> void:
 	assert(requests == ["barracks"])
 	var camera: StrategyCamera = current_scene.get_node("Camera2D")
 	var map_rect: Rect2 = camera.map_screen_rect()
-	assert(map_rect.end.x <= hud.build_panel.position.x)
+	assert(not hud.build_panel.visible or map_rect.end.x <= hud.build_panel.position.x or hud.mobile_layout)
 	assert(not hud.help_panel.visible)
 	assert(hud.build_panel.is_ancestor_of(hud.match_panel))
-	assert(hud.build_panel.is_ancestor_of(hud.tile_info_label))
-	assert(not hud.field_command_panel.visible)
-	assert(map_rect.end.y == hud.get_viewport_rect().size.y)
+	assert(hud.field_command_panel.is_ancestor_of(hud.tile_info_label))
+	assert(hud.field_command_panel.visible)
+	assert(map_rect.end.y <= hud.field_command_panel.position.y)
 	assert(hud.resource_strip.is_ancestor_of(hud.economy_summary))
 	assert(map_rect.position.y == hud.resource_strip.size.y)
-	assert(map_rect.end.x <= hud.power_rail.position.x)
+	assert(not hud.power_rail.visible)
 	assert(hud.resource_strip.get_rect().end.y <= hud.build_panel.position.y)
 	hud.power_gauge.set_balance(20, 30)
 	assert(hud.power_gauge.demand > hud.power_gauge.supply)
@@ -42,8 +43,7 @@ func _run() -> void:
 	assert(hud.power_gauge.capacity >= 60)
 	hud.power_gauge.set_balance(0, 0)
 	assert(hud.power_gauge.capacity > 0 and "Power sufficient" in hud.power_gauge.tooltip_text)
-	assert(hud.power_gauge.size.y == hud.power_rail.size.y)
-	assert(hud.build_panel.is_ancestor_of(hud.supply_info))
+	assert(hud.field_command_panel.is_ancestor_of(hud.supply_info))
 	assert(hud.build_panel.is_ancestor_of(hud.continent_overview))
 	assert(hud.selection_panel.is_ancestor_of(hud.attack_button))
 	assert(hud.selection_panel.is_ancestor_of(hud.add_selection_button))
@@ -107,5 +107,30 @@ func _run() -> void:
 	hud.show_tile_actions(Vector2i(9, 9), economy, territory, {})
 	assert(hud.production_queue.text != queue_text)
 	assert(economy.buildings[factory_hex]["queue"] == ["rifle"])
+	economy.advance(4, {}, territory)
+	assert(hud.command_alert.visible and "ready" in hud.command_alert.text)
+	var old_economy: EconomyState = economy
+	economy = EconomyState.new()
+	hud.show_tile_actions(factory_hex, economy, territory, {})
+	assert(not hud.command_alert.visible)
+	old_economy.command_event.emit("Stale event", factory_hex)
+	assert(not hud.command_alert.visible)
+	var touch: InputEventScreenTouch = InputEventScreenTouch.new()
+	touch.index = 2
+	touch.pressed = true
+	touch.position = hud.radar.size * Vector2(0.2, 0.5)
+	hud.radar._gui_input(touch)
+	assert(hud.radar._touch_index == 2)
+	touch.pressed = false
+	hud.radar._gui_input(touch)
+	assert(hud.radar._touch_index == -1)
+	root.size = Vector2i(390, 844)
+	await process_frame
+	await process_frame
+	assert(hud.mobile_layout and not hud.production_open)
+	hud.production_toggle.pressed.emit()
+	assert(hud.production_open and hud.build_panel.get_rect().end.x <= 390)
+	hud.context_toggle.pressed.emit()
+	assert(hud.context_expanded)
 	print("HUD tests passed: responsive power/map bounds, six labeled tab icons, persistent production while selecting units, relevant orders, build signal, radar, pause/resume")
 	quit()

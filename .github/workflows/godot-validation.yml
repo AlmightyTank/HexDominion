@@ -40,6 +40,8 @@ jobs:
         run: xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/vehicle_visual_test.gd -- --output="$RUNNER_TEMP/infantry-visuals"
       - name: Render artillery bombardment
         run: xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/artillery_visual_test.gd -- --output="$RUNNER_TEMP/infantry-visuals"
+      - name: Render command HUD and phone sheets
+        run: HEX_DOMINION_RUNTIME_CAPTURE="$RUNNER_TEMP/infantry-visuals" xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/ui_review.gd
       - uses: actions/upload-artifact@v4
         if: always()
         with:

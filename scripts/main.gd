@@ -20,6 +20,7 @@ var _facility_hex: Vector2i = NO_FACILITY
 var _facility_site: Dictionary = {}
 var _rally_mode: bool = false
 var _attack_mode: bool = false
+var _move_mode: bool = false
 var _transport_mode: String = ""
 const TAP_THRESHOLD: float = 14.0
 
@@ -59,6 +60,13 @@ func _defensive_order(action: String) -> void:
 		return
 	if action == "add_select":
 		return
+	_move_mode = action == "move" and not units.selected_units.is_empty()
+	if _move_mode:
+		_attack_mode = false
+		_rally_mode = false
+		units.build_kind = ""
+		hud.show_command_info("Choose a movement destination. Esc cancels.")
+		return
 	_transport_mode = ""
 	if action in ["load", "unload"]:
 		_transport_mode = action
@@ -90,7 +98,10 @@ func _defensive_order(action: String) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if not _transport_mode.is_empty():
+		if _move_mode:
+			_move_mode = false
+			hud.show_command_info("Movement selection cancelled")
+		elif not _transport_mode.is_empty():
 			_transport_mode = ""
 			hud.show_command_info("Transport order cancelled")
 		elif _attack_mode:
@@ -103,6 +114,9 @@ func _input(event: InputEvent) -> void:
 			_begin_build("")
 		elif _menu_open and hud.save_browser.visible:
 			hud.close_save_browser()
+		elif not _menu_open and hud.mobile_layout and hud.production_open:
+			hud.production_open = false
+			hud._layout_for_viewport()
 		else:
 			_set_menu_open(not _menu_open)
 		get_viewport().set_input_as_handled()
@@ -233,6 +247,9 @@ func _inspect_world_at(world_point: Vector2) -> void:
 
 
 func _select_at(point: Vector2) -> void:
+	if _move_mode:
+		_move_to(point)
+		return
 	if not _transport_mode.is_empty():
 		_transport_at(point)
 		return
@@ -289,6 +306,7 @@ func _move_to(point: Vector2) -> void:
 			ordered += 1
 	units.queue_redraw()
 	if ordered > 0:
+		_move_mode = false
 		hud.show_command_info("Move accepted: %d/%d units. Unreachable units keep orders." % [ordered, group.size()])
 	else:
 		hud.show_command_info("No land route. Previous order unchanged.")
@@ -390,6 +408,7 @@ func _begin_build(kind: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	_rally_mode = false
+	_move_mode = false
 	_transport_mode = ""
 	_attack_mode = false
 	units.build_kind = kind if EconomyState.BUILD_COSTS.has(kind) or kind == "road" else ""
@@ -397,6 +416,9 @@ func _begin_build(kind: String) -> void:
 	_box_active = false
 	_selection_box.hide()
 	units.queue_redraw()
+	if hud.mobile_layout and not kind.is_empty():
+		hud.production_open = false
+		hud._layout_for_viewport()
 	hud.show_command_info("Construction cancelled" if kind.is_empty() else "Choose controlled empty land • Left-click place • Q rotate • Esc cancel")
 	if kind == "road":
 		hud.show_command_info("Road tool: click owned plains, forest, desert or city. 100 CR per hex. Esc cancels.")
@@ -427,7 +449,7 @@ func _cancel_construction(hex: Vector2i, site: Dictionary) -> void:
 func _train_selected(kind: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
-	var producer: Variant = units.economy.production_site(kind, units.territory)
+	var producer: Variant = StrategyHUD.production_target(kind, _economy_hex(), units.economy, units.territory)
 	var accepted: bool = producer != null and units.economy.train(producer, kind, units.territory)
 	hud.show_command_info("Training queued" if accepted else "Training unavailable: check building, credits and queue")
 
@@ -472,6 +494,7 @@ func _set_facility_rally(point: Vector2) -> void:
 
 
 func _set_menu_open(open: bool) -> void:
+	_move_mode = false
 	_transport_mode = ""
 	_attack_mode = false
 	_menu_open = open
