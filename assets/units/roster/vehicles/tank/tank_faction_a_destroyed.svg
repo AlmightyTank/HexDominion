@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Main Battle Tank: faction a, destroyed</title>
-  <title>Hex Dominion main battle tank, facing north</title>
+  <title>Hex Frontlines main battle tank, facing north</title>
   <desc>Original overhead tank sprite with wide tracks, olive armor, rounded turret, long cannon, and teal faction panel. Transparent background.</desc>
   <g stroke="#202a28" stroke-width="3" stroke-linejoin="round">
     <!-- Tracks remain distinct from the hull at small display sizes. -->

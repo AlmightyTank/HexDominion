@@ -39,7 +39,7 @@ func _run() -> void:
 		push_error("Static terrain cache is configured to render repeatedly.")
 		quit(1)
 		return
-	var capture_path: String = OS.get_environment("HEX_DOMINION_CAPTURE")
+	var capture_path: String = OS.get_environment("HEX_FRONTLINES_CAPTURE")
 	if not capture_path.is_empty():
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(capture_path)

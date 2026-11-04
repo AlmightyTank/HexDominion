@@ -1,4 +1,4 @@
-# Hex Dominion unit visual specification
+# Hex Frontlines unit visual specification
 
 ## Direction and scope
 

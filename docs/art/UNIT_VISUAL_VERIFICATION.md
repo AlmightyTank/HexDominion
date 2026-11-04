@@ -39,8 +39,8 @@ Both averaged 109 draw calls over 180 samples and failed the old 100-call budget
 These are single debug runs, not a statistically supported speedup or proof of
 unlimited-army performance. No terrain/render-budget changes were made to hide it.
 
-Capture paths can be selected with `HEX_DOMINION_ART_CAPTURE` (PNG path) and
-`HEX_DOMINION_RUNTIME_CAPTURE` (existing directory). Runtime captures are named
+Capture paths can be selected with `HEX_FRONTLINES_ART_CAPTURE` (PNG path) and
+`HEX_FRONTLINES_RUNTIME_CAPTURE` (existing directory). Runtime captures are named
 `unit-runtime-far.png`, `unit-runtime-medium.png`, `unit-runtime-close.png`.
 
 ## Delivery gate, scoped to the changed unit visuals

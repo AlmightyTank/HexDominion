@@ -8,7 +8,7 @@ func _initialize() -> void:
 func _capture(label: String) -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
-	var directory: String = OS.get_environment("HEX_DOMINION_RUNTIME_CAPTURE")
+	var directory: String = OS.get_environment("HEX_FRONTLINES_RUNTIME_CAPTURE")
 	if not directory.is_empty():
 		assert(root.get_texture().get_image().save_png(directory.path_join("ui-" + label + ".png")) == OK)
 

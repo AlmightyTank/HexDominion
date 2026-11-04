@@ -1,10 +1,10 @@
-# Hex Dominion
+# Hex Frontlines
 
 **Conquer the world. Hold the line.**
 
 > **Status:** Pre-alpha. v0.4 Slice F completes the military expansion: all thirteen roles are integrated, Attack-Move, Guard and Patrol orders exist alongside Move, Attack and Hold, the world map presents armies in three zoom tiers, factories can rally new units as attack-moves, and the enemy AI fights as a combined force. Physical touchscreen acceptance, visual review of the new zoom tiers and balance playtesting remain pending.
 
-**Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
+**Hex Frontlines** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
 The entire war happens on **one continuous world map**. There are no turns and no separate battle screens: command armies, capture territory, construct bases, and defend your front lines in real time.
 
@@ -233,7 +233,7 @@ Full single-player testing, stability fixes, documentation, and release builds.
 ## Proposed project layout
 
 ```text
-HexDominion/
+HexFrontlines/
 ├── README.md
 ├── project.godot
 ├── scenes/
@@ -291,4 +291,4 @@ Once the project exists:
 
 ---
 
-**Hex Dominion** — *Conquer the world. Hold the line.*
+**Hex Frontlines** — *Conquer the world. Hold the line.*

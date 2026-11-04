@@ -10,8 +10,8 @@ config_version=5
 
 [application]
 
-config/name="Hex Dominion"
-config/description="Hex Dominion — one world, one war."
+config/name="Hex Frontlines"
+config/description="Hex Frontlines — one world, one war."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 

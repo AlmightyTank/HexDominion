@@ -47,7 +47,7 @@ func run() -> void:
 	viewport.add_child(Gallery.new())
 	await process_frame
 	await RenderingServer.frame_post_draw
-	var output: String = OS.get_environment("HEX_DOMINION_ART_CAPTURE")
+	var output: String = OS.get_environment("HEX_FRONTLINES_ART_CAPTURE")
 	if output.is_empty():
 		output = "user://firing-effects.png"
 	var error: Error = viewport.get_texture().get_image().save_png(output)

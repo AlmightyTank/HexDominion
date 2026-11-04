@@ -41,7 +41,7 @@ jobs:
       - name: Render zoom and feedback fixtures
         run: xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/infantry_visual_test.gd -- --output="$RUNNER_TEMP/infantry-visuals"
       - name: Render faction and state gallery
-        run: HEX_DOMINION_ART_CAPTURE="$RUNNER_TEMP/infantry-visuals/roster-gallery.png" xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/unit_art_gallery.gd
+        run: HEX_FRONTLINES_ART_CAPTURE="$RUNNER_TEMP/infantry-visuals/roster-gallery.png" xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/unit_art_gallery.gd
       - name: Render mixed vehicles and transport
         run: xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/vehicle_visual_test.gd -- --output="$RUNNER_TEMP/infantry-visuals"
       - name: Render artillery bombardment
@@ -51,7 +51,7 @@ jobs:
       - name: Render naval silhouettes, cargo and wakes
         run: xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/naval_visual_test.gd -- --output="$RUNNER_TEMP/infantry-visuals"
       - name: Render command HUD and phone sheets
-        run: HEX_DOMINION_RUNTIME_CAPTURE="$RUNNER_TEMP/infantry-visuals" xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/ui_review.gd
+        run: HEX_FRONTLINES_RUNTIME_CAPTURE="$RUNNER_TEMP/infantry-visuals" xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/ui_review.gd
       - uses: actions/upload-artifact@v4
         if: always()
         with:

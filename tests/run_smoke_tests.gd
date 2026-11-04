@@ -464,7 +464,7 @@ func _run_tests() -> void:
 	var world: Dictionary = WorldMapData.build(columns, rows)
 	_check(not world.is_empty(), "World definition parses")
 	if world.is_empty():
-		print("Hex Dominion v0.1 Slice B: %d passed, %d failed" % [_successes, _failures])
+		print("Hex Frontlines v0.1 Slice B: %d passed, %d failed" % [_successes, _failures])
 		quit(1)
 		return
 	var tiles: Dictionary = world["tiles"]
@@ -618,7 +618,7 @@ func _run_tests() -> void:
 		_check(restarted.units.units.size() == 4 and restarted.units.economy.credits >= 400 and restarted.units.economy.credits < 410 and restarted.units.selected == null, "Restart resets roster, economy and selection (allowing initial income ticks)")
 		restarted.free()
 	current_scene = null
-	print("Hex Dominion v0.4 Slice A: %d passed, %d failed" % [_successes, _failures])
+	print("Hex Frontlines v0.4 Slice A: %d passed, %d failed" % [_successes, _failures])
 	quit(1 if _failures > 0 else 0)
 
 

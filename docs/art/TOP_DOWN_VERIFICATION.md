@@ -21,8 +21,8 @@ The gallery was visually inspected, including four soldier facings. Actual
 main-scene close screenshots were inspected: overhead HQ, soldiers, faction colors,
 health, count and selection overlays render on the terrain with the existing HUD.
 Captures are local review artifacts under the approved OpenCode temporary folder,
-not shipped game assets. Set `HEX_DOMINION_ART_CAPTURE` for the gallery PNG,
-`HEX_DOMINION_RUNTIME_CAPTURE` for runtime screenshots, or use
+not shipped game assets. Set `HEX_FRONTLINES_ART_CAPTURE` for the gallery PNG,
+`HEX_FRONTLINES_RUNTIME_CAPTURE` for runtime screenshots, or use
 `tests/infantry_visual_test.gd -- --output=<directory>` to reproduce them.
 
 ## Delivery gate (scope: changed art and rendering)

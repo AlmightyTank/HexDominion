@@ -955,7 +955,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 	_refresh_facilities(hex, economy, territory)
 	var income: float = economy.income_rate(tiles, territory) * 60.0
 	economy_summary.text = "%d CR  |  +%.0f /min" % [economy.credits, income]
-	economy_summary.tooltip_text = "Hex Dominion | Credits and actual income per minute"
+	economy_summary.tooltip_text = "Hex Frontlines | Credits and actual income per minute"
 	economy_summary.add_theme_color_override("font_color", CommandTheme.POSITIVE if income > 0 else CommandTheme.WARNING)
 	var power: Dictionary = economy.power_balance(territory)
 	power_summary.text = "PWR %d / %d%s" % [power["supply"], power["demand"], " LOW" if economy.low_power(territory) else ""]
