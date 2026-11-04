@@ -123,7 +123,8 @@ def build():
                         for token, color in zip(('BODY', 'LIGHT', 'DARK', 'ACCENT'), palette):
                             shapes = shapes.replace(token, color)
                         dest = OUT / category / kind / f'{kind}_faction_{faction}_{state}_{layer}.svg'
-                        dest.write_text(f'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>{name}: {faction}, {state}, {layer}</title>{shapes}</svg>\n')
+                        svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>{name}: {faction}, {state}, {layer}</title>{shapes}</svg>'
+                        dest.write_text('\n'.join(line.rstrip() for line in svg.splitlines()) + '\n')
                         manifest['units'][kind]['files'].append(str(dest.relative_to(ROOT)).replace('\\', '/'))
     (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     buildings(ROOT, FACTIONS)
