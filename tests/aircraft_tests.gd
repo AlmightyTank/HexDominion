@@ -172,7 +172,7 @@ func integration() -> void:
 	check(game.hud.stack_passengers.text.contains("rearming") and game.hud.stack_passengers.text.contains("3.5"), "Selected fighter status visible")
 	for zoom in [0.45, 1.0, 2.3]:
 		game.camera.zoom = Vector2.ONE * zoom
-		var batches: Array[Dictionary] = game.units.visual_stacks()
+		var batches: Array[Dictionary] = game.units.military_batches()
 		for batch in batches:
 			var point: Vector2 = game.units.group_position(batch, batches, zoom)
 			check(game.units.pick_faction(game.units.to_global(point), zoom, 1) != null, "Aircraft pickable at zoom %s" % zoom)

@@ -14,7 +14,8 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 			"weapon_elapsed": unit.weapon_elapsed, "facing": unit.facing, "turret_facing": unit.turret_facing,
 			"airfield": unit.airfield, "air_mission": unit.air_mission, "mission_remaining": unit.mission_remaining,
 			"carrier": layer.units.find(unit.carrier.get_ref()) if unit.is_embarked() else -1, "attack_order": unit.attack_order,
-			"attack_hex": unit.attack_hex, "attack_target": layer.units.find(unit.attack_target.get_ref()) if unit.attack_target != null else -1})
+			"attack_hex": unit.attack_hex, "attack_target": layer.units.find(unit.attack_target.get_ref()) if unit.attack_target != null else -1,
+			"tactical_order": unit.tactical_order.duplicate(true), "guard_target": layer.units.find(unit.guard_target.get_ref()) if unit.guard_target != null else -1})
 	var match_state: MatchState = layer.match_state
 	return {"version": 1, "map": MAP_ID, "units": roster,
 		"owners": layer.territory.owners.duplicate(true), "captures": layer.territory.captures.duplicate(true),
@@ -123,6 +124,8 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 					return false
 		elif target_index != -1:
 			return false
+		if not _valid_order(unit, data["units"], tiles):
+			return false
 		if (unit["path"].is_empty() and unit["progress"] != 0) or (unit["garrisoned"] and not unit["path"].is_empty()):
 			return false
 		if not unit.get("holding", false) is bool or (unit.get("holding", false) and not unit["path"].is_empty()):
@@ -140,6 +143,36 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 	return true
 
+static func _valid_order(unit: Dictionary, roster: Array, tiles: Dictionary) -> bool:
+	var order: Variant = unit.get("tactical_order", {})
+	var guard_index: Variant = unit.get("guard_target", -1)
+	if not order is Dictionary or not guard_index is int or guard_index < -1 or guard_index >= roster.size():
+		return false
+	if order.is_empty():
+		return guard_index == -1
+	if order.get("mode") not in ["attack_move", "guard", "patrol"] or unit["kind"] == "fighter" or unit.get("attack_order", false) or unit.get("carrier", -1) != -1 or unit.get("holding", false) or unit["garrisoned"]:
+		return false
+	for field in ["goal", "anchor"]:
+		if not order.get(field) is Vector2i or not tiles.has(order[field]):
+			return false
+		if UnitCatalog.is_naval(unit["kind"]) and not NavalRules.water(tiles, order[field]):
+			return false
+		if not UnitCatalog.is_air(unit["kind"]) and not UnitCatalog.is_naval(unit["kind"]) and not _land(order[field], tiles):
+			return false
+	if not order.get("points") is Array or not order.get("index") is int or order["points"].size() > 16:
+		return false
+	if order["mode"] == "patrol":
+		if order["points"].size() < 2 or order["index"] < 0 or order["index"] >= order["points"].size():
+			return false
+		for point in order["points"]:
+			if not point is Vector2i or not tiles.has(point) or (UnitCatalog.is_naval(unit["kind"]) and not NavalRules.water(tiles, point)) or (not UnitCatalog.is_air(unit["kind"]) and not UnitCatalog.is_naval(unit["kind"]) and not _land(point, tiles)):
+				return false
+	elif not order["points"].is_empty() or order["index"] != 0:
+		return false
+	if guard_index >= 0:
+		return order["mode"] == "guard" and roster[guard_index] is Dictionary and roster[guard_index].get("faction") == unit["faction"] and not is_same(roster[guard_index], unit)
+	return true
+
 static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 	if not data is Dictionary or not _number(data.get("credits"), 0, 1.0e15) or not data.get("buildings") is Dictionary:
 		return false
@@ -152,6 +185,8 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 		if not _land(hex, tiles) or not building is Dictionary:
 			return false
 		if building.get("kind") not in EconomyState.BUILD_COSTS or not building.get("rally") is Vector2i or not tiles.has(building["rally"]) or (building["kind"] not in ["airfield", "shipyard"] and not _land(building["rally"], tiles)) or not building.get("queue") is Array:
+			return false
+		if building.get("rally_order", "move") not in ["move", "attack_move"]:
 			return false
 		if building["kind"] == "shipyard":
 			var port: Variant = NavalRules.deployment(tiles, hex)
@@ -206,6 +241,7 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		unit.airfield = entry.get("airfield", AircraftRules.NO_BASE)
 		unit.air_mission = entry.get("air_mission", "ready")
 		unit.mission_remaining = entry.get("mission_remaining", 0.0)
+		unit.tactical_order = entry.get("tactical_order", {}).duplicate(true)
 		unit.attack_order = entry.get("attack_order", false)
 		unit.attack_hex = entry.get("attack_hex", Vector2i.ZERO)
 		roster.append(unit)
@@ -214,6 +250,9 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		if carrier_index >= 0:
 			roster[index].carrier = weakref(roster[carrier_index])
 		var target_index: int = data["units"][index].get("attack_target", -1)
+		var guard_index: int = data["units"][index].get("guard_target", -1)
+		if guard_index >= 0:
+			roster[index].guard_target = weakref(roster[guard_index])
 		if target_index >= 0:
 			roster[index].attack_target = weakref(roster[target_index])
 	layer.units = roster

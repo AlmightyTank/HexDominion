@@ -34,6 +34,8 @@ jobs:
         run: godot --headless --path . --script res://tests/naval_tests.gd
       - name: Unit artwork and badge regressions
         run: godot --headless --path . --script res://tests/unit_art_checks.gd
+      - name: Combined arms orders, grouping and AI regressions
+        run: godot --headless --path . --script res://tests/combined_arms_tests.gd
       - name: Startup
         run: godot --headless --path . --quit-after 10
       - name: Render zoom and feedback fixtures

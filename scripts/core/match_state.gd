@@ -6,6 +6,7 @@ var rival_hq: Vector2i
 var result: String = "playing"
 var ai_countdown: float = 8.0
 var rival_economy: EconomyState = EconomyState.new()
+var combined_arms: CombinedArmsAI = CombinedArmsAI.new()
 
 func _init() -> void:
 	rival_economy.faction = 2
@@ -30,13 +31,15 @@ func advance_ai(delta: float, tiles: Dictionary, territory: TerritoryState, unit
 	if ai_countdown > 0.0:
 		return
 	ai_countdown = 1.0
-	RivalEconomyAI.plan(rival_economy, tiles, territory, units, other_buildings, rival_hq)
+	RivalEconomyAI.plan(rival_economy, tiles, territory, units, other_buildings, rival_hq, player_hq)
 	var defenders: Dictionary = DefenseAI.plan(rival_economy, tiles, territory, units, other_buildings, rival_hq)
 	var roster_size: int = 0
 	for unit in units:
 		if unit.faction != 2 or not unit.is_deployed():
 			continue
 		roster_size += 1
+		if combined_arms.command(unit, units, rival_economy, territory, tiles, other_buildings, player_hq):
+			continue
 		if defenders.has(unit) or not unit.path.is_empty():
 			continue
 		if unit.holding or unit.garrisoned:

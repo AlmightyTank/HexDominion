@@ -89,7 +89,7 @@ func _test_infantry_integration() -> void:
 		unit.progress = 0
 	for zoom_factor in [0.45, 1.0, 2.3]:
 		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * zoom_factor)
-		var batches: Array[Dictionary] = UnitVisuals.stacks(game.units.units)
+		var batches: Array[Dictionary] = game.units.military_batches()
 		var first: Dictionary = batches[0]
 		var point: Vector2 = game.units.group_position(first, batches, zoom_factor)
 		_check(game.units.pick_faction(game.units.to_global(point), zoom_factor, 1) == game.units.units[0], "Rendered individual/group can be selected at zoom %.2f" % zoom_factor)

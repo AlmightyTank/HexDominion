@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. v0.4 Slice E adds coastal shipyards, patrol boats, destroyers and amphibious landing transports. Ships navigate ocean routes, fight enemy fleets and deploy transported infantry and ground vehicles on another coast. Ground armies retain stack-first presentation; ships and aircraft use role markers far away and individual sprites at medium/close zoom. Physical touchscreen acceptance and balance playtesting remain pending.
+> **Status:** Pre-alpha. v0.4 Slice F completes the military expansion: all thirteen roles are integrated, Attack-Move, Guard and Patrol orders exist alongside Move, Attack and Hold, the world map presents armies in three zoom tiers, factories can rally new units as attack-moves, and the enemy AI fights as a combined force. Physical touchscreen acceptance, visual review of the new zoom tiers and balance playtesting remain pending.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -64,23 +64,37 @@ Terrain bonuses and penalties will be tuned through playtesting.
 
 ## Armies and combat
 
-The initial roster is intentionally small. More specialized units unlock after the basic combat and economy systems are fun.
+The roster is now complete: thirteen roles across infantry, vehicles, aircraft and naval warfare.
 
-| Category | Early units | Main role |
+| Category | Units | Main role |
 | --- | --- | --- |
-| Infantry | Rifle squad | Territory capture and defense |
-| Infantry | Rocket squad | Anti-vehicle support (later in v0.x) |
-| Armor | Main battle tank | Main offensive power |
-| Support | Engineer | Repair and construction support (later) |
-| Support | Artillery | Fire support across hexes (later) |
-| Air | Helicopter / fighter | Recon and strikes (later) |
-| Naval | Transport / warship | Ocean movement and naval combat (later) |
+| Infantry | Rifleman, Rocket Soldier, Machine Gunner | Territory capture and defense |
+| Ground vehicles | Main battle tank, Scout vehicle, APC, Mobile anti-air, Self-propelled artillery | Break lines, recon, troop transport, air defense, bombardment |
+| Aircraft | Attack helicopter, Fighter jet | Recon and strike missions from airfields |
+| Naval | Patrol boat, Destroyer, Landing transport | Ocean control, coastal bombardment, amphibious landings |
 
-Combat happens directly on the map in real time. Each faction's deployed army in a hex has one marker showing its most numerous role and total count at every zoom. Click it for the composition panel; use Expand to reveal individual units.
+Combat happens directly on the map in real time. The world map presents an army in three zoom tiers, and the zoom only changes presentation — it never merges, duplicates or removes a simulated unit:
+
+- **Far zoom (world strategy view):** one compact marker per hex, faction and unit type with the true unit count.
+- **Medium zoom (army view):** small grouped sprites per role with the true unit count and a health bar.
+- **Close zoom (tactical view):** individual unit sprites with facing, health, selection and attack feedback.
+
+### Tactical orders
+
+| Order | Key | Behaviour |
+| --- | --- | --- |
+| Move | Right-click | Pathfinding with terrain, road and domain rules |
+| Attack | X | Engage an explicitly selected target |
+| Attack-Move | Z | Move while engaging threats, then resume and finish at the destination |
+| Hold Position | J | Fire in range, never pursue across the map |
+| Guard | V | Follow a friendly unit or defend a hex without uncontrolled pursuit |
+| Patrol | O | Loop between two and sixteen waypoints, engaging threats in range |
+
+Every order accepts a multi-unit selection and each unit is validated independently, so mixed armies only take an order where the movement domain and route allow it. Fighters keep their explicit strike/return/rearm missions and reject geographic orders. Orders and rally points are saved with the match.
 
 ## Base building and economy
 
-Planned structures include:
+Implemented structures:
 
 - **Headquarters:** critical command and defeat objective.
 - **Barracks:** train infantry and deploy reinforcements.
@@ -88,9 +102,10 @@ Planned structures include:
 - **Power plant:** supply power to your infrastructure.
 - **Resource collector / economy building:** generate or process income.
 - **Bunker and defensive turret:** fortify contested front lines.
-- **Radar / airfield:** later strategic and air-force expansion.
+- **Airfield:** produce aircraft that fly strike missions.
+- **Shipyard:** produce naval units and stage amphibious landings.
 
-Buildings occupy a specific hex or designated building site. Factories support rally points so new units can reinforce assigned positions automatically. Exact building limits, costs, and production rates will be balanced iteratively.
+Buildings occupy a specific hex or designated building site. Factories support rally points so new units can reinforce assigned positions automatically; a rally may be a plain move or an attack-move. Exact building limits, costs, and production rates will be balanced iteratively.
 
 ## Game modes
 
@@ -168,6 +183,7 @@ Expanded infantry and armor, artillery, air units, naval units, transports, expa
 - [x] **Slice C: Artillery & Long-Range Warfare:** Factory-built self-propelled artillery, range-three bombardment, fortification damage, non-capture, range overlays and shell feedback. ([Rules, scope and verification](docs/V0.4-SLICE-C.md).)
 - [x] **Slice D: Aircraft & Airfields:** Powered aircraft production, helicopters, fighter strike/return/rearm missions, AA counters, independent air presentation and validated saves. ([Rules and verification](docs/V0.4-SLICE-D.md).)
 - [x] **Slice E: Naval Warfare & Amphibious Invasions:** Coastal shipyards produce three distinct naval roles; water-only navigation, coastal bombardment and shared weighted transport support cross-ocean invasions. ([Rules and verification](docs/V0.4-SLICE-E.md).)
+- [x] **Slice F: Combined Arms, Army Grouping, Orders & AI:** Attack-Move, Guard and Patrol orders with multi-unit support, three zoom-tier army presentation that never alters simulated units, attack-move rally points, and a combined-arms enemy AI. ([Rules, controls, verification and limitations](docs/V0.4-SLICE-F.md).)
 
 #### Infantry controls
 
@@ -178,9 +194,17 @@ Expanded infantry and armor, artillery, air units, naval units, transports, expa
 - **Hold (J)** stops pursuit; **Garrison (G)** occupies a friendly bunker (two infantry slots). Accepted movement/attack releases Hold and garrison.
 - Zoom changes presentation only: role/count markers, grouped sprites, then individual soldiers. All simulated units always remain present.
 
+#### Combined arms controls
+
+- **Attack-Move (Z)** then click a destination: units engage threats along the route, then resume and finish at the destination.
+- **Guard (V)** then click a friendly unit or hex: units follow or defend it without pursuing enemies away.
+- **Patrol (O)** then click a waypoint: units loop between two and sixteen waypoints and engage threats in range.
+- The orders panel also shows the current order of every selected unit, and its **Rally: attack-move** checkbox applies to the next rally point you set, so freshly built units arrive fighting.
+- Fighters keep their strike/return/rearm missions and reject geographic orders; ships and aircraft keep their own movement rules.
+
 #### Validation
 
-`.github/workflows/godot-validation.yml` imports the pinned Godot 4.7.2 project, runs smoke/HUD/startup checks, and renders zoom/feedback fixtures with Xvfb. Rendered screenshots are uploaded as CI artifacts. Local commands and evidence are documented in the slice notes.
+`.github/workflows/godot-validation.yml` imports the pinned Godot 4.7.2 project, runs smoke, HUD, vehicle, artillery, aircraft, naval, artwork and combined-arms checks plus a startup check, and renders zoom/feedback fixtures with Xvfb. Rendered screenshots are uploaded as CI artifacts. Local commands and evidence are documented in the slice notes.
 
 ### v0.5 — Cities and technology
 

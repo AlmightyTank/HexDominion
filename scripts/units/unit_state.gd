@@ -27,6 +27,8 @@ var carrier: WeakRef
 var airfield: Vector2i = Vector2i(-99999, -99999)
 var air_mission: String = "ready"
 var mission_remaining: float = 0.0
+var tactical_order: Dictionary = {}
+var guard_target: WeakRef
 
 func is_embarked() -> bool:
 	return carrier != null and carrier.get_ref() != null
@@ -80,6 +82,8 @@ func order_move(tiles: Dictionary, goal: Vector2i) -> bool:
 	else:
 		progress = 0.0
 	path = route
+	tactical_order = {}
+	guard_target = null
 	garrisoned = false
 	holding = false
 	attack_order = false
@@ -92,6 +96,8 @@ func order_hold() -> void:
 	if not is_alive():
 		return
 	path.clear()
+	tactical_order = {}
+	guard_target = null
 	progress = 0.0
 	holding = true
 	attack_order = false

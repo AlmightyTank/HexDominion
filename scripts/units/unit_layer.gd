@@ -12,6 +12,16 @@ var animation_time: float = 0.0
 var wrecks: Array[Dictionary] = []
 var building_wrecks: Array[Dictionary] = []
 var shell_effects: Array[Dictionary] = []
+@export var far_zoom_threshold: float = UnitVisuals.FAR_ZOOM
+@export var close_zoom_threshold: float = UnitVisuals.CLOSE_ZOOM
+var army_presentation: ArmyPresentation = ArmyPresentation.new()
+
+func military_batches() -> Array[Dictionary]:
+	army_presentation.refresh(units)
+	return army_presentation.batches
+
+func individual_view(zoom_factor: float, hex: Vector2i, faction: int) -> bool:
+	return zoom_factor >= close_zoom_threshold or (hex == expanded_hex and faction == 1)
 var _stack_units: Array[UnitState] = []
 var _stack_hexes: Array[Vector2i] = []
 var _stack_factions: Array[int] = []
@@ -71,10 +81,10 @@ func toggle_selection(unit: UnitState) -> void:
 func select_box(screen_rect: Rect2, canvas_transform: Transform2D) -> void:
 	selected_units.clear()
 	var zoom_factor: float = canvas_transform.get_scale().x
-	var batches: Array[Dictionary] = visual_stacks()
+	var batches: Array[Dictionary] = military_batches()
 	for unit in units:
 		var point: Vector2 = unit_position(unit)
-		if (unit.hex != expanded_hex or unit.faction != 1) and not (unit.domain in ["air", "naval"] and zoom_factor >= UnitVisuals.FAR_ZOOM):
+		if not individual_view(zoom_factor, unit.hex, unit.faction):
 			for batch in batches:
 				if batch["members"].has(unit):
 					point = group_position(batch, batches, zoom_factor)
@@ -147,10 +157,12 @@ func _base_position(unit: UnitState) -> Vector2:
 	return to_local(point)
 
 func unit_position(unit: UnitState) -> Vector2:
-	return _base_position(unit) + UnitVisuals.offset(unit, units)
+	if not army_presentation.offsets.has(unit):
+		army_presentation.refresh(units)
+	return _base_position(unit) + army_presentation.offsets.get(unit, Vector2.ZERO)
 
 func group_position(batch: Dictionary, batches: Array[Dictionary], zoom_factor: float) -> Vector2:
-	if batch.get("domain", "ground") in ["air", "naval"] and zoom_factor >= UnitVisuals.FAR_ZOOM:
+	if individual_view(zoom_factor, batch["hex"], batch["faction"]):
 		return unit_position(batch["members"][0])
 	var point: Vector2 = to_local(world_map.hex_to_world(batch["hex"]))
 	if economy.buildings.has(batch["hex"]) or match_state.rival_economy.buildings.has(batch["hex"]):
@@ -164,11 +176,11 @@ func pick(global_point: Vector2, zoom_factor: float) -> UnitState:
 func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, _cycle: bool = false) -> UnitState:
 	var nearest: UnitState = null
 	var best: float = 18.0 / maxf(zoom_factor, 0.15)
-	var batches: Array[Dictionary] = visual_stacks()
+	var batches: Array[Dictionary] = military_batches()
 	for batch in batches:
 		if batch["faction"] != faction:
 			continue
-		if (batch["hex"] == expanded_hex and faction == 1) or (batch.get("domain", "ground") in ["air", "naval"] and zoom_factor >= UnitVisuals.FAR_ZOOM):
+		if individual_view(zoom_factor, batch["hex"], faction):
 			for unit in batch["members"]:
 				var distance: float = unit_position(unit).distance_to(to_local(global_point))
 				if distance < best:
@@ -356,7 +368,7 @@ func _draw_units() -> void:
 	for wreck in wrecks:
 		var opacity: float = clampf(wreck["remaining"] / 0.65, 0, 1) if UnitCatalog.is_infantry(wreck["kind"]) else 1.0
 		UnitArt.draw(self, wreck["kind"], wreck["faction"], "destroyed", wreck["position"], wreck["facing"], false, 28, opacity)
-	var batches: Array[Dictionary] = visual_stacks()
+	var batches: Array[Dictionary] = military_batches()
 	for batch in batches:
 		var members: Array = batch["members"]
 		var point: Vector2 = group_position(batch, batches, zoom_factor)
@@ -368,11 +380,19 @@ func _draw_units() -> void:
 			injured = injured or UnitArt.state_for(member.health, member.max_health, member.kind) == "damaged"
 			health_fraction = minf(health_fraction, member.health / member.max_health)
 		var icon_scale: float = 1.0 / maxf(zoom_factor, 0.15)
-		if (batch["hex"] == expanded_hex and batch["faction"] == 1) or (batch.get("domain", "ground") in ["air", "naval"] and zoom_factor >= UnitVisuals.FAR_ZOOM):
+		if individual_view(zoom_factor, batch["hex"], batch["faction"]):
 			for member in members:
 				UnitAppearance.draw_unit(self, member, unit_position(member), faction_color(member.faction), selected_units.has(member), animation_time, 0.85 if member.domain == "air" and zoom_factor < UnitVisuals.CLOSE_ZOOM else 1.0)
 				if member.kind == "landing_transport":
 					draw_string(ThemeDB.fallback_font, unit_position(member) + Vector2(-9, 21), "%d/%d" % [TransportRules.used(member, units), TransportRules.capacity(member)], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("fff0ad"))
+			continue
+		if zoom_factor >= far_zoom_threshold:
+			# Army view: a few small sprites per role with the true unit count.
+			var scale_factor: float = 0.55 / maxf(zoom_factor, 0.15)
+			var shown: int = mini(members.size(), 3)
+			for index in shown:
+				UnitAppearance.draw_unit(self, members[index], point + Vector2((index - (shown - 1) * 0.5) * 13.0, 0.0) / zoom_factor, faction_color(batch["faction"]), selected_units.has(members[index]), animation_time, scale_factor)
+			draw_string(ThemeDB.fallback_font, point + Vector2(10.0, 14.0) / zoom_factor, str(members.size()), HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(8, roundi(10.0 / zoom_factor)), Color.WHITE)
 			continue
 		var firing_member: UnitState = null
 		for member in members:

@@ -182,7 +182,7 @@ func integration() -> void:
 	for zoom in [0.45, 1.0, 2.3]:
 		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * zoom)
 		var deployed: int = 0
-		var batches: Array[Dictionary] = UnitVisuals.stacks(game.units.units)
+		var batches: Array[Dictionary] = game.units.military_batches()
 		for batch in batches:
 			deployed += batch["members"].size()
 			var point: Vector2 = game.units.group_position(batch, batches, zoom)

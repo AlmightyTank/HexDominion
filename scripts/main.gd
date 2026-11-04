@@ -22,6 +22,8 @@ var _rally_mode: bool = false
 var _attack_mode: bool = false
 var _move_mode: bool = false
 var _transport_mode: String = ""
+var _tactical_mode: String = ""
+var military_orders_panel: MilitaryOrdersPanel
 const TAP_THRESHOLD: float = 14.0
 
 
@@ -53,12 +55,24 @@ func _ready() -> void:
 	_selection_box.border_width = 2.0
 	_selection_box.hide()
 	hud.add_child(_selection_box)
+	military_orders_panel = MilitaryOrdersPanel.new()
+	hud.selection_info.get_parent().add_child(military_orders_panel)
+	military_orders_panel.configure(_defensive_order)
 
 
 func _defensive_order(action: String) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	if action == "add_select":
+		return
+	_tactical_mode = action if action in ["attack_move", "guard", "patrol"] else ""
+	if not _tactical_mode.is_empty():
+		_attack_mode = false
+		_move_mode = false
+		_transport_mode = ""
+		_rally_mode = false
+		units.build_kind = ""
+		hud.show_command_info("Choose %s destination; Patrol repeats from the current hex. Guard follows a clicked friendly unit or defends the chosen hex. Jets require explicit Attack missions. Esc cancels." % action.replace("_", " "))
 		return
 	_move_mode = action == "move" and not units.selected_units.is_empty()
 	if _move_mode:
@@ -97,6 +111,10 @@ func _defensive_order(action: String) -> void:
 	units.queue_redraw()
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE and not _tactical_mode.is_empty():
+		_tactical_mode = ""
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if _move_mode:
 			_move_mode = false
@@ -180,6 +198,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_train_selected(train_keys[event.keycode])
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J:
 		_defensive_order("hold")
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_Z, KEY_V, KEY_O]:
+		_defensive_order({KEY_Z: "attack_move", KEY_V: "guard", KEY_O: "patrol"}[event.keycode])
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G:
 		_defensive_order("garrison")
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_X:
@@ -247,6 +267,9 @@ func _inspect_world_at(world_point: Vector2) -> void:
 
 
 func _select_at(point: Vector2) -> void:
+	if not _tactical_mode.is_empty():
+		_issue_tactical(point)
+		return
 	if _move_mode:
 		_move_to(point)
 		return
@@ -271,15 +294,31 @@ func _select_at(point: Vector2) -> void:
 					units.toggle_selection(member)
 	else:
 		units.select_one(picked)
-		if picked != null and picked.hex != units.expanded_hex:
-			units.selected_units = _hex_members(picked.hex).filter(func(member: UnitState) -> bool: return member.domain == picked.domain and (picked.domain == "ground" or member.kind == picked.kind))
+		if picked != null and not units.individual_view(camera.zoom.x, picked.hex, picked.faction):
+			units.selected_units = _hex_members(picked.hex).filter(func(member: UnitState) -> bool: return member.kind == picked.kind)
 	units.queue_redraw()
 	_inspect_world_at(world_map.hex_to_world(picked.hex) if picked != null else point)
 	if units.selected != null:
 		hud.show_command_info("%s • %s • Right-click move • J hold • G garrison" % [units.selected.title, "Garrisoned" if units.selected.garrisoned else ("Holding" if units.selected.holding else "Mobile")])
 
 
+func _issue_tactical(point: Vector2) -> void:
+	if _menu_open or units.match_state.result != "playing":
+		return
+	var goal: Vector2i = world_map.world_to_hex(point)
+	var target: UnitState = units.pick_faction(point, camera.zoom.x, 1) if _tactical_mode == "guard" else null
+	var accepted: int = 0
+	for unit in units.selected_units:
+		accepted += int(UnitOrders.tactical(unit, _tactical_mode, target.hex if target != null else goal, world_map.map_data["tiles"], target if target != unit else null))
+	hud.show_command_info("%s: %d accepted, %d rejected (movement domain, route, or jet mission rules)." % [_tactical_mode.replace("_", " "), accepted, units.selected_units.size() - accepted])
+	if accepted > 0:
+		_tactical_mode = ""
+	units.queue_redraw()
+
 func _move_to(point: Vector2) -> void:
+	if not _tactical_mode.is_empty():
+		_issue_tactical(point)
+		return
 	if not _transport_mode.is_empty():
 		_transport_at(point)
 		return
@@ -377,6 +416,8 @@ func _stack_action(kind: String) -> void:
 
 
 func _process(_delta: float) -> void:
+	if military_orders_panel != null:
+		military_orders_panel.show_orders(units.selected_units)
 	if units != null:
 		hud.show_selection(units.selected_units, _attack_mode, units.units)
 		if units.selected != null and TransportRules.capacity(units.selected) > 0:
@@ -490,13 +531,14 @@ func _begin_rally() -> void:
 
 
 func _set_facility_rally(point: Vector2) -> void:
-	var accepted: bool = units.economy.set_rally(_economy_hex(), world_map.world_to_hex(point), world_map.map_data["tiles"], units.territory)
+	var accepted: bool = units.economy.set_rally(_economy_hex(), world_map.world_to_hex(point), world_map.map_data["tiles"], units.territory, "attack_move" if military_orders_panel.rally_attack_move.button_pressed else "move")
 	_rally_mode = not accepted and _facility_hex != NO_FACILITY
 	hud.show_command_info("Rally point set" if accepted else "Rally rejected: choose reachable land, or Esc to cancel")
 	units.queue_redraw()
 
 
 func _set_menu_open(open: bool) -> void:
+	_tactical_mode = ""
 	_move_mode = false
 	_transport_mode = ""
 	_attack_mode = false

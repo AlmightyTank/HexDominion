@@ -136,16 +136,20 @@ func train(hex: Vector2i, kind: String, territory: TerritoryState) -> bool:
 	building["queue"].append(kind)
 	return true
 
-func set_rally(hex: Vector2i, goal: Vector2i, tiles: Dictionary, territory: TerritoryState) -> bool:
+func set_rally(hex: Vector2i, goal: Vector2i, tiles: Dictionary, territory: TerritoryState, order: String = "move") -> bool:
+	if order not in ["move", "attack_move"]:
+		return false
 	if buildings.has(hex) and buildings[hex]["kind"] == "shipyard":
 		var port: Variant = NavalRules.deployment(tiles, hex)
 		if territory.owner_at(hex) != faction or port == null or HexPathfinding.find_path(tiles, port, goal, "patrol_boat").is_empty():
 			return false
 		buildings[hex]["rally"] = goal
+		buildings[hex]["rally_order"] = order
 		return true
 	if not buildings.has(hex) or territory.owner_at(hex) != faction or HexPathfinding.find_path(tiles, hex, goal, "helicopter" if buildings[hex]["kind"] == "airfield" else "rifle").is_empty():
 		return false
 	buildings[hex]["rally"] = goal
+	buildings[hex]["rally_order"] = order
 	return true
 
 func income_rate(tiles: Dictionary, territory: TerritoryState) -> float:
@@ -251,7 +255,10 @@ func _advance_interval(delta: float, tiles: Dictionary, territory: TerritoryStat
 			if UnitCatalog.is_air(kind):
 				unit.airfield = hex
 			if kind != "fighter":
-				unit.order_move(tiles, building["rally"])
+				if building.get("rally_order", "move") == "attack_move":
+					UnitOrders.tactical(unit, "attack_move", building["rally"], tiles)
+				else:
+					unit.order_move(tiles, building["rally"])
 			recruits.append(unit)
 			command_event.emit("%s ready" % UnitCatalog.TYPES[kind]["name"], hex)
 		if building["queue"].is_empty():
