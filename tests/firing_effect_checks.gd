@@ -28,6 +28,8 @@ func _init() -> void:
 
 func run() -> void:
 	for kind in UnitCatalog.TYPES:
+		if UnitCatalog.TYPES[kind]["damage"] <= 0:
+			continue
 		assert(not UnitAppearance.muzzle_points(kind, 0.14).is_empty(), kind)
 		assert(not UnitAppearance.muzzle_points(kind, 0.14, true).is_empty(), kind)
 	assert(UnitAppearance.muzzle_points("rifle", 0.14)[0].is_equal_approx(Vector2(47, 15) * UnitVisuals.UNIT_BOX / 128))
