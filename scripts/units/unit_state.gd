@@ -34,6 +34,7 @@ var attack_order: bool = false
 var attack_hex: Vector2i = Vector2i.ZERO
 var attack_target: WeakRef
 var shot_serial: int = 0
+var last_shot_hex: Vector2i = Vector2i.ZERO
 var attack_flash: float = 0.0
 var damage_flash: float = 0.0
 

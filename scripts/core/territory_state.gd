@@ -27,6 +27,8 @@ func advance(delta: float, tiles: Dictionary, units: Array[UnitState]) -> void:
 	var occupants: Dictionary = {}
 	contested.clear()
 	for unit in units:
+		if not UnitCatalog.TYPES[unit.kind].get("capture", true):
+			continue
 		if not unit.is_deployed() or not unit.path.is_empty() or not HexPathfinding.is_walkable(tiles, unit.hex):
 			continue
 		if not tiles[unit.hex].get("capturable", true):

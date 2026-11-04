@@ -4,8 +4,12 @@ class_name UnitOrders
 static func attack(unit: UnitState, tiles: Dictionary, goal: Vector2i, target: UnitState = null) -> bool:
 	if target != null and (not target.is_deployed() or target.faction == unit.faction or not UnitCatalog.can_target(unit, target)):
 		return false
-	if not unit.order_move(tiles, goal):
-		return false
+	if unit.kind == "artillery" and unit.is_deployed() and unit.path.is_empty() and HexMath.distance(unit.hex, goal) <= unit.attack_range and HexPathfinding.is_walkable(tiles, goal):
+		unit.order_hold()
+		unit.holding = false
+	else:
+		if not unit.order_move(tiles, goal):
+			return false
 	unit.attack_order = true
 	unit.attack_hex = goal
 	unit.attack_target = weakref(target) if target != null else null

@@ -25,7 +25,21 @@ static func tracked(canvas: CanvasItem, unit: UnitState, accent: Color, phase: f
 			canvas.draw_line(Vector2(x + tread, 3), Vector2(x + tread, 7), CLOTH, 1)
 
 static func draw_unit(canvas: CanvasItem, unit: UnitState, point: Vector2, accent: Color, selected: bool, phase: float, size_scale: float = 1.0) -> void:
-	if unit.kind == "tank":
+	if unit.kind == "artillery":
+		if selected:
+			canvas.draw_arc(point, 19 * size_scale, 0, TAU, 32, Color("fff0ad"), 2 * size_scale, true)
+		canvas.draw_set_transform(point, unit.facing, Vector2.ONE * size_scale)
+		canvas.draw_rect(Rect2(-12, -10, 24, 5), INK)
+		canvas.draw_rect(Rect2(-12, 5, 24, 5), INK)
+		_poly(canvas, [Vector2(-12, -6), Vector2(7, -7), Vector2(11, -3), Vector2(11, 3), Vector2(7, 7), Vector2(-12, 6)], CLOTH)
+		canvas.draw_line(Vector2(-9, -5), Vector2(-9, 5), accent, 4)
+		canvas.draw_set_transform(point, unit.turret_facing, Vector2.ONE * size_scale)
+		_poly(canvas, [Vector2(-8, -6), Vector2(3, -6), Vector2(6, 0), Vector2(3, 6), Vector2(-8, 6)], LIGHT)
+		var recoil: float = 4 * clampf(unit.attack_flash / 0.14, 0, 1)
+		canvas.draw_line(Vector2(1 - recoil, 0), Vector2(27 - recoil, 0), INK, 5)
+		canvas.draw_line(Vector2(5 - recoil, -1), Vector2(27 - recoil, -1), LIGHT, 2)
+		canvas.draw_line(Vector2(25 - recoil, -3), Vector2(25 - recoil, 3), INK, 3)
+	elif unit.kind == "tank":
 		if selected:
 			canvas.draw_arc(point, 17 * size_scale, 0, TAU, 32, Color("fff0ad"), 2 * size_scale, true)
 		canvas.draw_set_transform(point, unit.facing, Vector2.ONE * size_scale)
@@ -41,14 +55,15 @@ static func draw_unit(canvas: CanvasItem, unit: UnitState, point: Vector2, accen
 		for side in [-1, 1]:
 			for x in [-7, 5]:
 				canvas.draw_line(Vector2(x + movement, side * 8), Vector2(x + movement + 2, side * 8), LIGHT, 2)
-	if unit.kind == "tank":
+	if unit.kind in ["tank", "artillery"]:
 		canvas.draw_set_transform(point, unit.turret_facing, Vector2.ONE * size_scale)
 	if unit.attack_flash > 0:
 		if unit.kind == "anti_air":
 			for side in [-1, 1]:
 				canvas.draw_line(Vector2(9, side * 5), Vector2(18, side * 5), Color("ffe0a0"), 3)
 		else:
-			canvas.draw_circle(Vector2(17, 0), 2.5 + sin(phase) * 0.2, Color("ffe0a0"))
+			var muzzle: float = 27 - 4 * clampf(unit.attack_flash / 0.14, 0, 1) if unit.kind == "artillery" else 17.0
+			canvas.draw_circle(Vector2(muzzle, 0), 2.5 + sin(phase) * 0.2, Color("ffe0a0"))
 	if unit.damage_flash > 0:
 		if UnitCatalog.is_infantry(unit.kind):
 			canvas.draw_set_transform(Vector2.ZERO)

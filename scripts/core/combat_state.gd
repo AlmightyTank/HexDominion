@@ -12,9 +12,10 @@ static func _volley(attacker: UnitState, delta: float) -> float:
 	return shots * attacker.damage
 
 static func _face(attacker: UnitState, hex: Vector2i) -> void:
+	attacker.last_shot_hex = hex
 	if attacker.hex != hex:
 		attacker.turret_facing = (HexMath.axial_to_world(hex, 1.0) - HexMath.axial_to_world(attacker.hex, 1.0)).angle()
-		if attacker.kind != "tank":
+		if attacker.kind not in ["tank", "artillery"]:
 			attacker.facing = attacker.turret_facing
 
 static func advance(delta: float, units: Array[UnitState], tiles: Dictionary = {}, protection: Dictionary = {}) -> Dictionary:
@@ -24,6 +25,9 @@ static func advance(delta: float, units: Array[UnitState], tiles: Dictionary = {
 		return targets
 	for attacker in units:
 		if not attacker.is_deployed() or not attacker.path.is_empty():
+			continue
+		# Explicit bombardment keeps its structure target even when defenders share the hex.
+		if attacker.kind == "artillery" and attacker.attack_order and attacker.attack_target == null:
 			continue
 		var target: UnitState = null
 		var best: int = attacker.attack_range + 1
@@ -78,7 +82,7 @@ static func attack_extractors(delta: float, units: Array[UnitState], economies: 
 			_face(attacker, target_hex)
 			if not damage.has(target_economy):
 				damage[target_economy] = {}
-			damage[target_economy][target_hex] = damage[target_economy].get(target_hex, 0.0) + _volley(attacker, delta) * TerrainRules.attack_multiplier(tiles.get(attacker.hex, {}), attacker.kind)
+			damage[target_economy][target_hex] = damage[target_economy].get(target_hex, 0.0) + _volley(attacker, delta) * TerrainRules.attack_multiplier(tiles.get(attacker.hex, {}), attacker.kind) * UnitCatalog.TYPES[attacker.kind].get("structure", 1.0)
 	for economy in damage:
 		for hex in damage[economy]:
 			economy.damage_building(hex, damage[economy][hex])

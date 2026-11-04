@@ -156,7 +156,7 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 			if tiles[hex].get("terrain", "") != "resource" or not _number(building.get("health"), 0.001, EconomyState.EXTRACTOR_HEALTH):
 				return false
 		headquarters += 1 if building["kind"] == "headquarters" else 0
-		if building["queue"].size() > 5 or not _number(building.get("elapsed"), 0, 8):
+		if building["queue"].size() > 5 or not _number(building.get("elapsed"), 0, INF):
 			return false
 		for kind in building["queue"]:
 			if kind not in EconomyState.TRAIN_SECONDS or building["kind"] != UnitCatalog.producer(kind):
@@ -196,6 +196,7 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 			roster[index].attack_target = weakref(roster[target_index])
 	layer.units = roster
 	layer.wrecks.clear()
+	layer.shell_effects.clear()
 	for hex in layer.world_map.map_data["tiles"]:
 		layer.world_map.map_data["tiles"][hex].erase("road")
 	for hex in data.get("roads", {}):

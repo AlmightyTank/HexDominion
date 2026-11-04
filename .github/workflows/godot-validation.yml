@@ -26,6 +26,8 @@ jobs:
         run: godot --headless --path . --script res://tests/hud_tests.gd
       - name: Vehicle and transport regressions
         run: godot --headless --path . --script res://tests/vehicle_tests.gd
+      - name: Artillery combat and save regressions
+        run: godot --headless --path . --script res://tests/artillery_tests.gd
       - name: Unit artwork and badge regressions
         run: godot --headless --path . --script res://tests/unit_art_checks.gd
       - name: Startup
@@ -36,6 +38,8 @@ jobs:
         run: HEX_DOMINION_ART_CAPTURE="$RUNNER_TEMP/infantry-visuals/roster-gallery.png" xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/unit_art_gallery.gd
       - name: Render mixed vehicles and transport
         run: xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/vehicle_visual_test.gd -- --output="$RUNNER_TEMP/infantry-visuals"
+      - name: Render artillery bombardment
+        run: xvfb-run -a godot --path . --rendering-method gl_compatibility --script res://tests/artillery_visual_test.gd -- --output="$RUNNER_TEMP/infantry-visuals"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

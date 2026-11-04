@@ -10,6 +10,7 @@ var selected_units: Array[UnitState] = []
 var expanded_hex: Vector2i = Vector2i(-99999, -99999)
 var animation_time: float = 0.0
 var wrecks: Array[Dictionary] = []
+var shell_effects: Array[Dictionary] = []
 const WRECK_SECONDS: float = 8.0
 const MAX_WRECKS: int = 128
 
@@ -144,13 +145,18 @@ func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, _cycl
 
 
 func _physics_process(delta: float) -> void:
+	var had_shells: bool = not shell_effects.is_empty()
+	for index in range(shell_effects.size() - 1, -1, -1):
+		shell_effects[index]["age"] += delta
+		if shell_effects[index]["age"] >= 0.8:
+			shell_effects.remove_at(index)
 	var had_wrecks: bool = not wrecks.is_empty()
 	for index in range(wrecks.size() - 1, -1, -1):
 		wrecks[index]["remaining"] -= delta
 		if wrecks[index]["remaining"] <= 0:
 			wrecks.remove_at(index)
 	if world_map == null or match_state.result != "playing":
-		if had_wrecks:
+		if had_wrecks or had_shells:
 			queue_redraw()
 		return
 	animation_time += delta
@@ -158,10 +164,19 @@ func _physics_process(delta: float) -> void:
 		unit.attack_flash = maxf(0, unit.attack_flash - delta)
 		unit.damage_flash = maxf(0, unit.damage_flash - delta)
 	var economies: Array[EconomyState] = [economy, match_state.rival_economy]
+	var previous_shots: Dictionary = {}
+	for unit in units:
+		if unit.kind == "artillery":
+			previous_shots[unit] = unit.shot_serial
 	UnitOrders.update(units, world_map.map_data["tiles"], economies)
 	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units, economy.buildings)
 	combat_targets = CombatState.advance(delta, units, world_map.map_data["tiles"], FortificationRules.protection(units, [economy, match_state.rival_economy], territory))
 	CombatState.attack_extractors(delta, units, economies, combat_targets, world_map.map_data["tiles"])
+	for unit in previous_shots:
+		if unit.shot_serial > previous_shots[unit]:
+			shell_effects.append({"from": to_local(world_map.hex_to_world(unit.hex)), "to": to_local(world_map.hex_to_world(unit.last_shot_hex)), "age": 0.0})
+			if shell_effects.size() > 128:
+				shell_effects.pop_front()
 	TransportRules.synchronize(units)
 	for index in range(units.size() - 1, -1, -1):
 		if not units[index].is_alive():
@@ -198,6 +213,7 @@ func _draw() -> void:
 		return
 	_draw_territory()
 	_draw_roads()
+	_draw_artillery_range()
 	_draw_isolated_locations()
 	for hex in match_state.rival_economy.buildings:
 		var rival_building: Dictionary = match_state.rival_economy.buildings[hex]
@@ -237,7 +253,7 @@ func _draw() -> void:
 			draw_line(center, to_local(world_map.hex_to_world(building["rally"])), color, 1.0, true)
 	for attacker in combat_targets:
 		var target: UnitState = combat_targets[attacker]
-		if attacker.is_alive() and target.is_alive():
+		if attacker.kind != "artillery" and attacker.is_alive() and target.is_alive():
 			draw_line(unit_position(attacker), unit_position(target), Color("ffc875"), 1.5, true)
 	if selected != null and not selected.path.is_empty():
 		var points: PackedVector2Array = PackedVector2Array([unit_position(selected)])
@@ -246,6 +262,34 @@ func _draw() -> void:
 		draw_polyline(points, Color("fff0ad"), 2.0, true)
 		draw_arc(points[-1], 8.0, 0.0, TAU, 24, Color("fff0ad"), 2.0, true)
 	_draw_units()
+	_draw_shells()
+
+func _draw_artillery_range() -> void:
+	for unit in selected_units:
+		if unit.kind != "artillery" or not unit.is_deployed():
+			continue
+		for q in range(-unit.attack_range, unit.attack_range + 1):
+			for r in range(-unit.attack_range, unit.attack_range + 1):
+				var hex: Vector2i = unit.hex + Vector2i(q, r)
+				if HexMath.distance(unit.hex, hex) > unit.attack_range or not world_map.map_data["tiles"].has(hex):
+					continue
+				var corners: PackedVector2Array = []
+				var center: Vector2 = to_local(world_map.hex_to_world(hex))
+				for side in range(7):
+					corners.append(center + Vector2.from_angle(deg_to_rad(side * 60 - 30)) * WorldMap.HEX_RADIUS)
+				draw_polyline(corners, Color(1, 0.85, 0.45, 0.45), 1, true)
+
+func _draw_shells() -> void:
+	for effect in shell_effects:
+		var fraction: float = minf(1, effect["age"] / 0.45)
+		if fraction < 1:
+			var point: Vector2 = effect["from"].lerp(effect["to"], fraction) + Vector2(0, -sin(fraction * PI) * 24)
+			draw_circle(point + Vector2(2, 3), 3, Color("302d23"))
+			draw_circle(point, 2.5, Color("fff0ad"))
+		else:
+			var fade: float = 1 - (effect["age"] - 0.45) / 0.35
+			draw_circle(effect["to"], 12 * (1 - fade) + 3, Color(1, 0.6, 0.2, fade * 0.65))
+			draw_arc(effect["to"], 16 * (1 - fade) + 2, 0, TAU, 24, Color(1, 0.9, 0.6, fade), 2, true)
 
 func _draw_units() -> void:
 	var zoom_factor: float = get_canvas_transform().get_scale().x
