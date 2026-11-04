@@ -5,10 +5,15 @@ class_name CombatState
 static func _volley(attacker: UnitState, delta: float) -> float:
 	attacker.weapon_elapsed += delta
 	var shots: int = floori((attacker.weapon_elapsed + 0.000000001) / maxf(0.001, attacker.cooldown))
+	if attacker.kind == "fighter":
+		shots = mini(shots, 1)
 	attacker.weapon_elapsed = maxf(0, attacker.weapon_elapsed - shots * attacker.cooldown)
 	if shots > 0:
 		attacker.shot_serial += shots
 		attacker.attack_flash = 0.14
+		if attacker.kind == "fighter":
+			attacker.weapon_elapsed = 0.0
+		AircraftRules.fired(attacker)
 	return shots * attacker.damage
 
 static func _face(attacker: UnitState, hex: Vector2i) -> void:
@@ -26,13 +31,17 @@ static func advance(delta: float, units: Array[UnitState], tiles: Dictionary = {
 	for attacker in units:
 		if not attacker.is_deployed() or not attacker.path.is_empty():
 			continue
+		if attacker.kind == "fighter" and attacker.air_mission != "striking":
+			continue
 		# Explicit bombardment keeps its structure target even when defenders share the hex.
-		if attacker.kind == "artillery" and attacker.attack_order and attacker.attack_target == null:
+		if attacker.kind in ["artillery", "fighter"] and attacker.attack_order and attacker.attack_target == null:
 			continue
 		var target: UnitState = null
 		var best: int = attacker.attack_range + 1
 		var ordered: UnitState = attacker.attack_target.get_ref() if attacker.attack_target != null else null
 		for candidate in units:
+			if attacker.kind == "fighter" and candidate != ordered:
+				continue
 			if not candidate.is_deployed() or candidate.faction == attacker.faction or not UnitCatalog.can_target(attacker, candidate):
 				continue
 			var distance: int = HexMath.distance(attacker.hex, candidate.hex)
@@ -62,6 +71,8 @@ static func attack_extractors(delta: float, units: Array[UnitState], economies: 
 	for attacker in units:
 		# Unit fights take priority; one attack budget per tick, never double damage.
 		if not attacker.is_deployed() or not attacker.path.is_empty() or unit_targets.has(attacker):
+			continue
+		if attacker.kind == "fighter" and attacker.air_mission != "striking":
 			continue
 		var target_economy: EconomyState = null
 		var target_hex: Vector2i

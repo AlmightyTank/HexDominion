@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. v0.4 Slice C adds self-propelled artillery with long-range bombardment, structure damage, firing-range overlays and shell/impact feedback. Hex armies retain a single dominant-role marker and deployed count at every zoom, with a selectable composition panel and optional individual expansion. Earlier territory, economy and save systems remain integrated. Physical touchscreen acceptance and balance playtesting remain pending.
+> **Status:** Pre-alpha. v0.4 Slice D adds powered airfields, attack helicopters and fighter strike-and-return missions. Aircraft fly over land and water in a separate visual layer, with anti-air counters, animated rotors, shadows and missile feedback. Ground armies retain stack-first presentation; aircraft use type markers far away and individual sprites at medium/close zoom. Physical touchscreen acceptance and balance playtesting remain pending.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -166,6 +166,7 @@ Expanded infantry and armor, artillery, air units, naval units, transports, expa
 - [x] **Slice A: Infantry Expansion and Unit Visual Foundation:** Three barracks infantry roles, weapon cooldowns and counters, attack commands, shared faction-accented soldier silhouettes, grouped zoom presentation and backward-compatible saves. ([Tuning, controls, verification and limitations](docs/V0.4-SLICE-A.md).)
 - [x] **Slice B: Vehicle Expansion:** Main battle tanks, scouts, four-seat APCs, mobile anti-air, stack-first army presentation and backward-compatible transport saves. ([Rules, controls and verification](docs/V0.4-SLICE-B.md).)
 - [x] **Slice C: Artillery & Long-Range Warfare:** Factory-built self-propelled artillery, range-three bombardment, fortification damage, non-capture, range overlays and shell feedback. ([Rules, scope and verification](docs/V0.4-SLICE-C.md).)
+- [x] **Slice D: Aircraft & Airfields:** Powered aircraft production, helicopters, fighter strike/return/rearm missions, AA counters, independent air presentation and validated saves. ([Rules and verification](docs/V0.4-SLICE-D.md).)
 
 #### Infantry controls
 

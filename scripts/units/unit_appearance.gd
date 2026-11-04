@@ -22,6 +22,8 @@ static func muzzle_points(kind: String, remaining: float, icon: bool = false) ->
 		"anti_air": source = [Vector2(35, 10), Vector2(87, 10)]
 		"tank": source = [Vector2(64, 9)]
 		"artillery": source = [Vector2(64, 4)]
+		"helicopter": source = [Vector2(37, 35), Vector2(91, 35)]
+		"fighter": source = [Vector2(37, 45), Vector2(91, 45)]
 	var points: Array[Vector2] = []
 	for tip in source:
 		points.append(Vector2(64 - tip.y, tip.x - 64) * (25.0 if icon else 28.0) / 128.0)
@@ -71,6 +73,10 @@ static func draw_armor(canvas: CanvasItem, unit: UnitState, point: Vector2, stat
 static func draw_unit(canvas: CanvasItem, unit: UnitState, point: Vector2, accent: Color, selected: bool, phase: float, size_scale: float = 1.0) -> void:
 	accent = UnitArt.ACCENTS[UnitArt.faction_slot(unit.faction)]
 	var state: String = UnitArt.state_for(unit.health, unit.max_health, unit.kind)
+	if unit.domain == "air":
+		canvas.draw_set_transform(point + Vector2(8, 19) * size_scale, unit.facing + PI / 2, Vector2.ONE * size_scale)
+		canvas.draw_texture_rect(UnitArt.texture(unit.kind, unit.faction, state), Rect2(-14, -14, 28, 28), false, Color(0, 0, 0, 0.35))
+		canvas.draw_set_transform(Vector2.ZERO)
 	if unit.kind in ["tank", "artillery"] and state != "destroyed":
 		if selected:
 			canvas.draw_arc(point, 17 * size_scale, 0, TAU, 32, INK, 4 * size_scale, true)
@@ -79,7 +85,7 @@ static func draw_unit(canvas: CanvasItem, unit: UnitState, point: Vector2, accen
 	else:
 		UnitArt.draw(canvas, unit.kind, unit.faction, state, point, unit.facing, selected, 28 * size_scale)
 	canvas.draw_set_transform(point, unit.facing, Vector2.ONE * size_scale)
-	if not UnitCatalog.is_infantry(unit.kind) and not unit.path.is_empty() and unit.kind != "tank":
+	if unit.domain == "ground" and not UnitCatalog.is_infantry(unit.kind) and not unit.path.is_empty() and unit.kind != "tank":
 		var movement: float = fmod(phase * 12, 4)
 		for side in [-1, 1]:
 			for x in [-7, 5]:
@@ -95,6 +101,13 @@ static func draw_unit(canvas: CanvasItem, unit: UnitState, point: Vector2, accen
 		else:
 			canvas.draw_arc(Vector2.ZERO, 8, 0, TAU, 16, Color("fff5db"), 2, true)
 	canvas.draw_set_transform(Vector2.ZERO)
+	if unit.kind == "helicopter":
+		canvas.draw_set_transform(point, phase * 25, Vector2.ONE * size_scale)
+		canvas.draw_line(Vector2(-18, 0), Vector2(18, 0), Color(0.8, 0.85, 0.83, 0.8), 2, true)
+		canvas.draw_line(Vector2(0, -18), Vector2(0, 18), Color(0.8, 0.85, 0.83, 0.8), 2, true)
+		canvas.draw_set_transform(point - Vector2.from_angle(unit.facing) * 11 * size_scale, phase * -35, Vector2.ONE * size_scale)
+		canvas.draw_line(Vector2(-4, 0), Vector2(4, 0), Color("c6c7a3"), 1.5, true)
+		canvas.draw_set_transform(Vector2.ZERO)
 	if selected or unit.health < unit.max_health:
 		canvas.draw_rect(Rect2(point + Vector2(-9, -14) * size_scale, Vector2(18, 2) * size_scale), INK)
 		canvas.draw_rect(Rect2(point + Vector2(-9, -14) * size_scale, Vector2(18 * unit.health / unit.max_health, 2) * size_scale), accent)

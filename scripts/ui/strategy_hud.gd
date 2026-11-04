@@ -804,13 +804,13 @@ func _create_build_menu() -> void:
 	road_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	road_button.pressed.connect(func() -> void: build_requested.emit("road"))
 	structure_grid.add_child(road_button)
-	for kind in ["barracks", "factory", "extractor", "power_plant", "bunker"]:
+	for kind in ["barracks", "factory", "extractor", "power_plant", "bunker", "airfield"]:
 		var button: ProductionItem = ProductionItem.new()
 		button.configure(String(kind).capitalize(), EconomyState.BUILD_COSTS[kind], EconomyState.BUILD_SECONDS[kind], UnitArt.building_texture(kind, 1))
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.custom_minimum_size = Vector2(0, 72)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.tooltip_text = {"headquarters": "Command center • +5 credits/sec • 20 power • Limit: one", "barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "10 power • Disabled under low power • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP", "bunker": "Two infantry • G assigns garrison • J holds • 40% less incoming damage; passable"}[kind]
+		button.tooltip_text = {"headquarters": "Command center • +5 credits/sec • 20 power • Limit: one", "barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "10 power • Disabled under low power • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP", "bunker": "Two infantry • G assigns garrison • J holds • 40% less incoming damage; passable", "airfield": "Aircraft production and fighter rearming. Plains, desert or city. 20 power; offline under low power."}[kind]
 		button.pressed.connect(func() -> void: build_requested.emit(kind))
 		structure_grid.add_child(button)
 		build_buttons[kind] = button
@@ -882,6 +882,11 @@ func show_stack(members: Array[UnitState], roster: Array[UnitState], expanded: V
 		stack_rows[kind].tooltip_text = "%d of %d selected. Click to select only this type." % [selected_counts.get(kind, 0), counts.get(kind, 0)]
 	stack_passengers.visible = aboard > 0
 	stack_passengers.text = "%d aboard APCs (not deployed)" % aboard
+	for member in selected_roster:
+		if UnitCatalog.is_air(member.kind):
+			stack_passengers.visible = true
+			stack_passengers.text = "%s: %s | base %s | %.1fs rearm" % [member.title, member.air_mission if member.kind == "fighter" else "Hover / flight", str(member.airfield) if member.airfield != AircraftRules.NO_BASE else "None", member.mission_remaining]
+			break
 	stack_expand.text = "Collapse" if expanded == members[0].hex else "Expand"
 
 func show_selection(roster: Array[UnitState], attack_mode: bool, all_units: Array[UnitState] = []) -> void:
@@ -946,7 +951,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 		economy.set_primary(hex, territory)
 		show_tile_actions(hex, economy, territory, tiles)
 	)
-	primary_button.visible = economy.buildings.has(hex) and territory.owner_at(hex) == economy.faction and EconomyState.is_complete(economy.buildings[hex]) and economy.buildings[hex]["kind"] in ["barracks", "factory"]
+	primary_button.visible = economy.buildings.has(hex) and territory.owner_at(hex) == economy.faction and EconomyState.is_complete(economy.buildings[hex]) and economy.buildings[hex]["kind"] in ["barracks", "factory", "airfield"]
 	primary_button.disabled = primary_button.visible and economy.buildings[hex].get("primary", false)
 	primary_button.text = "Primary production" if primary_button.disabled else "Set primary production"
 	_refresh_facilities(hex, economy, territory)
@@ -987,6 +992,8 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 			requirement = "Controlled resource deposit"
 		elif kind == "headquarters":
 			requirement += "; limit one HQ"
+		elif kind == "airfield":
+			requirement += "; plains, desert or city"
 		var power_text: String = "+%d power" % EconomyState.POWER_SUPPLY[kind] if EconomyState.POWER_SUPPLY.has(kind) else "%d power used" % EconomyState.POWER_DEMAND.get(kind, 0)
 		var unavailable: String = ""
 		if build_buttons[kind].disabled:
@@ -998,6 +1005,8 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 		var compatible: bool = producer != null
 		train_buttons[kind].visible = true
 		var blocked: bool = not compatible or not economy.account.can_afford(EconomyState.TRAIN_COSTS[kind]) or economy.buildings[producer]["queue"].size() >= 5
+		if UnitCatalog.is_air(kind) and compatible:
+			blocked = blocked or economy.low_power(territory) or territory.is_contested(producer)
 		var requirement: String = "Requires completed %s" % UnitCatalog.producer(kind)
 		var status: String = requirement
 		if compatible:
@@ -1008,6 +1017,8 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 				status += " | %d%%" % int(100.0 * site["elapsed"] / EconomyState.TRAIN_SECONDS[kind])
 			if not economy.account.can_afford(EconomyState.TRAIN_COSTS[kind]):
 				status = "Insufficient credits"
+			if UnitCatalog.is_air(kind) and (economy.low_power(territory) or territory.is_contested(producer)):
+				status = "Airfield offline: power / contested"
 		train_buttons[kind].update_status(requirement, status, blocked)
 	if has_building:
 		var building: Dictionary = economy.buildings[hex]
@@ -1030,7 +1041,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 		build_status.text = "%s • (%d, %d)\nQueue: %d/5" % [String(building["kind"]).capitalize(), hex.x, hex.y, queue.size()]
 		build_status.text += "\nHP: %.0f / %.0f" % [building.get("health", EconomyState.BUILD_HEALTH[building["kind"]]), EconomyState.BUILD_HEALTH[building["kind"]]]
 		build_status.text += "\nPower: +%d supply / %d used" % [EconomyState.POWER_SUPPLY.get(building["kind"], 0), EconomyState.POWER_DEMAND.get(building["kind"], 0)]
-		if building["kind"] in ["factory", "barracks"]:
+		if building["kind"] in ["factory", "barracks", "airfield"]:
 			rally_button.show()
 			var rally: Vector2i = building["rally"]
 			build_status.text += "\nRally: (%d, %d)\nJobs: %s" % [rally.x, rally.y, ", ".join(queue) if not queue.is_empty() else "Idle"]
@@ -1046,6 +1057,10 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 			build_status.text += "\nSupply: 40 power\nHP: %.0f / 250" % building["health"]
 		if building["kind"] == "factory" and economy.low_power(territory):
 			build_status.text += "\nLOW POWER: production at 50%"
+		if building["kind"] == "airfield":
+			build_status.text += "\nAircraft available in Vehicles / Air. Fighters return here to rearm."
+			if economy.low_power(territory):
+				build_status.text += "\nLOW POWER: aircraft production and rearming paused"
 	else:
 		build_status.text = "Choose construction, then place on controlled empty land. Q rotates; Esc cancels."
 		build_status.visible = false

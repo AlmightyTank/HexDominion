@@ -24,6 +24,9 @@ var facing: float = 0.0
 var turret_facing: float = 0.0
 var domain: String = "ground"
 var carrier: WeakRef
+var airfield: Vector2i = Vector2i(-99999, -99999)
+var air_mission: String = "ready"
+var mission_remaining: float = 0.0
 
 func is_embarked() -> bool:
 	return carrier != null and carrier.get_ref() != null
@@ -50,6 +53,7 @@ func configure_kind(unit_kind: String) -> void:
 	cooldown = definition["cooldown"]
 	attack_range = definition["range"]
 	seconds_per_hex = definition["speed"]
+	domain = "air" if UnitCatalog.is_air(kind) else "ground"
 	weapon_elapsed = 0.0
 
 
@@ -80,6 +84,8 @@ func order_move(tiles: Dictionary, goal: Vector2i) -> bool:
 	holding = false
 	attack_order = false
 	attack_target = null
+	if kind == "fighter":
+		air_mission = "returning"
 	return true
 
 func order_hold() -> void:
@@ -90,6 +96,8 @@ func order_hold() -> void:
 	holding = true
 	attack_order = false
 	attack_target = null
+	if kind == "fighter" and air_mission == "striking":
+		air_mission = "returning"
 
 
 func advance(delta: float, tiles: Dictionary) -> void:
@@ -97,8 +105,9 @@ func advance(delta: float, tiles: Dictionary) -> void:
 		return
 	var remaining: float = delta
 	while remaining > 0 and not path.is_empty():
-		facing = (HexMath.axial_to_world(path[0], 1.0) - HexMath.axial_to_world(hex, 1.0)).angle()
-		var cost: float = TerrainRules.movement_cost(tiles, hex, path[0], kind)
+		var heading: float = (HexMath.axial_to_world(path[0], 1.0) - HexMath.axial_to_world(hex, 1.0)).angle()
+		facing = rotate_toward(facing, heading, remaining * 5.0) if domain == "air" else heading
+		var cost: float = 1.0 if domain == "air" else TerrainRules.movement_cost(tiles, hex, path[0], kind)
 		if not is_finite(cost):
 			return
 		var duration: float = maxf(seconds_per_hex, 0.001) * cost

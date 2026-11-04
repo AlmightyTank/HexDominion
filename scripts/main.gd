@@ -262,7 +262,7 @@ func _select_at(point: Vector2) -> void:
 	var picked: UnitState = units.pick_faction(point, camera.zoom.x, 1, true)
 	if hud.add_selection_button.button_pressed or Input.is_key_pressed(KEY_SHIFT):
 		if picked != null:
-			var members: Array[UnitState] = _hex_members(picked.hex)
+			var members: Array[UnitState] = _hex_members(picked.hex).filter(func(member: UnitState) -> bool: return member.domain == picked.domain and (picked.domain != "air" or member.kind == picked.kind))
 			var remove: bool = true
 			for member in members:
 				remove = remove and units.selected_units.has(member)
@@ -272,7 +272,7 @@ func _select_at(point: Vector2) -> void:
 	else:
 		units.select_one(picked)
 		if picked != null and picked.hex != units.expanded_hex:
-			units.selected_units = _hex_members(picked.hex)
+			units.selected_units = _hex_members(picked.hex).filter(func(member: UnitState) -> bool: return member.domain == picked.domain and (picked.domain != "air" or member.kind == picked.kind))
 	units.queue_redraw()
 	_inspect_world_at(world_map.hex_to_world(picked.hex) if picked != null else point)
 	if units.selected != null:
@@ -381,6 +381,9 @@ func _process(_delta: float) -> void:
 		hud.show_selection(units.selected_units, _attack_mode, units.units)
 		if units.selected != null and units.selected.kind == "apc":
 			hud.selection_info.text += "\nPassengers: %d/4. Load/Unload APC buttons choose a map target." % TransportRules.passengers(units.selected, units.units).size()
+		if units.selected != null and UnitCatalog.is_air(units.selected.kind):
+			var aircraft: UnitState = units.selected
+			hud.selection_info.text += "\nAIR | %s | Base %s | Rearm %.1fs" % [aircraft.air_mission if aircraft.kind == "fighter" else "Hover / flight", str(aircraft.airfield) if aircraft.airfield != AircraftRules.NO_BASE else "None", aircraft.mission_remaining]
 		var stack_members: Array[UnitState] = []
 		if units.selected != null:
 			stack_members = _hex_members(units.selected.hex)
@@ -479,7 +482,7 @@ func _begin_rally() -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	var hex: Vector2i = _economy_hex()
-	if not units.economy.buildings.has(hex) or not EconomyState.is_complete(units.economy.buildings[hex]) or not units.economy.buildings[hex]["kind"] in ["factory", "barracks"]:
+	if not units.economy.buildings.has(hex) or not EconomyState.is_complete(units.economy.buildings[hex]) or not units.economy.buildings[hex]["kind"] in ["factory", "barracks", "airfield"]:
 		return
 	_begin_build("")
 	_rally_mode = true

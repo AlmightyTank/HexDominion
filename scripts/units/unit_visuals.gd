@@ -26,9 +26,9 @@ static func stacks(units: Array[UnitState]) -> Array[Dictionary]:
 	for unit in units:
 		if not unit.is_deployed():
 			continue
-		var key: String = "%s:%s" % [unit.hex, unit.faction]
+		var key: String = "%s:%s:%s" % [unit.hex, unit.faction, unit.domain if unit.domain == "ground" else unit.kind]
 		if not by_hex.has(key):
-			by_hex[key] = {"hex": unit.hex, "faction": unit.faction, "kind": unit.kind, "members": [], "counts": {}}
+			by_hex[key] = {"hex": unit.hex, "faction": unit.faction, "kind": unit.kind, "domain": unit.domain, "members": [], "counts": {}}
 		var stack: Dictionary = by_hex[key]
 		stack["members"].append(unit)
 		stack["counts"][unit.kind] = stack["counts"].get(unit.kind, 0) + 1
@@ -42,6 +42,8 @@ static func stacks(units: Array[UnitState]) -> Array[Dictionary]:
 				stack["kind"] = kind
 		result.append(stack)
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a["domain"] != b["domain"]:
+			return a["domain"] == "ground"
 		if a["faction"] != b["faction"]:
 			return a["faction"] < b["faction"]
 		if a["hex"].y != b["hex"].y:

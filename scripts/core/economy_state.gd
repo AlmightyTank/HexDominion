@@ -3,12 +3,12 @@ class_name EconomyState
 signal building_destroyed(hex: Vector2i, kind: String, rotation: int, owner: int)
 signal command_event(message: String, hex: Vector2i)
 ## Faction economy and production. All money mutations use the shared account.
-const BUILD_COSTS: Dictionary = {"headquarters": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100}
+const BUILD_COSTS: Dictionary = {"headquarters": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100, "airfield": 250}
 const EXTRACTOR_HEALTH: float = 200.0
-const BUILD_SECONDS: Dictionary = {"headquarters": 12.0, "barracks": 6.0, "factory": 10.0, "extractor": 5.0, "power_plant": 8.0, "bunker": 8.0}
-const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0, "bunker": 400.0}
+const BUILD_SECONDS: Dictionary = {"headquarters": 12.0, "barracks": 6.0, "factory": 10.0, "extractor": 5.0, "power_plant": 8.0, "bunker": 8.0, "airfield": 12.0}
+const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0, "bunker": 400.0, "airfield": 350.0}
 const POWER_SUPPLY: Dictionary = {"headquarters": 20, "power_plant": 40}
-const POWER_DEMAND: Dictionary = {"factory": 20, "extractor": 10}
+const POWER_DEMAND: Dictionary = {"factory": 20, "extractor": 10, "airfield": 20}
 const CANCEL_REFUND_FRACTION: float = 0.5
 const SALVAGE_FRACTION: float = 0.5
 const REPAIR_HP_PER_SECOND: float = 20.0
@@ -90,6 +90,8 @@ func can_build(hex: Vector2i, kind: String, tiles: Dictionary, territory: Territ
 		return false
 	if kind == "extractor" and tiles[hex].get("terrain", "") != "resource":
 		return false
+	if kind == "airfield" and TerrainRules.ground(tiles[hex]) not in ["plains", "desert", "city"]:
+		return false
 	if not account.can_afford(BUILD_COSTS[kind]):
 		return false
 	return true
@@ -110,7 +112,7 @@ func production_site(kind: String, territory: TerritoryState) -> Variant:
 
 
 func set_primary(hex: Vector2i, territory: TerritoryState) -> bool:
-	if not buildings.has(hex) or territory.owner_at(hex) != faction or not is_complete(buildings[hex]) or not buildings[hex]["kind"] in ["barracks", "factory"]:
+	if not buildings.has(hex) or territory.owner_at(hex) != faction or not is_complete(buildings[hex]) or not buildings[hex]["kind"] in ["barracks", "factory", "airfield"]:
 		return false
 	for site in buildings.values():
 		if site["kind"] == buildings[hex]["kind"]:
@@ -122,6 +124,8 @@ func train(hex: Vector2i, kind: String, territory: TerritoryState) -> bool:
 	if not buildings.has(hex) or not is_complete(buildings[hex]) or territory.owner_at(hex) != faction or not TRAIN_COSTS.has(kind):
 		return false
 	var building: Dictionary = buildings[hex]
+	if UnitCatalog.is_air(kind) and (low_power(territory) or territory.is_contested(hex)):
+		return false
 	var required: String = UnitCatalog.producer(kind)
 	if building["kind"] != required or building["queue"].size() >= 5:
 		return false
@@ -131,7 +135,7 @@ func train(hex: Vector2i, kind: String, territory: TerritoryState) -> bool:
 	return true
 
 func set_rally(hex: Vector2i, goal: Vector2i, tiles: Dictionary, territory: TerritoryState) -> bool:
-	if not buildings.has(hex) or territory.owner_at(hex) != faction or HexPathfinding.find_path(tiles, hex, goal).is_empty():
+	if not buildings.has(hex) or territory.owner_at(hex) != faction or HexPathfinding.find_path(tiles, hex, goal, "helicopter" if buildings[hex]["kind"] == "airfield" else "rifle").is_empty():
 		return false
 	buildings[hex]["rally"] = goal
 	return true
@@ -221,6 +225,8 @@ func _advance_interval(delta: float, tiles: Dictionary, territory: TerritoryStat
 			continue
 		if territory.owner_at(hex) != faction or building["queue"].is_empty():
 			continue
+		if building["kind"] == "airfield" and (low_power(territory) or territory.is_contested(hex)):
+			continue
 		building["elapsed"] += delta * (factory_speed if building["kind"] == "factory" else 1.0)
 		while not building["queue"].is_empty():
 			var kind: String = building["queue"][0]
@@ -231,7 +237,10 @@ func _advance_interval(delta: float, tiles: Dictionary, territory: TerritoryStat
 			var unit: UnitState = UnitState.new(hex, UnitCatalog.TYPES[kind]["name"])
 			unit.configure_kind(kind)
 			unit.faction = faction
-			unit.order_move(tiles, building["rally"])
+			if UnitCatalog.is_air(kind):
+				unit.airfield = hex
+			if kind != "fighter":
+				unit.order_move(tiles, building["rally"])
 			recruits.append(unit)
 			command_event.emit("%s ready" % UnitCatalog.TYPES[kind]["name"], hex)
 		if building["queue"].is_empty():

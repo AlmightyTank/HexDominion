@@ -547,7 +547,7 @@ func _run_tests() -> void:
 	_check(game.units.selected_units.size() == 1, "Click replaces group selection")
 	game.units.select_box(Rect2(-100000, -100000, 1, 1), Transform2D.IDENTITY)
 	_check(game.units.selected_units.is_empty() and game.units.selected == null, "Empty box clears selection")
-	_check(game.hud.build_buttons.size() == 5 and game.hud.build_buttons.has("bunker") and not game.hud.build_buttons.has("headquarters"), "HQ-victory construction menu includes bunkers and power plants")
+	_check(game.hud.build_buttons.size() == 6 and game.hud.build_buttons.has("airfield") and game.hud.build_buttons.has("bunker") and not game.hud.build_buttons.has("headquarters"), "HQ-victory construction menu includes airfields, bunkers and power plants")
 	game.hud.show_tile_actions(game.units.units[0].hex, game.units.economy, game.units.territory, tiles)
 	game.hud.production_open = true
 	game.hud._layout_for_viewport()

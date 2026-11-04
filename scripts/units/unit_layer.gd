@@ -74,7 +74,7 @@ func select_box(screen_rect: Rect2, canvas_transform: Transform2D) -> void:
 	var batches: Array[Dictionary] = visual_stacks()
 	for unit in units:
 		var point: Vector2 = unit_position(unit)
-		if unit.hex != expanded_hex or unit.faction != 1:
+		if (unit.hex != expanded_hex or unit.faction != 1) and not (unit.domain == "air" and zoom_factor >= UnitVisuals.FAR_ZOOM):
 			for batch in batches:
 				if batch["members"].has(unit):
 					point = group_position(batch, batches, zoom_factor)
@@ -142,12 +142,16 @@ func _base_position(unit: UnitState) -> Vector2:
 	# Dock idle units beside a building rather than hiding its identifying symbol.
 	if unit.path.is_empty() and economy.buildings.has(unit.hex):
 		point += Vector2(14, 14)
+	if unit.domain == "air":
+		point += Vector2(0, -24)
 	return to_local(point)
 
 func unit_position(unit: UnitState) -> Vector2:
 	return _base_position(unit) + UnitVisuals.offset(unit, units)
 
 func group_position(batch: Dictionary, batches: Array[Dictionary], zoom_factor: float) -> Vector2:
+	if batch.get("domain", "ground") == "air" and zoom_factor >= UnitVisuals.FAR_ZOOM:
+		return unit_position(batch["members"][0])
 	var point: Vector2 = to_local(world_map.hex_to_world(batch["hex"]))
 	if economy.buildings.has(batch["hex"]) or match_state.rival_economy.buildings.has(batch["hex"]):
 		point += Vector2(14, 14)
@@ -164,7 +168,7 @@ func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, _cycl
 	for batch in batches:
 		if batch["faction"] != faction:
 			continue
-		if batch["hex"] == expanded_hex and faction == 1:
+		if (batch["hex"] == expanded_hex and faction == 1) or (batch.get("domain", "ground") == "air" and zoom_factor >= UnitVisuals.FAR_ZOOM):
 			for unit in batch["members"]:
 				var distance: float = unit_position(unit).distance_to(to_local(global_point))
 				if distance < best:
@@ -215,14 +219,16 @@ func _physics_process(delta: float) -> void:
 		unit.attack_flash = maxf(0, unit.attack_flash - delta)
 		unit.damage_flash = maxf(0, unit.damage_flash - delta)
 	var economies: Array[EconomyState] = [economy, match_state.rival_economy]
+	AircraftRules.update(delta, units, world_map.map_data["tiles"], economies, territory)
 	var previous_shots: Dictionary = {}
 	for unit in units:
-		if unit.kind == "artillery":
+		if unit.kind == "artillery" or UnitCatalog.is_air(unit.kind):
 			previous_shots[unit] = unit.shot_serial
 	UnitOrders.update(units, world_map.map_data["tiles"], economies)
 	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units, economy.buildings)
 	combat_targets = CombatState.advance(delta, units, world_map.map_data["tiles"], FortificationRules.protection(units, [economy, match_state.rival_economy], territory))
 	CombatState.attack_extractors(delta, units, economies, combat_targets, world_map.map_data["tiles"])
+	AircraftRules.update(0, units, world_map.map_data["tiles"], economies, territory)
 	for unit in previous_shots:
 		if unit.shot_serial > previous_shots[unit]:
 			shell_effects.append({"from": to_local(world_map.hex_to_world(unit.hex)), "to": to_local(world_map.hex_to_world(unit.last_shot_hex)), "age": 0.0})
@@ -362,9 +368,9 @@ func _draw_units() -> void:
 			injured = injured or UnitArt.state_for(member.health, member.max_health, member.kind) == "damaged"
 			health_fraction = minf(health_fraction, member.health / member.max_health)
 		var icon_scale: float = 1.0 / maxf(zoom_factor, 0.15)
-		if batch["hex"] == expanded_hex and batch["faction"] == 1:
+		if (batch["hex"] == expanded_hex and batch["faction"] == 1) or (batch.get("domain", "ground") == "air" and zoom_factor >= UnitVisuals.FAR_ZOOM):
 			for member in members:
-				UnitAppearance.draw_unit(self, member, unit_position(member), faction_color(member.faction), selected_units.has(member), animation_time)
+				UnitAppearance.draw_unit(self, member, unit_position(member), faction_color(member.faction), selected_units.has(member), animation_time, 0.85 if member.domain == "air" and zoom_factor < UnitVisuals.CLOSE_ZOOM else 1.0)
 			continue
 		var firing_member: UnitState = null
 		for member in members:

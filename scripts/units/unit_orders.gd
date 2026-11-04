@@ -2,9 +2,11 @@ extends RefCounted
 class_name UnitOrders
 ## Explicit attack pursuit; ordinary movement and Hold keep their existing rules.
 static func attack(unit: UnitState, tiles: Dictionary, goal: Vector2i, target: UnitState = null) -> bool:
+	if unit.kind == "fighter" and (unit.air_mission != "ready" or unit.airfield == AircraftRules.NO_BASE):
+		return false
 	if target != null and (not target.is_deployed() or target.faction == unit.faction or not UnitCatalog.can_target(unit, target)):
 		return false
-	if unit.kind == "artillery" and unit.is_deployed() and unit.path.is_empty() and HexMath.distance(unit.hex, goal) <= unit.attack_range and HexPathfinding.is_walkable(tiles, goal):
+	if (unit.kind == "artillery" or (target != null and target.domain == "air")) and unit.is_deployed() and unit.path.is_empty() and HexMath.distance(unit.hex, goal) <= unit.attack_range and tiles.has(goal):
 		unit.order_hold()
 		unit.holding = false
 	else:
@@ -13,6 +15,8 @@ static func attack(unit: UnitState, tiles: Dictionary, goal: Vector2i, target: U
 	unit.attack_order = true
 	unit.attack_hex = goal
 	unit.attack_target = weakref(target) if target != null else null
+	if unit.kind == "fighter":
+		unit.air_mission = "striking"
 	_trim_route(unit)
 	return true
 
@@ -38,5 +42,7 @@ static func update(units: Array[UnitState], tiles: Dictionary, economies: Array[
 			unit.order_hold()
 			continue
 		if target != null and target.hex != unit.attack_hex:
+			if unit.kind == "fighter":
+				unit.air_mission = "ready"
 			attack(unit, tiles, target.hex, target)
 		_trim_route(unit)

@@ -12,6 +12,7 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 			"kind": unit.kind, "health": unit.health, "faction": unit.faction,
 			"garrisoned": unit.garrisoned, "holding": unit.holding, "title": unit.title,
 			"weapon_elapsed": unit.weapon_elapsed, "facing": unit.facing, "turret_facing": unit.turret_facing,
+			"airfield": unit.airfield, "air_mission": unit.air_mission, "mission_remaining": unit.mission_remaining,
 			"carrier": layer.units.find(unit.carrier.get_ref()) if unit.is_embarked() else -1, "attack_order": unit.attack_order,
 			"attack_hex": unit.attack_hex, "attack_target": layer.units.find(unit.attack_target.get_ref()) if unit.attack_target != null else -1})
 	var match_state: MatchState = layer.match_state
@@ -74,9 +75,20 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 	var passenger_counts: Dictionary = {}
 	for unit in data["units"]:
-		if not unit is Dictionary or not _land(unit.get("hex"), tiles) or not unit.get("path") is Array:
+		if not unit is Dictionary or not unit.get("hex") is Vector2i or not tiles.has(unit["hex"]) or not unit.get("path") is Array:
 			return false
 		if unit.get("kind") not in UnitCatalog.TYPES or unit.get("faction") not in [1, 2] or not unit.get("garrisoned") is bool or not unit.get("title") is String:
+			return false
+		var airborne: bool = UnitCatalog.is_air(unit["kind"])
+		if not airborne and not _land(unit["hex"], tiles):
+			return false
+		if not unit.get("airfield", AircraftRules.NO_BASE) is Vector2i or (unit.get("airfield", AircraftRules.NO_BASE) != AircraftRules.NO_BASE and not _land(unit["airfield"], tiles)):
+			return false
+		if unit.get("air_mission", "ready") not in ["ready", "striking", "returning", "rearming", "orphaned"] or not _number(unit.get("mission_remaining", 0.0), 0, UnitCatalog.TYPES["fighter"]["mission_cooldown"]):
+			return false
+		if airborne and (unit["garrisoned"] or unit.get("carrier", -1) != -1):
+			return false
+		if unit["kind"] == "fighter" and ((unit.get("air_mission", "ready") == "striking") != unit.get("attack_order", false)):
 			return false
 		if not _number(unit.get("health"), 0.001, UnitCatalog.TYPES[unit["kind"]]["health"]) or not _number(unit.get("progress"), 0, 0.999999999):
 			return false
@@ -100,7 +112,7 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 		if target_index < -1 or target_index >= data["units"].size():
 			return false
 		if unit.get("attack_order", false):
-			if not _land(unit.get("attack_hex"), tiles) or unit.get("holding", false) or unit["garrisoned"]:
+			if not unit.get("attack_hex") is Vector2i or not tiles.has(unit["attack_hex"]) or (not airborne and not _land(unit["attack_hex"], tiles)) or unit.get("holding", false) or unit["garrisoned"]:
 				return false
 			if target_index >= 0:
 				var target_entry: Variant = data["units"][target_index]
@@ -114,7 +126,7 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 		var previous: Vector2i = unit["hex"]
 		for step in unit["path"]:
-			if not _land(step, tiles) or HexMath.distance(previous, step) != 1:
+			if not step is Vector2i or not tiles.has(step) or (not airborne and not _land(step, tiles)) or HexMath.distance(previous, step) != 1:
 				return false
 			previous = step
 	for key in ["economy", "rival_economy"]:
@@ -136,7 +148,7 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 		var building: Variant = data["buildings"][hex]
 		if not _land(hex, tiles) or not building is Dictionary:
 			return false
-		if building.get("kind") not in EconomyState.BUILD_COSTS or not _land(building.get("rally"), tiles) or not building.get("queue") is Array:
+		if building.get("kind") not in EconomyState.BUILD_COSTS or not building.get("rally") is Vector2i or not tiles.has(building["rally"]) or (building["kind"] != "airfield" and not _land(building["rally"], tiles)) or not building.get("queue") is Array:
 			return false
 		if not building.get("rotation", 0) is int or building.get("rotation", 0) < 0 or building.get("rotation", 0) > 5:
 			return false
@@ -184,6 +196,9 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		unit.weapon_elapsed = entry.get("weapon_elapsed", 0.0)
 		unit.facing = entry.get("facing", 0.0)
 		unit.turret_facing = entry.get("turret_facing", unit.facing)
+		unit.airfield = entry.get("airfield", AircraftRules.NO_BASE)
+		unit.air_mission = entry.get("air_mission", "ready")
+		unit.mission_remaining = entry.get("mission_remaining", 0.0)
 		unit.attack_order = entry.get("attack_order", false)
 		unit.attack_hex = entry.get("attack_hex", Vector2i.ZERO)
 		roster.append(unit)
