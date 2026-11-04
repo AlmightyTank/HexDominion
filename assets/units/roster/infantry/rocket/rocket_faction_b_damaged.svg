@@ -1,13 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Rocket Soldier: faction b, damaged</title><defs>
-      <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
-        <stop stop-color="#e2e8ec"/><stop offset=".45" stop-color="#647580"/>
-        <stop offset=".55" stop-color="#344650"/><stop offset="1" stop-color="#b5c0c6"/>
-      </linearGradient>
-      <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
-        <stop stop-color="#242c30"/><stop offset="1" stop-color="#11181e"/>
-      </linearGradient></defs>
-      <polygon points="64,5 115,34 115,94 64,123 13,94 13,34" fill="url(#metal)" stroke="#0c141b" stroke-width="4"/>
-      <polygon points="64,11 110,37 110,91 64,117 18,91 18,37" fill="#f08075"/>
-      <polygon points="64,18 104,41 104,87 64,110 24,87 24,41" fill="url(#field)" stroke="#0c141b" stroke-width="2"/>
-      <path d="M24 43 L64 20 L103 43" fill="none" stroke="#c8d5dd" stroke-opacity=".35" stroke-width="2"/>
-      <path d="M24 86 L64 109 L104 86" fill="none" stroke="#02090e" stroke-width="3"/><g fill="#a4afb4" stroke="#121d25" stroke-width="1.2" stroke-linejoin="round"><path d="M34 42 Q34 28 46 28 Q58 28 59 42 L62 45 L35 45 Z M38 47 L55 47 L53 56 L42 58 L38 53 Z"/><path d="M39 59 L53 57 L63 69 L58 84 L66 92 L49 92 L44 82 L35 91 L28 88 L37 74 Z"/><path d="M50 61 L67 53 L77 58 L69 66 L54 73 Z M31 46 L35 41 L96 41 L107 49 L96 57 L35 57 L31 53 Z M68 57 L65 67 L74 67 L79 57 Z"/></g><g fill="#f08075" stroke="none"><path d="M64 95 L69 101 L69 108 L64 111 L59 108 L59 101 Z M58 104 L54 110 L59 108 M70 104 L74 110 L69 108"/></g><path d="M18 38 L29 45 L22 53 L32 61 M109 83 L99 88 L105 97" fill="none" stroke="#080d10" stroke-width="4"/><path d="M18 68 L18 82" stroke="#d26059" stroke-width="4"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Rocket Soldier: faction b, damaged</title><g xmlns="http://www.w3.org/2000/svg" id="soldier" stroke="#131a17" stroke-width="3" stroke-linejoin="round">
+      <path d="M45 69Q64 62 83 69L81 85Q64 91 47 85Z" fill="#56614e" />
+      <path d="M49 74Q64 69 79 74L78 81Q64 85 50 81Z" fill="#92997a" />
+      <path d="M35 55Q43 45 54 47H74Q85 45 93 55L88 71Q64 81 40 71Z" fill="#f08075" />
+      <path d="M39 56Q45 49 54 50L52 59 40 63Z" fill="#f7b8ae" stroke="none" />
+      <path d="M45 51 34 55 34 69 43 73 77 46 71 39 43 60Z" fill="#f08075" />
+      <path d="M82 53 94 60 94 75 85 80 74 67 80 60 86 66 86 63Z" fill="#f08075" />
+      <path d="M76 18H82V58H76Z" fill="#131a17" />
+      <path d="M73 48H85V60H73Z" fill="#626b61" />
+      <path d="M76 59H83L85 73H75Z" fill="#56614e" />
+      <path d="M78 21H80V44H78Z" fill="#92997a" stroke="none" />
+      <path d="M77 56 86 59 83 66 76 63ZM71 39 79 37 82 44 75 49 70 45Z" fill="#c6c7a3" />
+      <ellipse cx="64" cy="63" rx="18" ry="17" fill="#f08075" />
+      <path d="M49 62Q51 48 65 48Q74 49 78 56Q61 52 52 66Z" fill="#f7b8ae" stroke="none" />
+      <path d="M49 71Q64 81 79 71" fill="none" stroke="#a64f49" stroke-width="4" />
+    </g>
+    <path d="M71 20L79 9L88 20V62H71Z" fill="#56614e" stroke="#131a17" stroke-width="3"/><path d="M74 23H85V49H74Z" fill="#92997a"/><path d="M45 70 L59 63 L72 72 L63 88 L46 83 Z" fill="#292825" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/><path d="M47 40 L60 52 L55 62 L70 70" fill="none" stroke="#202a28" stroke-width="4" stroke-linejoin="round"/></svg>

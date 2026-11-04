@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>barracks, faction b, damaged</title><g xmlns="http://www.w3.org/2000/svg" id="barracks" stroke="#131a17" stroke-width="3" stroke-linejoin="round">
+      <path d="M19 22H107V108H19Z" fill="#a64f49" />
+      <path d="M24 25H102V99H24Z" fill="#f08075" />
+      <path d="M24 25H63V99H24Z" fill="#f7b8ae" />
+      <path d="M63 25V99" fill="none" stroke="#a64f49" stroke-width="4" />
+      <path d="M28 42H98M28 62H98M28 82H98" fill="none" stroke="#a64f49" stroke-width="2" />
+      <path d="M24 26H102V34H24Z" fill="#92997a" />
+      <path d="M48 99H78V111H48Z" fill="#131a17" />
+      <path d="M48 113H78" stroke="#c6c7a3" />
+      <rect x="11" y="41" width="13" height="16" fill="#56614e" />
+      <rect x="102" y="71" width="13" height="16" fill="#56614e" />
+      <path d="M39 18H54V25H39Z" fill="#626b61" />
+    </g>
+  <path d="M43 47L57 57 51 68 70 79M75 39L69 50 83 58" fill="none" stroke="#131a17" stroke-width="4"/><path d="M44 71L59 65 73 75 66 89 47 85Z" fill="#30312c" stroke="#131a17" stroke-width="3"/></svg>

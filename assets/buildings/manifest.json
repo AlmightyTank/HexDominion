@@ -1,0 +1,71 @@
+{
+  "source": "Original top-down vectors; approved soldier/tank/barracks style",
+  "buildings": {
+    "barracks": [
+      "assets/buildings/barracks_a.svg",
+      "assets/buildings/barracks_a_damaged.svg",
+      "assets/buildings/barracks_a_destroyed.svg",
+      "assets/buildings/barracks_b.svg",
+      "assets/buildings/barracks_b_damaged.svg",
+      "assets/buildings/barracks_b_destroyed.svg",
+      "assets/buildings/barracks_c.svg",
+      "assets/buildings/barracks_c_damaged.svg",
+      "assets/buildings/barracks_c_destroyed.svg"
+    ],
+    "headquarters": [
+      "assets/buildings/headquarters_a.svg",
+      "assets/buildings/headquarters_a_damaged.svg",
+      "assets/buildings/headquarters_a_destroyed.svg",
+      "assets/buildings/headquarters_b.svg",
+      "assets/buildings/headquarters_b_damaged.svg",
+      "assets/buildings/headquarters_b_destroyed.svg",
+      "assets/buildings/headquarters_c.svg",
+      "assets/buildings/headquarters_c_damaged.svg",
+      "assets/buildings/headquarters_c_destroyed.svg"
+    ],
+    "factory": [
+      "assets/buildings/factory_a.svg",
+      "assets/buildings/factory_a_damaged.svg",
+      "assets/buildings/factory_a_destroyed.svg",
+      "assets/buildings/factory_b.svg",
+      "assets/buildings/factory_b_damaged.svg",
+      "assets/buildings/factory_b_destroyed.svg",
+      "assets/buildings/factory_c.svg",
+      "assets/buildings/factory_c_damaged.svg",
+      "assets/buildings/factory_c_destroyed.svg"
+    ],
+    "power_plant": [
+      "assets/buildings/power_plant_a.svg",
+      "assets/buildings/power_plant_a_damaged.svg",
+      "assets/buildings/power_plant_a_destroyed.svg",
+      "assets/buildings/power_plant_b.svg",
+      "assets/buildings/power_plant_b_damaged.svg",
+      "assets/buildings/power_plant_b_destroyed.svg",
+      "assets/buildings/power_plant_c.svg",
+      "assets/buildings/power_plant_c_damaged.svg",
+      "assets/buildings/power_plant_c_destroyed.svg"
+    ],
+    "extractor": [
+      "assets/buildings/extractor_a.svg",
+      "assets/buildings/extractor_a_damaged.svg",
+      "assets/buildings/extractor_a_destroyed.svg",
+      "assets/buildings/extractor_b.svg",
+      "assets/buildings/extractor_b_damaged.svg",
+      "assets/buildings/extractor_b_destroyed.svg",
+      "assets/buildings/extractor_c.svg",
+      "assets/buildings/extractor_c_damaged.svg",
+      "assets/buildings/extractor_c_destroyed.svg"
+    ],
+    "bunker": [
+      "assets/buildings/bunker_a.svg",
+      "assets/buildings/bunker_a_damaged.svg",
+      "assets/buildings/bunker_a_destroyed.svg",
+      "assets/buildings/bunker_b.svg",
+      "assets/buildings/bunker_b_damaged.svg",
+      "assets/buildings/bunker_b_destroyed.svg",
+      "assets/buildings/bunker_c.svg",
+      "assets/buildings/bunker_c_damaged.svg",
+      "assets/buildings/bunker_c_destroyed.svg"
+    ]
+  }
+}

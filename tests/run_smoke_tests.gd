@@ -97,7 +97,7 @@ func _test_infantry_integration() -> void:
 	game.units.select_one(game.units.units[0])
 	game.units.toggle_selection(game.units.units[1])
 	game._process(0)
-	_check(game.units.selected_units.size() == 2 and "Rocket Soldier" in game.hud.selection_info.text, "Additive selection reports mixed roster and live stats")
+	_check(game.units.selected_units.size() == 2 and "2 selected" in game.hud.selection_info.text and "HP" in game.hud.selection_info.text and "Rocket Soldier" in game.hud.selection_info.tooltip_text, "Additive selection reports compact mixed roster, live HP and detailed tooltip")
 	game.units.economy.add_building(home, "barracks")
 	game.units.economy.credits = 1000
 	game._select_facility(home)
@@ -206,7 +206,7 @@ func _test_economy_interface() -> void:
 	_check(game._economy_hex() == second and game.hud.train_buttons["tank"].visible, "Placing construction does not steal selected factory controls")
 	_check(game.hud.facility_buttons[site].text.contains("Construction 0%") and game.hud.facility_buttons[first].text.contains("tank"), "Roster exposes construction and production jobs simultaneously")
 	_check(game.hud.build_buttons["extractor"].tooltip_text.contains("resource deposit") and game.hud.build_buttons["factory"].tooltip_text.contains("20 power") and game.hud.build_buttons["factory"].text.contains("200 CR"), "Construction tiles expose costs and tooltips expose power and terrain requirements")
-	_check(game.hud.economy_summary.text.contains("LOW") and game.hud.facility_buttons[second].text.contains("50% speed"), "Grid deficit and reduced production speed are visible")
+	_check(game.hud.power_gauge.demand > game.hud.power_gauge.supply and game.hud.power_gauge.tooltip_text.contains("LOW POWER") and game.hud.facility_buttons[second].text.contains("50% speed"), "Power gauge deficit and reduced production speed are visible")
 	game.units.economy.buildings[first]["elapsed"] = 2.0
 	game.hud.facility_buttons[first].pressed.emit()
 	_check(is_equal_approx(game.hud.training_progress.value, 25.0) and game.hud.build_status.text.contains("Rally:"), "Selected facility shows precise production progress and own rally coordinates")
@@ -548,7 +548,7 @@ func _run_tests() -> void:
 	_check(game.units.selected_units.is_empty() and game.units.selected == null, "Empty box clears selection")
 	_check(game.hud.build_buttons.size() == 5 and game.hud.build_buttons.has("bunker") and not game.hud.build_buttons.has("headquarters"), "HQ-victory construction menu includes bunkers and power plants")
 	game.hud.show_tile_actions(game.units.units[0].hex, game.units.economy, game.units.territory, tiles)
-	_check(game.hud.build_panel.visible and game.hud.command_tabs.get_tab_count() == 4 and game.hud.build_buttons["barracks"].visible, "Tabbed construction sidebar remains available while inspecting buildings")
+	_check(game.hud.build_panel.visible and game.hud.command_tabs.get_tab_count() == 3 and game.hud.production_tabs.get_tab_count() == 3 and game.hud.build_buttons["barracks"].visible, "Management and production categories remain available while inspecting buildings")
 	game.hud.show_tile_actions(Vector2i(-9999, -9999), game.units.economy, game.units.territory, tiles)
 	_check(game.hud.build_panel.visible, "Construction sidebar remains available without a valid selected tile")
 	var before_selection: float = game.units.economy.credits

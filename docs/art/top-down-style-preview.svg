@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="760" viewBox="0 0 900 760">
+  <title>Hex Dominion top-down style draft</title>
+  <desc>Faction-primary rifle soldier, tank and barracks concepts. Blue body surfaces, secondary olive equipment, dark outlines. Large studies and 28-pixel samples. Not integrated into gameplay.</desc>
+  <defs>
+    <g id="soldier" stroke="#131a17" stroke-width="3" stroke-linejoin="round">
+      <path d="M45 69Q64 62 83 69L81 85Q64 91 47 85Z" fill="#56614e"/>
+      <path d="M49 74Q64 69 79 74L78 81Q64 85 50 81Z" fill="#92997a"/>
+      <path d="M35 55Q43 45 54 47H74Q85 45 93 55L88 71Q64 81 40 71Z" fill="#55aff0"/>
+      <path d="M39 56Q45 49 54 50L52 59 40 63Z" fill="#97d0f5" stroke="none"/>
+      <path d="M45 51 34 55 34 69 43 73 77 46 71 39 43 60Z" fill="#55aff0"/>
+      <path d="M82 53 94 60 94 75 85 80 74 67 80 60 86 66 86 63Z" fill="#55aff0"/>
+      <path d="M76 18H82V58H76Z" fill="#131a17"/>
+      <path d="M73 48H85V60H73Z" fill="#626b61"/>
+      <path d="M76 59H83L85 73H75Z" fill="#56614e"/>
+      <path d="M78 21H80V44H78Z" fill="#92997a" stroke="none"/>
+      <path d="M77 56 86 59 83 66 76 63ZM71 39 79 37 82 44 75 49 70 45Z" fill="#c6c7a3"/>
+      <ellipse cx="64" cy="63" rx="18" ry="17" fill="#55aff0"/>
+      <path d="M49 62Q51 48 65 48Q74 49 78 56Q61 52 52 66Z" fill="#97d0f5" stroke="none"/>
+      <path d="M49 71Q64 81 79 71" fill="none" stroke="#3575a6" stroke-width="4"/>
+    </g>
+    <g id="tank" stroke="#131a17" stroke-width="3" stroke-linejoin="round">
+      <rect x="26" y="38" width="18" height="71" fill="#131a17"/>
+      <rect x="84" y="38" width="18" height="71" fill="#131a17"/>
+      <path d="M29 46H41M29 60H41M29 74H41M29 88H41M29 102H41M87 46H99M87 60H99M87 74H99M87 88H99M87 102H99" stroke="#626b61"/>
+      <path d="M44 39 83 35 91 49 91 93 80 106 43 106Z" fill="#55aff0"/>
+      <path d="M47 43V99" stroke="#97d0f5" stroke-width="4"/>
+      <path d="M48 97H83" stroke="#92997a" stroke-width="9"/>
+      <path d="M49 62 75 58 84 69 77 85 49 85Z" fill="#55aff0"/>
+      <path d="M52 65 74 62" stroke="#97d0f5" stroke-width="3"/>
+      <path d="M64 64V16" stroke="#131a17" stroke-width="9"/>
+    </g>
+    <g id="barracks" stroke="#131a17" stroke-width="3" stroke-linejoin="round">
+      <path d="M19 22H107V108H19Z" fill="#3575a6"/>
+      <path d="M24 25H102V99H24Z" fill="#55aff0"/>
+      <path d="M24 25H63V99H24Z" fill="#97d0f5"/>
+      <path d="M63 25V99" fill="none" stroke="#3575a6" stroke-width="4"/>
+      <path d="M28 42H98M28 62H98M28 82H98" fill="none" stroke="#3575a6" stroke-width="2"/>
+      <path d="M24 26H102V34H24Z" fill="#92997a"/>
+      <path d="M48 99H78V111H48Z" fill="#131a17"/>
+      <path d="M48 113H78" stroke="#c6c7a3"/>
+      <rect x="11" y="41" width="13" height="16" fill="#56614e"/>
+      <rect x="102" y="71" width="13" height="16" fill="#56614e"/>
+      <path d="M39 18H54V25H39Z" fill="#626b61"/>
+    </g>
+  </defs>
+   <rect width="900" height="760" fill="#192326"/>
+  <g font-family="sans-serif" fill="#f5efdb">
+    <text x="28" y="35" font-size="22">Top-down military style</text>
+    <text x="28" y="61" font-size="14">Draft: faction color first, olive second. No badge frames. Gameplay unchanged.</text>
+    <text x="111" y="102" font-size="18">Rifle soldier</text>
+    <text x="402" y="102" font-size="18">Tank recolor</text>
+    <text x="711" y="102" font-size="18">Barracks</text>
+  </g>
+  <use href="#soldier" transform="translate(55 112) scale(1.5)"/>
+  <use href="#tank" transform="translate(355 112) scale(1.5)"/>
+  <use href="#barracks" transform="translate(655 112) scale(1.5)"/>
+  <text x="28" y="336" font-family="sans-serif" font-size="14" fill="#f5efdb">28 px samples: forest / sand / snow</text>
+  <g>
+    <path d="M28 353H872V405H28Z" fill="#486d43"/>
+    <path d="M310 353H590V405H310Z" fill="#d4b575"/>
+    <path d="M590 353H872V405H590Z" fill="#dfe9ec"/>
+    <use href="#soldier" transform="translate(83 365) scale(.21875)"/>
+    <use href="#tank" transform="translate(158 365) scale(.21875)"/>
+    <use href="#barracks" transform="translate(233 365) scale(.21875)"/>
+    <use href="#soldier" transform="translate(363 365) scale(.21875)"/>
+    <use href="#tank" transform="translate(438 365) scale(.21875)"/>
+    <use href="#barracks" transform="translate(513 365) scale(.21875)"/>
+    <use href="#soldier" transform="translate(643 365) scale(.21875)"/>
+    <use href="#tank" transform="translate(718 365) scale(.21875)"/>
+    <use href="#barracks" transform="translate(793 365) scale(.21875)"/>
+  </g>
+  <g font-family="sans-serif" font-size="13" fill="#f5efdb">
+    <text x="28" y="442">Faction-colored bodies make ownership the first read; olive stays on equipment and trim.</text>
+    <text x="28" y="465">Shared upper-left highlights and dark edges keep the family consistent and silhouettes distinct.</text>
+  </g>
+  <g font-family="sans-serif" fill="#f5efdb">
+    <text x="28" y="510" font-size="18">Soldier turning study</text>
+    <text x="28" y="534" font-size="13">Overhead view: helmet, shoulders and backpack top. No visible legs. Same pose rotated around (64,64).</text>
+    <text x="137" y="562" font-size="14">Up</text>
+    <text x="334" y="562" font-size="14">Right</text>
+    <text x="536" y="562" font-size="14">Down</text>
+    <text x="740" y="562" font-size="14">Left</text>
+  </g>
+  <use href="#soldier" transform="translate(100 570) scale(.8)"/>
+  <use href="#soldier" transform="translate(300 570) scale(.8) rotate(90 64 64)"/>
+  <use href="#soldier" transform="translate(500 570) scale(.8) rotate(180 64 64)"/>
+  <use href="#soldier" transform="translate(700 570) scale(.8) rotate(270 64 64)"/>
+  <path d="M28 685H872V731H28Z" fill="#486d43"/>
+  <use href="#soldier" transform="translate(137 694) scale(.21875)"/>
+  <use href="#soldier" transform="translate(337 694) scale(.21875) rotate(90 64 64)"/>
+  <use href="#soldier" transform="translate(537 694) scale(.21875) rotate(180 64 64)"/>
+  <use href="#soldier" transform="translate(737 694) scale(.21875) rotate(270 64 64)"/>
+  <text x="28" y="751" font-family="sans-serif" font-size="12" fill="#f5efdb">28 px direction samples. Preview only: movement, selection rings and health bars are not changed.</text>
+</svg>

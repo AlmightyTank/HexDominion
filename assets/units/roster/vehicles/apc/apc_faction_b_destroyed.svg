@@ -13,26 +13,26 @@
       <rect x="23" y="93" width="14" height="18" rx="3"/>
       <rect x="91" y="93" width="14" height="18" rx="3"/>
     </g>
-    <path d="M26 32v8m73-8v8M26 54v8m73-8v8M26 76v8m73-8v8M26 98v8m73-8v8" stroke="#45443f" stroke-width="2"/>
-    <path d="M43 19h42l9 14v75l-7 8H41l-7-8V33Z" fill="#45443f"/>
-    <path d="M43 19h7l-8 17v69l6 11h-7l-7-8V33Z" fill="#68665b" stroke="none"/>
-    <path d="m85 19 9 14v75l-7 8H48v-8h38V35l-8-16Z" fill="#252827" stroke="none"/>
-    <path d="M44 26h40" stroke="#68665b" stroke-width="2"/>
-    <path d="M42 32h13v7H42Zm31 0h13v7H73Z" fill="#68665b" stroke-width="2"/>
+    <path d="M26 32v8m73-8v8M26 54v8m73-8v8M26 76v8m73-8v8M26 98v8m73-8v8" stroke="#4c5048" stroke-width="2"/>
+    <path d="M43 19h42l9 14v75l-7 8H41l-7-8V33Z" fill="#4c5048"/>
+    <path d="M43 19h7l-8 17v69l6 11h-7l-7-8V33Z" fill="#77796a" stroke="none"/>
+    <path d="m85 19 9 14v75l-7 8H48v-8h38V35l-8-16Z" fill="#252c29" stroke="none"/>
+    <path d="M44 26h40" stroke="#77796a" stroke-width="2"/>
+    <path d="M42 32h13v7H42Zm31 0h13v7H73Z" fill="#77796a" stroke-width="2"/>
     <!-- The large uninterrupted rear roof is the troop compartment. -->
-    <path d="M43 61h42v42H43Z" fill="#45443f" stroke-width="2"/>
-    <path d="M44 62h7v39h-7Z" fill="#68665b" stroke="none"/>
-    <path d="M78 62h6v39h-6Z" fill="#252827" stroke="none"/>
-    <path d="M54 69h20v23H54Z" fill="#45443f" stroke-width="2"/>
-    <path d="M64 70v21" stroke="#252827" stroke-width="2"/>
-    <path d="M58 80v5m12-5v5" stroke="#68665b" stroke-width="2"/>
+    <path d="M43 61h42v42H43Z" fill="#4c5048" stroke-width="2"/>
+    <path d="M44 62h7v39h-7Z" fill="#77796a" stroke="none"/>
+    <path d="M78 62h6v39h-6Z" fill="#252c29" stroke="none"/>
+    <path d="M54 69h20v23H54Z" fill="#4c5048" stroke-width="2"/>
+    <path d="M64 70v21" stroke="#252c29" stroke-width="2"/>
+    <path d="M58 80v5m12-5v5" stroke="#77796a" stroke-width="2"/>
     <path d="M44 65h6v33h-6Zm34 0h6v33h-6Z" fill="#777262" stroke="none"/>
-    <path d="M49 105h30v11H49Z" fill="#252827" stroke-width="2"/>
-    <path d="M54 109h20m-20 4h20" stroke="#68665b" stroke-width="2"/>
+    <path d="M49 105h30v11H49Z" fill="#252c29" stroke-width="2"/>
+    <path d="M54 109h20m-20 4h20" stroke="#77796a" stroke-width="2"/>
     <!-- A compact defensive mount leaves the transport roof dominant. -->
-    <path d="M57 43q7-4 14 0l3 8-3 7H57l-3-7Z" fill="#45443f" stroke-width="2"/>
-    <path d="M61 31h6v16h-6Z" fill="#252827" stroke-width="2"/>
-    <path d="M63 33v10" stroke="#68665b" stroke-width="1"/>
-    <path d="M40 25h5m38 0h5" stroke="#68665b" stroke-width="2"/>
+    <path d="M57 43q7-4 14 0l3 8-3 7H57l-3-7Z" fill="#4c5048" stroke-width="2"/>
+    <path d="M61 31h6v16h-6Z" fill="#252c29" stroke-width="2"/>
+    <path d="M63 33v10" stroke="#77796a" stroke-width="1"/>
+    <path d="M40 25h5m38 0h5" stroke="#77796a" stroke-width="2"/>
   </g>
-<rect x="49" y="92" width="30" height="13" rx="2" fill="#777262" stroke="#202a28" stroke-width="3"/><circle cx="54" cy="98" r="2" fill="#68665b"/><circle cx="74" cy="98" r="2" fill="#68665b"/><path d="M32 35 L55 54 L46 68 L73 81 L63 97 L92 112" fill="none" stroke="#202a28" stroke-width="7" stroke-linejoin="round"/><path d="M36 97 L51 91 L48 111 L29 115 Z" fill="#302e29" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/></svg>
+<rect x="49" y="92" width="30" height="13" rx="2" fill="#777262" stroke="#202a28" stroke-width="3"/><circle cx="54" cy="98" r="2" fill="#77796a"/><circle cx="74" cy="98" r="2" fill="#77796a"/><path d="M45 43L69 49 82 68 69 88 43 80 39 61Z" fill="#171d1b" stroke="#77796a" stroke-width="3"/><path d="M48 50L64 65 51 77M73 54L63 68 73 80" fill="none" stroke="#4c5048" stroke-width="5"/><path d="M28 91L39 84 43 101 32 109ZM84 32L96 27 103 40 92 47Z" fill="#4c5048" stroke="#131a17" stroke-width="3"/><path d="M35 42L48 52M80 90L94 103" stroke="#171d1b" stroke-width="6"/></svg>

@@ -30,6 +30,9 @@ static func badge_outline(canvas: CanvasItem, point: Vector2, size: float, color
 	canvas.draw_polyline(points, color, width, true)
 
 static func texture(kind: String, faction: int, state: String = "base") -> Texture2D:
+	# The generated icon uses exactly the base geometry; share its imported texture.
+	if state == "icon":
+		state = "base"
 	var path: String = asset_path(kind, faction, state)
 	if path.is_empty():
 		return null
@@ -37,17 +40,29 @@ static func texture(kind: String, faction: int, state: String = "base") -> Textu
 		_textures[path] = load(path) if ResourceLoader.exists(path) else null
 	return _textures[path]
 
+static func layer_texture(kind: String, faction: int, state: String, part: String) -> Texture2D:
+	if kind not in ["tank", "artillery"] or state not in ["base", "damaged"] or part not in ["hull", "turret", "barrel"]:
+		return null
+	var path: String = asset_path(kind, faction, state).trim_suffix(".svg") + "_" + part + ".svg"
+	if not _textures.has(path):
+		_textures[path] = load(path) if ResourceLoader.exists(path) else null
+	return _textures[path]
+
+static func building_texture(kind: String, faction: int, state: String = "base") -> Texture2D:
+	if state not in ["base", "damaged", "destroyed"]:
+		return null
+	var suffix: String = "" if state == "base" else "_" + state
+	var path: String = "res://assets/buildings/%s_%s%s.svg" % [kind, ["a", "b", "c"][faction_slot(faction)], suffix]
+	if not _textures.has(path):
+		_textures[path] = load(path) if ResourceLoader.exists(path) else null
+	return _textures[path]
+
 static func draw(canvas: CanvasItem, kind: String, faction: int, state: String, point: Vector2, facing: float = 0.0, selected: bool = false, size: float = 28.0, opacity: float = 1.0) -> void:
 	if selected:
-		if CATEGORIES.get(kind, "") == "infantry":
-			badge_outline(canvas, point, size * 1.16, Color("0b1219"), 5)
-			badge_outline(canvas, point, size * 1.16, Color("fff0ad"), 2)
-			badge_outline(canvas, point, size, ACCENTS[faction_slot(faction)].lightened(0.3), 2)
-		else:
-			canvas.draw_arc(point, size * 0.59, 0, TAU, 32, Color("131a17"), 4.0, true)
-			canvas.draw_arc(point, size * 0.59, 0, TAU, 32, Color("fff0ad"), 2.0, true)
+		canvas.draw_arc(point, size * 0.59, 0, TAU, 32, Color("131a17"), 4.0, true)
+		canvas.draw_arc(point, size * 0.59, 0, TAU, 32, Color("fff0ad"), 2.0, true)
 	var image: Texture2D = texture(kind, faction, state)
-	canvas.draw_set_transform(point, 0.0 if CATEGORIES.get(kind, "") == "infantry" or state == "icon" else facing + PI / 2.0)
+	canvas.draw_set_transform(point, 0.0 if state == "icon" else facing + PI / 2.0)
 	if image != null:
 		canvas.draw_texture_rect(image, Rect2(Vector2.ONE * -size / 2, Vector2.ONE * size), false, Color(1, 1, 1, opacity))
 	else:

@@ -53,6 +53,9 @@ signal defensive_order_requested(action: String)
 var facility_buttons: Dictionary = {}
 var facility_list: VBoxContainer
 var economy_summary: Label
+var resource_strip: PanelContainer
+var power_rail: PanelContainer
+var power_gauge: PowerGauge
 var primary_button: Button
 var field_command_panel: PanelContainer
 var continent_overview: Label
@@ -76,12 +79,20 @@ var stack_all: Button
 var stack_expand: Button
 var attack_button: Button
 var add_selection_button: Button
+var production_tabs: TabContainer
+var selection_panel: ScrollContainer
+var order_grid: GridContainer
+var order_buttons: Dictionary = {}
+var army_empty: Label
+var production_queue: Label
 
 
 func _ready() -> void:
 	_apply_strategy_theme()
 	_create_build_menu()
 	_create_match_menu()
+	_organize_sidebar()
+	_create_resource_strip()
 	$Header/Margin/Content/Subtitle.text = "STRATEGIC COMMAND  /  PLAYER FACTION"
 	$Help/Margin/Content/HelpTitle.text = "FIELD ORDERS"
 	$Help/Margin/Content/DesktopHelp.text = "LEFT DRAG  Select • SHIFT CLICK  Add • RIGHT CLICK  Move / attack"
@@ -157,42 +168,142 @@ func show_command_info(message: String) -> void:
 
 func _layout_for_viewport() -> void:
 	var viewport_size: Vector2 = get_viewport_rect().size
-	var width: float = minf(280.0, viewport_size.x * 0.45)
-	var map_width: float = viewport_size.x - width
-	var bar_height: float = minf(200.0, viewport_size.y * 0.3)
-	var map_height: float = viewport_size.y - bar_height
+	var width: float = minf(340.0, viewport_size.x * 0.45)
+	var strip_height: float = 28
+	var rail_width: float = 44
+	var map_width: float = viewport_size.x - width - rail_width
+	var map_height: float = viewport_size.y
 	header_panel.hide()
 	controls_panel.hide()
 	if build_panel != null:
-		build_panel.position = Vector2(viewport_size.x - width, 0)
-		build_panel.size = Vector2(width, viewport_size.y)
-	if match_panel != null:
-		match_panel.position = Vector2(map_width * 0.65, map_height)
-		match_panel.size = Vector2(map_width * 0.35, bar_height * 0.5)
-	help_panel.position = Vector2(map_width * 0.65, map_height + bar_height * 0.5)
-	help_panel.size = Vector2(map_width * 0.35, bar_height * 0.5)
+		build_panel.position = Vector2(viewport_size.x - width, strip_height)
+		build_panel.size = Vector2(width, viewport_size.y - strip_height)
+	if resource_strip != null:
+		resource_strip.position = Vector2.ZERO
+		resource_strip.size = Vector2(viewport_size.x, strip_height)
+		power_rail.position = Vector2(map_width, strip_height)
+		power_rail.size = Vector2(rail_width, viewport_size.y - strip_height)
+		power_gauge.position = Vector2.ZERO
+		power_gauge.size = Vector2(rail_width, viewport_size.y - strip_height)
+		power_gauge.queue_redraw()
+	if radar != null:
+		radar.custom_minimum_size.y = clampf(viewport_size.y * 0.15, 72, 110)
+	help_panel.hide()
 	if field_command_panel != null:
-		field_command_panel.position = Vector2(0, map_height)
-		field_command_panel.size = Vector2(map_width * 0.65, bar_height)
+		field_command_panel.hide()
+		field_command_panel.size.x = map_width
 	if _camera != null:
-		_camera.configure_map_rect(Rect2(Vector2.ZERO, Vector2(map_width, map_height)))
+		_camera.configure_map_rect(Rect2(Vector2(0, strip_height), Vector2(map_width, map_height - strip_height)))
 	$Help/Margin/Content/HelpTitle.hide()
 	$Help/Margin/Content/DesktopHelp.hide()
 	$Help/Margin/Content/TouchHelp.hide()
 
 
+func _organize_sidebar() -> void:
+	var column: VBoxContainer = radar.get_parent()
+	context_title.hide()
+	column.get_child(context_title.get_index() + 1).hide()
+	production_tabs = command_tabs
+	production_tabs.name = "Categories"
+	for index in range(3):
+		production_tabs.set_tab_title(index, ["Structures", "Infantry", "Vehicles"][index])
+	var sites: Control = production_tabs.get_child(3)
+	sites.reparent(self)
+	command_tabs = TabContainer.new()
+	command_tabs.name = "Management"
+	command_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(command_tabs)
+	var army: VBoxContainer = VBoxContainer.new()
+	army.name = "Army"
+	command_tabs.add_child(army)
+	army_empty = Label.new()
+	army_empty.text = "Select a hex army to manage its units."
+	army_empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	army.add_child(army_empty)
+	stack_panel.reparent(army)
+	stack_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var production: VBoxContainer = VBoxContainer.new()
+	production.name = "Production"
+	command_tabs.add_child(production)
+	var queue_scroll: ScrollContainer = ScrollContainer.new()
+	queue_scroll.custom_minimum_size.y = 54
+	queue_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	production.add_child(queue_scroll)
+	production_queue = Label.new()
+	production_queue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	production_queue.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	queue_scroll.add_child(production_queue)
+	production_tabs.reparent(production)
+	sites.reparent(command_tabs)
+	var inspector: VBoxContainer = sites.get_child(0)
+	tile_info_label.reparent(inspector)
+	supply_info.reparent(inspector)
+	continent_overview.get_parent().reparent(inspector)
+	selection_panel = ScrollContainer.new()
+	selection_panel.name = "Selection"
+	selection_panel.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	selection_panel.follow_focus = true
+	column.add_child(selection_panel)
+	column.move_child(selection_panel, command_tabs.get_index())
+	var selection: VBoxContainer = VBoxContainer.new()
+	selection.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	selection_panel.add_child(selection)
+	selection_info.reparent(selection)
+	selection_info.show()
+	order_grid = GridContainer.new()
+	order_grid.columns = 2
+	selection.add_child(order_grid)
+	for action in ["attack", "hold", "garrison", "load", "unload", "add_select"]:
+		var button: Button = attack_button if action == "attack" else (add_selection_button if action == "add_select" else order_buttons[action])
+		button.reparent(order_grid)
+	command_tabs.current_tab = 1
+	for index in range(3):
+		command_tabs.set_tab_icon(index, load("res://assets/ui/tabs/%s.svg" % ["army", "production", "sites"][index]))
+		command_tabs.set_tab_icon_max_width(index, 16)
+		production_tabs.set_tab_icon(index, load("res://assets/ui/tabs/%s.svg" % ["structures", "infantry", "vehicles"][index]))
+		production_tabs.set_tab_icon_max_width(index, 16)
+	_set_command_cursors(self)
+
+
+func _create_resource_strip() -> void:
+	resource_strip = PanelContainer.new()
+	resource_strip.name = "ResourceStrip"
+	add_child(resource_strip)
+	var strip_style: StyleBoxFlat = _ui_box(Color("191e1b"), Color("777762"), 0)
+	strip_style.content_margin_top = 2
+	strip_style.content_margin_bottom = 2
+	resource_strip.add_theme_stylebox_override("panel", strip_style)
+	economy_summary.reparent(resource_strip)
+	economy_summary.autowrap_mode = TextServer.AUTOWRAP_OFF
+	economy_summary.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	economy_summary.add_theme_font_size_override("font_size", 14)
+	power_rail = PanelContainer.new()
+	power_rail.name = "PowerRail"
+	add_child(power_rail)
+	var rail_style: StyleBoxFlat = _ui_box(Color("191e1b"), Color("777762"), 0)
+	rail_style.content_margin_left = 0
+	rail_style.content_margin_right = 0
+	rail_style.content_margin_top = 0
+	rail_style.content_margin_bottom = 0
+	power_rail.add_theme_stylebox_override("panel", rail_style)
+	var rail_content: Control = Control.new()
+	power_rail.add_child(rail_content)
+	power_gauge = PowerGauge.new()
+	power_gauge.name = "PowerGauge"
+	power_gauge.mouse_filter = Control.MOUSE_FILTER_PASS
+	rail_content.add_child(power_gauge)
+
 func _create_match_menu() -> void:
 	match_panel = PanelContainer.new()
 	match_panel.name = "MatchControls"
-	add_child(match_panel)
+	var sidebar: VBoxContainer = radar.get_parent()
+	sidebar.add_child(match_panel)
+	sidebar.move_child(match_panel, radar.get_index())
 	var column: VBoxContainer = VBoxContainer.new()
 	match_panel.add_child(column)
 	match_label = Label.new()
 	match_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(match_label)
-	var hint: Label = Label.new()
-	hint.text = "ESC  •  Match menu"
-	column.add_child(hint)
 	pause_overlay = Control.new()
 	pause_overlay.name = "PauseMenu"
 	add_child(pause_overlay)
@@ -368,6 +479,10 @@ func show_match_status(match_state: MatchState) -> void:
 	match_label.text = "%s\nYour HQ (%d,%d) • Rival HQ (%d,%d)" % [title, match_state.player_hq.x, match_state.player_hq.y, match_state.rival_hq.x, match_state.rival_hq.y]
 	match_label.add_theme_color_override("font_color", Color("f08075") if match_state.result == "defeat" else Color("65ebd0"))
 	if match_state.result != "playing":
+		if match_panel.get_parent() != self:
+			match_panel.reparent(self)
+		match_panel.position = Vector2(20, 20)
+		match_panel.size = Vector2(field_command_panel.size.x - 40, 80)
 		build_panel.hide()
 
 
@@ -405,9 +520,10 @@ func _create_build_menu() -> void:
 	var command_row: HBoxContainer = HBoxContainer.new()
 	command_row.add_theme_constant_override("separation", 12)
 	command_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	command_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	command_scroll.add_child(command_row)
 	var economy_column: VBoxContainer = VBoxContainer.new()
-	economy_column.custom_minimum_size.x = 180
+	economy_column.custom_minimum_size.x = 160
 	economy_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	command_row.add_child(economy_column)
 	economy_summary = Label.new()
@@ -417,17 +533,17 @@ func _create_build_menu() -> void:
 	supply_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	economy_column.add_child(supply_info)
 	var continent_panel: ScrollContainer = ScrollContainer.new()
-	continent_panel.custom_minimum_size = Vector2(180, 100)
+	continent_panel.custom_minimum_size = Vector2(160, 44)
 	continent_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	continent_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	continent_panel.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	command_row.add_child(continent_panel)
+	economy_column.add_child(continent_panel)
 	continent_overview = Label.new()
 	continent_overview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	continent_overview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	continent_panel.add_child(continent_overview)
 	var orders_column: VBoxContainer = VBoxContainer.new()
-	orders_column.custom_minimum_size.x = 210
+	orders_column.custom_minimum_size.x = 200
 	command_row.add_child(orders_column)
 	var defensive_orders: HBoxContainer = HBoxContainer.new()
 	orders_column.add_child(defensive_orders)
@@ -438,6 +554,7 @@ func _create_build_menu() -> void:
 		order_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		order_button.pressed.connect(func() -> void: defensive_order_requested.emit(action))
 		defensive_orders.add_child(order_button)
+		order_buttons[action] = order_button
 	var command_orders: HBoxContainer = HBoxContainer.new()
 	orders_column.add_child(command_orders)
 	attack_button = Button.new()
@@ -455,6 +572,7 @@ func _create_build_menu() -> void:
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.pressed.connect(func() -> void: defensive_order_requested.emit(action))
 		transport_orders.add_child(button)
+		order_buttons[action] = button
 	add_selection_button = Button.new()
 	add_selection_button.text = "Add selection"
 	add_selection_button.toggle_mode = true
@@ -464,9 +582,25 @@ func _create_build_menu() -> void:
 	command_orders.add_child(add_selection_button)
 	command_tabs = TabContainer.new()
 	stack_panel = ScrollContainer.new()
-	stack_panel.custom_minimum_size.y = 200
+	stack_panel.name = "HexArmy"
+	stack_panel.custom_minimum_size.x = 200
+	stack_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stack_panel.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	column.add_child(stack_panel)
+	stack_panel.follow_focus = true
+	command_scroll.follow_focus = true
+	command_row.add_child(stack_panel)
+	command_row.move_child(stack_panel, 0)
+	command_row.move_child(orders_column, 1)
+	var context_column: VBoxContainer = VBoxContainer.new()
+	context_column.name = "TerrainContext"
+	context_column.custom_minimum_size.x = 220
+	context_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	command_row.add_child(context_column)
+	var context_heading: Label = Label.new()
+	context_heading.text = "TERRAIN / ORDERS"
+	context_column.add_child(context_heading)
+	tile_info_label.reparent(context_column)
+	tile_info_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var stack_column: VBoxContainer = VBoxContainer.new()
 	stack_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stack_panel.add_child(stack_column)
@@ -606,6 +740,7 @@ func _create_build_menu() -> void:
 
 func show_stack(members: Array[UnitState], roster: Array[UnitState], expanded: Vector2i, selected_roster: Array[UnitState]) -> void:
 	stack_panel.visible = not members.is_empty()
+	army_empty.visible = members.is_empty()
 	if members.is_empty():
 		return
 	var counts: Dictionary = {}
@@ -628,11 +763,30 @@ func show_stack(members: Array[UnitState], roster: Array[UnitState], expanded: V
 	stack_passengers.text = "%d aboard APCs (not deployed)" % aboard
 	stack_expand.text = "Collapse" if expanded == members[0].hex else "Expand"
 
-func show_selection(roster: Array[UnitState], attack_mode: bool) -> void:
+func show_selection(roster: Array[UnitState], attack_mode: bool, all_units: Array[UnitState] = []) -> void:
 	attack_button.text = "Cancel attack" if attack_mode else "Attack (X)"
 	attack_button.disabled = roster.is_empty()
+	order_grid.visible = not roster.is_empty()
+	selection_panel.custom_minimum_size.y = 42 if roster.is_empty() else 138
+	var infantry: bool = false
+	var can_load: bool = false
+	var can_unload: bool = false
+	for unit in roster:
+		if unit.kind == "apc" and unit.path.is_empty() and not TransportRules.passengers(unit, all_units).is_empty():
+			can_unload = true
+		if not UnitCatalog.is_infantry(unit.kind):
+			continue
+		infantry = true
+		for carrier in all_units:
+			if carrier.kind == "apc" and carrier.is_deployed() and carrier.faction == unit.faction and carrier.hex == unit.hex and carrier.path.is_empty() and unit.path.is_empty() and TransportRules.passengers(carrier, all_units).size() < TransportRules.CAPACITY:
+				can_load = true
+	order_buttons["garrison"].visible = infantry
+	order_buttons["load"].visible = can_load
+	order_buttons["unload"].visible = can_unload
+	if can_load or can_unload:
+		selection_panel.custom_minimum_size.y = 182
 	if roster.is_empty():
-		selection_info.text = "No units selected. Tap a soldier or drag a selection box."
+		selection_info.text = "No units selected\nClick an army or drag to select."
 		return
 	var counts: Dictionary = {}
 	for unit in roster:
@@ -641,7 +795,9 @@ func show_selection(roster: Array[UnitState], attack_mode: bool) -> void:
 	for kind in counts:
 		labels.append("%s: %d" % [UnitCatalog.TYPES[kind]["name"], counts[kind]])
 	var primary: UnitState = roster[0]
-	selection_info.text = "%d selected | %s\n%s: %.0f / %.0f HP\n%.0f damage / %.2fs | Range %d\n%.2fs/hex | %s" % [roster.size(), ", ".join(labels), UnitCatalog.TYPES[primary.kind]["name"], primary.health, primary.max_health, primary.damage, primary.cooldown, primary.attack_range, primary.seconds_per_hex, "Garrisoned" if primary.garrisoned else ("Holding" if primary.holding else ("Attacking" if primary.attack_order else "Mobile"))]
+	var summary: String = labels[0] if counts.size() == 1 else "%d selected | %d unit types" % [roster.size(), counts.size()]
+	selection_info.text = "%s\nLead: %.0f / %.0f HP | %s" % [summary, primary.health, primary.max_health, "Garrisoned" if primary.garrisoned else ("Holding" if primary.holding else ("Attacking" if primary.attack_order else "Mobile"))]
+	selection_info.tooltip_text = "%s\nLead unit: %.0f damage / %.2fs | Range %d\n%.2fs/hex" % [", ".join(labels), primary.damage, primary.cooldown, primary.attack_range, primary.seconds_per_hex]
 
 func _set_command_cursors(node: Node) -> void:
 	if node is BaseButton:
@@ -662,7 +818,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 	primary_button.text = "Primary production" if primary_button.disabled else "Set primary production"
 	build_panel.visible = true
 	_refresh_facilities(hex, economy, territory)
-	economy_summary.text += "\nIncome: +%.2f CR/s" % economy.income_rate(tiles, territory)
+	economy_summary.text += "    |    +%.2f CR/s" % economy.income_rate(tiles, territory)
 	rally_button.hide()
 	cancel_construction_button.hide()
 	repair_button.hide()
@@ -756,6 +912,7 @@ func show_supply(hex: Vector2i, economy: EconomyState, territory: TerritoryState
 func _refresh_facilities(selected_hex: Vector2i, economy: EconomyState, territory: TerritoryState) -> void:
 	var power: Dictionary = economy.power_balance(territory)
 	var count: int = 0
+	var queues: PackedStringArray = []
 	for hex in facility_buttons.keys():
 		if not economy.buildings.has(hex) or territory.owner_at(hex) != economy.faction:
 			var removed: Button = facility_buttons[hex]
@@ -781,6 +938,7 @@ func _refresh_facilities(selected_hex: Vector2i, economy: EconomyState, territor
 			status = "Construction %d%%" % int(100.0 * site["construction"] / EconomyState.BUILD_SECONDS[kind])
 		elif not site["queue"].is_empty():
 			status = "%s %.1f/%ds; %d queued" % [site["queue"][0], site["elapsed"], EconomyState.TRAIN_SECONDS[site["queue"][0]], site["queue"].size()]
+			queues.append("%s (%d,%d): %s %.0f%% | %d queued%s" % [kind.capitalize(), hex.x, hex.y, UnitCatalog.TYPES[site["queue"][0]]["name"], 100.0 * site["elapsed"] / EconomyState.TRAIN_SECONDS[site["queue"][0]], site["queue"].size(), " | LOW POWER" if economy.low_power(territory) and kind == "factory" else ""])
 		if site.get("repairing", false):
 			status += " | Repair %.0f HP%s" % [site["health"], " (no funds)" if economy.credits <= 0 else ""]
 		if territory.is_contested(hex):
@@ -789,9 +947,12 @@ func _refresh_facilities(selected_hex: Vector2i, economy: EconomyState, territor
 			status += " | " + ("50% speed" if kind == "factory" else "Offline")
 		facility_buttons[hex].text = "%s (%d, %d)\n%s" % [kind.capitalize(), hex.x, hex.y, status]
 		facility_buttons[hex].set_pressed_no_signal(hex == selected_hex)
-	economy_summary.text = "%d CR    |    POWER %d / %d%s" % [economy.credits, power["demand"], power["supply"], " LOW" if economy.low_power(territory) else ""]
+	economy_summary.text = "%d CR" % economy.credits
+	power_gauge.set_balance(power["supply"], power["demand"])
+	production_queue.text = "\n".join(queues) if not queues.is_empty() else "All production queues idle."
+	production_queue.get_parent().custom_minimum_size.y = 24 if queues.is_empty() else (40 if queues.size() == 1 else 64)
 	if count == 0:
-		economy_summary.text += "\nNo controlled structures"
+		economy_summary.text += "    |    No controlled structures"
 
 
 func _apply_strategy_theme() -> void:

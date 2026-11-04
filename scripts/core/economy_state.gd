@@ -1,5 +1,6 @@
 extends RefCounted
 class_name EconomyState
+signal building_destroyed(hex: Vector2i, kind: String, rotation: int, owner: int)
 ## Faction economy and production. All money mutations use the shared account.
 const BUILD_COSTS: Dictionary = {"headquarters": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100}
 const EXTRACTOR_HEALTH: float = 200.0
@@ -188,7 +189,9 @@ func damage_building(hex: Vector2i, amount: float) -> bool:
 		return false
 	buildings[hex]["health"] = maxf(0.0, buildings[hex].get("health", BUILD_HEALTH[buildings[hex]["kind"]]) - amount)
 	if buildings[hex]["health"] <= 0:
+		var lost: Dictionary = buildings[hex]
 		buildings.erase(hex)
+		building_destroyed.emit(hex, lost["kind"], lost.get("rotation", 0), faction)
 	return true
 
 func advance(delta: float, tiles: Dictionary, territory: TerritoryState) -> Array[UnitState]:

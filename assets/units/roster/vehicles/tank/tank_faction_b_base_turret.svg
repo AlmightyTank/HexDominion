@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Main Battle Tank: b, base, turret</title><g stroke="#202a28" stroke-width="3" stroke-linejoin="round"><path xmlns="http://www.w3.org/2000/svg" d="M48 57q16-10 32 0l5 17v15q-21 12-42 0V74Z" fill="#f08075" />
+    <path xmlns="http://www.w3.org/2000/svg" d="M77 57q-13-5-25 1l-5 17v12l-4 2V74l5-17q16-10 32 0l5 17v15q-21 12-42 0l8-3q15 6 29-1V73Z" fill="#a64f49" stroke="none" />
+    <path xmlns="http://www.w3.org/2000/svg" d="M47 81q17 7 34 0v8q-17 8-34 0Z" fill="#92997a" stroke-width="2" />
+    <circle xmlns="http://www.w3.org/2000/svg" cx="72" cy="70" r="7" fill="#a64f49" stroke-width="2" />
+    <path xmlns="http://www.w3.org/2000/svg" d="M69 67h6" stroke="#f7b8ae" stroke-width="2" />
+    
+    <path xmlns="http://www.w3.org/2000/svg" d="M58 56h12v17H58Z" fill="#a64f49" />
+    </g></svg>

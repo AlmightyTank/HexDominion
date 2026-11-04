@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>barracks, faction b, destroyed</title><g xmlns="http://www.w3.org/2000/svg" id="barracks" stroke="#131a17" stroke-width="3" stroke-linejoin="round">
+      <path d="M19 22H107V108H19Z" fill="#252c29" />
+      <path d="M24 25H102V99H24Z" fill="#4c5048" />
+      <path d="M24 25H63V99H24Z" fill="#77796a" />
+      <path d="M63 25V99" fill="none" stroke="#252c29" stroke-width="4" />
+      <path d="M28 42H98M28 62H98M28 82H98" fill="none" stroke="#252c29" stroke-width="2" />
+      <path d="M24 26H102V34H24Z" fill="#92997a" />
+      <path d="M48 99H78V111H48Z" fill="#131a17" />
+      <path d="M48 113H78" stroke="#c6c7a3" />
+      <rect x="11" y="41" width="13" height="16" fill="#56614e" />
+      <rect x="102" y="71" width="13" height="16" fill="#56614e" />
+      <path d="M39 18H54V25H39Z" fill="#626b61" />
+    </g>
+  <path d="M45 43L69 49 82 68 69 88 43 80 39 61Z" fill="#171d1b" stroke="#77796a" stroke-width="3"/><path d="M48 50L64 65 51 77M73 54L63 68 73 80" fill="none" stroke="#4c5048" stroke-width="5"/><path d="M28 91L39 84 43 101 32 109ZM84 32L96 27 103 40 92 47Z" fill="#4c5048" stroke="#131a17" stroke-width="3"/><path d="M35 42L48 52M80 90L94 103" stroke="#171d1b" stroke-width="6"/></svg>

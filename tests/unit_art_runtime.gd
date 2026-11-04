@@ -15,11 +15,12 @@ func run() -> void:
 			unit.configure_kind(kind)
 			unit.health = unit.max_health * 0.4 if index == 0 else unit.max_health
 			game.units.units.append(unit)
+	var expected_count: int = game.units.units.size()
 	for zoom_factor in [0.45, 1.0, 2.3]:
 		game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * zoom_factor)
 		await process_frame
-		var batches: Array[Dictionary] = UnitVisuals.groups(game.units.units)
-		var point: Vector2 = game.units.group_position(batches[0], batches, zoom_factor) if zoom_factor < 1.5 else game.units.unit_position(game.units.units[0])
+		var batches: Array[Dictionary] = UnitVisuals.stacks(game.units.units)
+		var point: Vector2 = game.units.group_position(batches[0], batches, zoom_factor)
 		game._select_at(game.units.to_global(point))
 		assert(game.units.selected != null, "Mouse selection at each tier")
 		game.units.select_one(null)
@@ -37,7 +38,7 @@ func run() -> void:
 		var directory: String = OS.get_environment("HEX_DOMINION_RUNTIME_CAPTURE")
 		if not directory.is_empty():
 			assert(root.get_texture().get_image().save_png(directory.path_join("unit-runtime-%s.png" % UnitVisuals.tier(zoom_factor))) == OK)
-		assert(game.units.units.size() == 12)
-		print("Runtime ", UnitVisuals.tier(zoom_factor), ": mouse/touch selected, 12 simulation units unchanged")
+		assert(game.units.units.size() == expected_count)
+		print("Runtime ", UnitVisuals.tier(zoom_factor), ": mouse/touch selected, ", expected_count, " simulation units unchanged")
 	game.free()
 	quit()

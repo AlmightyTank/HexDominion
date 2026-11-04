@@ -10,19 +10,19 @@
       <rect x="25" y="90" width="14" height="22" rx="3"/>
       <rect x="89" y="90" width="14" height="22" rx="3"/>
     </g>
-    <path d="M28 38v10m69-10v10M28 67v10m69-10v10M28 96v10m69-10v10" stroke="#738d9d" stroke-width="2"/>
-    <path d="M44 25h40l8 13v68l-8 10H44l-8-10V38Z" fill="#738d9d"/>
-    <path d="M44 25h7l-7 15v65l7 11h-7l-8-10V38Z" fill="#bed3dc" stroke="none"/>
-    <path d="m84 25 8 13v68l-8 10H51v-8h33V40l-7-15Z" fill="#405b70" stroke="none"/>
-    <path d="M46 32h12v7H46Zm24 0h12v7H70Z" fill="#bed3dc" stroke-width="2"/>
-    <path d="M44 98h40v8H44Z" fill="#55aff0" stroke-width="2"/>
-    <circle cx="64" cy="74" r="21" fill="#405b70"/>
-    <path d="M35 69h58v12H35Z" fill="#738d9d" stroke-width="2"/>
+    <path d="M28 38v10m69-10v10M28 67v10m69-10v10M28 96v10m69-10v10" stroke="#55aff0" stroke-width="2"/>
+    <path d="M44 25h40l8 13v68l-8 10H44l-8-10V38Z" fill="#55aff0"/>
+    <path d="M44 25h7l-7 15v65l7 11h-7l-8-10V38Z" fill="#97d0f5" stroke="none"/>
+    <path d="m84 25 8 13v68l-8 10H51v-8h33V40l-7-15Z" fill="#3575a6" stroke="none"/>
+    <path d="M46 32h12v7H46Zm24 0h12v7H70Z" fill="#97d0f5" stroke-width="2"/>
+    <path d="M44 98h40v8H44Z" fill="#92997a" stroke-width="2"/>
+    <circle cx="64" cy="74" r="21" fill="#3575a6"/>
+    <path d="M35 69h58v12H35Z" fill="#55aff0" stroke-width="2"/>
     <!-- Twin broad launcher banks, not a cannon or transport roof. -->
-    <path d="M25 47h30v44H25Z" fill="#405b70"/>
-    <path d="M73 47h30v44H73Z" fill="#405b70"/>
-    <path d="M26 48h28v7H26Zm48 0h28v7H74Z" fill="#bed3dc" stroke="none"/>
-    <g fill="#bed3dc" stroke-width="2">
+    <path d="M25 47h30v44H25Z" fill="#3575a6"/>
+    <path d="M73 47h30v44H73Z" fill="#3575a6"/>
+    <path d="M26 48h28v7H26Zm48 0h28v7H74Z" fill="#97d0f5" stroke="none"/>
+    <g fill="#97d0f5" stroke-width="2">
       <path d="m29 59 3-14 3 14v24h-6Z"/>
       <path d="m37 59 3-14 3 14v24h-6Z"/>
       <path d="m45 59 3-14 3 14v24h-6Z"/>
@@ -30,12 +30,12 @@
       <path d="m85 59 3-14 3 14v24h-6Z"/>
       <path d="m93 59 3-14 3 14v24h-6Z"/>
     </g>
-    <path d="M27 86h26m22 0h26" stroke="#55aff0" stroke-width="3"/>
+    <path d="M27 86h26m22 0h26" stroke="#92997a" stroke-width="3"/>
     <!-- A compact radar dish makes the air-defense role readable from above. -->
     <path d="M64 71v16" stroke="#202a28" stroke-width="4"/>
-    <path d="M54 61q10 8 20 0l-3 11q-7 5-14 0Z" fill="#bed3dc" stroke-width="2"/>
-    <path d="M56 62q8 5 16 0" fill="none" stroke="#bed3dc" stroke-width="2"/>
+    <path d="M54 61q10 8 20 0l-3 11q-7 5-14 0Z" fill="#97d0f5" stroke-width="2"/>
+    <path d="M56 62q8 5 16 0" fill="none" stroke="#97d0f5" stroke-width="2"/>
     <path d="M64 61v-5" stroke-width="2"/>
-    <path d="M55 110h18" stroke="#bed3dc" stroke-width="2"/>
+    <path d="M55 110h18" stroke="#97d0f5" stroke-width="2"/>
   </g>
-<rect x="26" y="17" width="25" height="35" rx="2" fill="#405b70" stroke="#202a28" stroke-width="3"/><rect x="77" y="17" width="25" height="35" rx="2" fill="#405b70" stroke="#202a28" stroke-width="3"/><path d="M30 43 L30 20 L35 10 L40 20 L40 43 Z" fill="#bed3dc" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/><path d="M82 43 L82 20 L87 10 L92 20 L92 43 Z" fill="#bed3dc" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/><path d="M52 92 L64 98 L76 92 L64 104 Z" fill="#55aff0" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/></svg>
+<rect x="26" y="17" width="25" height="35" rx="2" fill="#3575a6" stroke="#202a28" stroke-width="3"/><rect x="77" y="17" width="25" height="35" rx="2" fill="#3575a6" stroke="#202a28" stroke-width="3"/><path d="M30 43 L30 20 L35 10 L40 20 L40 43 Z" fill="#97d0f5" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/><path d="M82 43 L82 20 L87 10 L92 20 L92 43 Z" fill="#97d0f5" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/><path d="M52 92 L64 98 L76 92 L64 104 Z" fill="#92997a" stroke="#202a28" stroke-width="3" stroke-linejoin="round"/></svg>

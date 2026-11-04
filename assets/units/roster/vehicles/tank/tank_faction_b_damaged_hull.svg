@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Main Battle Tank: b, damaged, hull</title><g stroke="#202a28" stroke-width="3" stroke-linejoin="round"><rect xmlns="http://www.w3.org/2000/svg" x="22" y="40" width="20" height="78" rx="5" fill="#303936" />
+    <rect xmlns="http://www.w3.org/2000/svg" x="86" y="40" width="20" height="78" rx="5" fill="#303936" />
+    <path xmlns="http://www.w3.org/2000/svg" d="M25 51h14m-14 13h14m-14 13h14m-14 13h14m-14 13h14M89 51h14M89 64h14M89 77h14M89 90h14M89 103h14" stroke="#f08075" stroke-width="3" />
+    
+    <path xmlns="http://www.w3.org/2000/svg" d="M44 36h40l10 13v57l-9 10H43l-9-10V49Z" fill="#f08075" />
+    <path xmlns="http://www.w3.org/2000/svg" d="m44 36-10 13v57l9 10h7V49h28l6-13Z" fill="#f7b8ae" stroke="none" />
+    <path xmlns="http://www.w3.org/2000/svg" d="M84 42 94 55v51l-9 10H50v-10h34Z" fill="#a64f49" stroke="none" />
+    <path xmlns="http://www.w3.org/2000/svg" d="M42 42h44M43 107h42" fill="none" stroke="#f7b8ae" stroke-width="2" />
+    <path xmlns="http://www.w3.org/2000/svg" d="M53 99h22v10H53Z" fill="#a64f49" stroke-width="2" />
+    <path xmlns="http://www.w3.org/2000/svg" d="M57 102h14m-14 4h14" stroke="#f08075" stroke-width="2" />
+    
+    </g><rect x="49" y="92" width="30" height="13" rx="2" fill="#92997a" stroke="#202a28" stroke-width="3"/><circle cx="54" cy="98" r="2" fill="#f7b8ae"/><circle cx="74" cy="98" r="2" fill="#f7b8ae"/><path d="M43 47L57 57 51 68 70 79M75 39L69 50 83 58" fill="none" stroke="#131a17" stroke-width="4"/><path d="M44 71L59 65 73 75 66 89 47 85Z" fill="#30312c" stroke="#131a17" stroke-width="3"/></svg>

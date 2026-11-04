@@ -4,7 +4,7 @@
     "rifle": {
       "category": "infantry",
       "name": "Rifleman",
-      "silhouette": "hex badge, helmeted rifleman and chevron",
+      "silhouette": "overhead helmet, shoulders, backpack and rifle",
       "files": [
         "assets/units/roster/infantry/rifle/rifle_faction_a_base.svg",
         "assets/units/roster/infantry/rifle/rifle_faction_a_damaged.svg",
@@ -23,7 +23,7 @@
     "rocket": {
       "category": "infantry",
       "name": "Rocket Soldier",
-      "silhouette": "hex badge, shoulder launcher and rocket insignia",
+      "silhouette": "overhead soldier with broad shoulder launcher",
       "files": [
         "assets/units/roster/infantry/rocket/rocket_faction_a_base.svg",
         "assets/units/roster/infantry/rocket/rocket_faction_a_damaged.svg",
@@ -42,7 +42,7 @@
     "gunner": {
       "category": "infantry",
       "name": "Machine Gunner",
-      "silhouette": "hex badge, heavy gun, bipod and three rounds",
+      "silhouette": "overhead soldier with heavy gun, ammunition box and bipod",
       "files": [
         "assets/units/roster/infantry/gunner/gunner_faction_a_base.svg",
         "assets/units/roster/infantry/gunner/gunner_faction_a_damaged.svg",
@@ -67,14 +67,32 @@
         "assets/units/roster/vehicles/tank/tank_faction_a_damaged.svg",
         "assets/units/roster/vehicles/tank/tank_faction_a_destroyed.svg",
         "assets/units/roster/vehicles/tank/tank_faction_a_icon.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_a_base_hull.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_a_base_turret.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_a_base_barrel.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_a_damaged_hull.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_a_damaged_turret.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_a_damaged_barrel.svg",
         "assets/units/roster/vehicles/tank/tank_faction_b_base.svg",
         "assets/units/roster/vehicles/tank/tank_faction_b_damaged.svg",
         "assets/units/roster/vehicles/tank/tank_faction_b_destroyed.svg",
         "assets/units/roster/vehicles/tank/tank_faction_b_icon.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_base_hull.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_base_turret.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_base_barrel.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_damaged_hull.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_damaged_turret.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_b_damaged_barrel.svg",
         "assets/units/roster/vehicles/tank/tank_faction_c_base.svg",
         "assets/units/roster/vehicles/tank/tank_faction_c_damaged.svg",
         "assets/units/roster/vehicles/tank/tank_faction_c_destroyed.svg",
-        "assets/units/roster/vehicles/tank/tank_faction_c_icon.svg"
+        "assets/units/roster/vehicles/tank/tank_faction_c_icon.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_base_hull.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_base_turret.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_base_barrel.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_damaged_hull.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_damaged_turret.svg",
+        "assets/units/roster/vehicles/tank/tank_faction_c_damaged_barrel.svg"
       ]
     },
     "scout": {
@@ -143,14 +161,32 @@
         "assets/units/roster/vehicles/artillery/artillery_faction_a_damaged.svg",
         "assets/units/roster/vehicles/artillery/artillery_faction_a_destroyed.svg",
         "assets/units/roster/vehicles/artillery/artillery_faction_a_icon.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_base_hull.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_base_turret.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_base_barrel.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_damaged_hull.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_damaged_turret.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_a_damaged_barrel.svg",
         "assets/units/roster/vehicles/artillery/artillery_faction_b_base.svg",
         "assets/units/roster/vehicles/artillery/artillery_faction_b_damaged.svg",
         "assets/units/roster/vehicles/artillery/artillery_faction_b_destroyed.svg",
         "assets/units/roster/vehicles/artillery/artillery_faction_b_icon.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_base_hull.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_base_turret.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_base_barrel.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_damaged_hull.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_damaged_turret.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_b_damaged_barrel.svg",
         "assets/units/roster/vehicles/artillery/artillery_faction_c_base.svg",
         "assets/units/roster/vehicles/artillery/artillery_faction_c_damaged.svg",
         "assets/units/roster/vehicles/artillery/artillery_faction_c_destroyed.svg",
-        "assets/units/roster/vehicles/artillery/artillery_faction_c_icon.svg"
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_icon.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_base_hull.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_base_turret.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_base_barrel.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_damaged_hull.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_damaged_turret.svg",
+        "assets/units/roster/vehicles/artillery/artillery_faction_c_damaged_barrel.svg"
       ]
     },
     "helicopter": {

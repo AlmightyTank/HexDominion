@@ -10,9 +10,42 @@ var selected_units: Array[UnitState] = []
 var expanded_hex: Vector2i = Vector2i(-99999, -99999)
 var animation_time: float = 0.0
 var wrecks: Array[Dictionary] = []
+var building_wrecks: Array[Dictionary] = []
 var shell_effects: Array[Dictionary] = []
+var _stack_units: Array[UnitState] = []
+var _stack_hexes: Array[Vector2i] = []
+var _stack_factions: Array[int] = []
+var _stack_kinds: Array[String] = []
+var _stack_deployed: Array[bool] = []
+var _stack_batches: Array[Dictionary] = []
 const WRECK_SECONDS: float = 8.0
 const MAX_WRECKS: int = 128
+
+
+func visual_stacks() -> Array[Dictionary]:
+	# State is mutable from simulation, saves and orders. Validate exact dependencies
+	# rather than relying on every caller to remember an invalidation signal.
+	var changed: bool = units.size() != _stack_units.size()
+	if not changed:
+		for index in range(units.size()):
+			var unit: UnitState = units[index]
+			if unit != _stack_units[index] or unit.hex != _stack_hexes[index] or unit.faction != _stack_factions[index] or unit.kind != _stack_kinds[index] or unit.is_deployed() != _stack_deployed[index]:
+				changed = true
+				break
+	if changed:
+		_stack_units.assign(units)
+		_stack_hexes.resize(units.size())
+		_stack_factions.resize(units.size())
+		_stack_kinds.resize(units.size())
+		_stack_deployed.resize(units.size())
+		for index in range(units.size()):
+			var unit: UnitState = units[index]
+			_stack_hexes[index] = unit.hex
+			_stack_factions[index] = unit.faction
+			_stack_kinds[index] = unit.kind
+			_stack_deployed[index] = unit.is_deployed()
+		_stack_batches = UnitVisuals.stacks(units)
+	return _stack_batches
 
 
 func select_one(unit: UnitState) -> void:
@@ -38,7 +71,7 @@ func toggle_selection(unit: UnitState) -> void:
 func select_box(screen_rect: Rect2, canvas_transform: Transform2D) -> void:
 	selected_units.clear()
 	var zoom_factor: float = canvas_transform.get_scale().x
-	var batches: Array[Dictionary] = UnitVisuals.stacks(units)
+	var batches: Array[Dictionary] = visual_stacks()
 	for unit in units:
 		var point: Vector2 = unit_position(unit)
 		if unit.hex != expanded_hex or unit.faction != 1:
@@ -71,6 +104,7 @@ func can_place(hex: Vector2i, kind: String) -> bool:
 
 func configure(map: WorldMap) -> void:
 	world_map = map
+	_watch_building_damage()
 	# Start at named cities, spread across the world and guaranteed to be on land.
 	for tile in map.map_data["tiles"].values():
 		if tile["terrain"] == "city" and units.size() < 3:
@@ -126,7 +160,7 @@ func pick(global_point: Vector2, zoom_factor: float) -> UnitState:
 func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, _cycle: bool = false) -> UnitState:
 	var nearest: UnitState = null
 	var best: float = 18.0 / maxf(zoom_factor, 0.15)
-	var batches: Array[Dictionary] = UnitVisuals.stacks(units)
+	var batches: Array[Dictionary] = visual_stacks()
 	for batch in batches:
 		if batch["faction"] != faction:
 			continue
@@ -144,7 +178,24 @@ func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, _cycl
 	return nearest
 
 
+func _watch_building_damage() -> void:
+	for owner_economy in [economy, match_state.rival_economy]:
+		if not owner_economy.building_destroyed.is_connected(_on_building_destroyed):
+			owner_economy.building_destroyed.connect(_on_building_destroyed)
+
+func _on_building_destroyed(hex: Vector2i, kind: String, rotation: int, owner: int) -> void:
+	building_wrecks.append({"hex": hex, "kind": kind, "rotation": rotation, "faction": owner, "remaining": WRECK_SECONDS})
+	if building_wrecks.size() > MAX_WRECKS:
+		building_wrecks.pop_front()
+	queue_redraw()
+
 func _physics_process(delta: float) -> void:
+	_watch_building_damage()
+	var had_building_wrecks: bool = not building_wrecks.is_empty()
+	for index in range(building_wrecks.size() - 1, -1, -1):
+		building_wrecks[index]["remaining"] -= delta
+		if building_wrecks[index]["remaining"] <= 0:
+			building_wrecks.remove_at(index)
 	var had_shells: bool = not shell_effects.is_empty()
 	for index in range(shell_effects.size() - 1, -1, -1):
 		shell_effects[index]["age"] += delta
@@ -156,7 +207,7 @@ func _physics_process(delta: float) -> void:
 		if wrecks[index]["remaining"] <= 0:
 			wrecks.remove_at(index)
 	if world_map == null or match_state.result != "playing":
-		if had_wrecks or had_shells:
+		if had_wrecks or had_shells or had_building_wrecks:
 			queue_redraw()
 		return
 	animation_time += delta
@@ -215,12 +266,16 @@ func _draw() -> void:
 	_draw_roads()
 	_draw_artillery_range()
 	_draw_isolated_locations()
+	for wreck in building_wrecks:
+		if not economy.buildings.has(wreck["hex"]) and not match_state.rival_economy.buildings.has(wreck["hex"]):
+			_draw_building_badge(to_local(world_map.hex_to_world(wreck["hex"])), wreck["kind"], UnitArt.ACCENTS[UnitArt.faction_slot(wreck["faction"])], false, wreck["rotation"], wreck["faction"], "destroyed")
 	for hex in match_state.rival_economy.buildings:
 		var rival_building: Dictionary = match_state.rival_economy.buildings[hex]
-		var rival_color: Color = faction_color(2)
+		var rival_color: Color = UnitArt.ACCENTS[1]
 		if rival_building["kind"] == "bunker":
-			rival_color = faction_color(territory.owner_at(hex)) if territory.owner_at(hex) > 0 else Color("889099")
-		_draw_building_badge(to_local(world_map.hex_to_world(hex)), rival_building["kind"], rival_color, world_map.selected_hex == hex, rival_building.get("rotation", 0))
+			var owner: int = territory.owner_at(hex)
+			rival_color = UnitArt.ACCENTS[UnitArt.faction_slot(owner)] if owner > 0 else Color("889099")
+		_draw_building_badge(to_local(world_map.hex_to_world(hex)), rival_building["kind"], rival_color, world_map.selected_hex == hex, rival_building.get("rotation", 0), 0, building_art_state(rival_building))
 		_draw_construction(to_local(world_map.hex_to_world(hex)), rival_building, rival_color)
 		_draw_bunker_status(hex, match_state.rival_economy)
 	if not build_kind.is_empty():
@@ -234,14 +289,13 @@ func _draw() -> void:
 		if build_kind == "road":
 			draw_line(ghost_center - Vector2(12, 0), ghost_center + Vector2(12, 0), preview_color, 5.0, true)
 		else:
-			_draw_building_badge(ghost_center, build_kind, preview_color, true, build_rotation)
+			_draw_building_badge(ghost_center, build_kind, preview_color, true, build_rotation, 1 if valid else 2)
 	for hex in economy.buildings:
 		var building: Dictionary = economy.buildings[hex]
 		var center: Vector2 = to_local(world_map.hex_to_world(hex))
-		var color: Color = Color("ffd87c") if territory.owner_at(hex) == 1 else Color("889099")
-		if building["kind"] == "bunker" and territory.owner_at(hex) > 0:
-			color = faction_color(territory.owner_at(hex))
-		_draw_building_badge(center, building["kind"], color, managed_hex == hex, building.get("rotation", 0))
+		var owner: int = territory.owner_at(hex)
+		var color: Color = UnitArt.ACCENTS[UnitArt.faction_slot(owner)] if owner > 0 else Color("889099")
+		_draw_building_badge(center, building["kind"], color, managed_hex == hex, building.get("rotation", 0), 0, building_art_state(building))
 		_draw_construction(center, building, color)
 		_draw_bunker_status(hex, economy)
 		if not building["queue"].is_empty():
@@ -293,12 +347,10 @@ func _draw_shells() -> void:
 
 func _draw_units() -> void:
 	var zoom_factor: float = get_canvas_transform().get_scale().x
-	var detail: String = UnitVisuals.tier(zoom_factor)
-	if detail == "close":
-		for wreck in wrecks:
-			var opacity: float = clampf(wreck["remaining"] / 0.65, 0, 1) if UnitCatalog.is_infantry(wreck["kind"]) else 1.0
-			UnitArt.draw(self, wreck["kind"], wreck["faction"], "destroyed", wreck["position"], wreck["facing"], false, 28, opacity)
-	var batches: Array[Dictionary] = UnitVisuals.stacks(units)
+	for wreck in wrecks:
+		var opacity: float = clampf(wreck["remaining"] / 0.65, 0, 1) if UnitCatalog.is_infantry(wreck["kind"]) else 1.0
+		UnitArt.draw(self, wreck["kind"], wreck["faction"], "destroyed", wreck["position"], wreck["facing"], false, 28, opacity)
+	var batches: Array[Dictionary] = visual_stacks()
 	for batch in batches:
 		var members: Array = batch["members"]
 		var point: Vector2 = group_position(batch, batches, zoom_factor)
@@ -314,10 +366,15 @@ func _draw_units() -> void:
 			for member in members:
 				UnitAppearance.draw_unit(self, member, unit_position(member), faction_color(member.faction), selected_units.has(member), animation_time)
 			continue
-		UnitAppearance.strategic(self, batch["kind"], batch["faction"], point, members.size(), highlighted, injured, icon_scale)
+		var firing_member: UnitState = null
 		for member in members:
-			if member.attack_flash > 0:
-				draw_circle(point + Vector2(14, -4) * icon_scale, 2 * icon_scale, Color("ffe0a0"))
+			if member.attack_flash > 0 and (firing_member == null or member.attack_flash > firing_member.attack_flash):
+				firing_member = member
+		var representative: UnitState = firing_member if firing_member != null else members[0]
+		var facing: float = representative.turret_facing if representative.kind in ["tank", "artillery"] else representative.facing
+		UnitAppearance.strategic(self, batch["kind"], batch["faction"], point, members.size(), highlighted, injured, icon_scale, facing)
+		if firing_member != null:
+			UnitAppearance.firing_effect(self, firing_member, point, icon_scale, true)
 		if health_fraction < 1.0 or highlighted:
 			draw_rect(Rect2(point + Vector2(-9, -15) * icon_scale, Vector2(18, 2) * icon_scale), UnitAppearance.INK)
 			draw_rect(Rect2(point + Vector2(-9, -15) * icon_scale, Vector2(18 * health_fraction, 2) * icon_scale), faction_color(batch["faction"]))
@@ -376,50 +433,28 @@ func _draw_construction(center: Vector2, building: Dictionary, color: Color) -> 
 	draw_rect(Rect2(center + Vector2(-14, 19), Vector2(28 * fraction, 4)), color)
 
 
-func _draw_building_badge(center: Vector2, kind: String, color: Color, highlighted: bool, orientation: int = 0) -> void:
+static func building_art_state(building: Dictionary) -> String:
+	return UnitArt.state_for(building.get("health", EconomyState.BUILD_HEALTH[building["kind"]]), EconomyState.BUILD_HEALTH[building["kind"]])
+
+func _draw_building_badge(center: Vector2, kind: String, color: Color, highlighted: bool, orientation: int = 0, faction: int = 0, state: String = "base") -> void:
 	draw_set_transform(center, deg_to_rad(orientation * 60.0))
-	_draw_building_icon(Vector2.ZERO, kind, color, highlighted)
+	_draw_building_icon(Vector2.ZERO, kind, color, highlighted, faction, state)
 	draw_set_transform(Vector2.ZERO)
 
-func _draw_building_icon(center: Vector2, kind: String, color: Color, highlighted: bool) -> void:
-	var ink: Color = Color("071522")
-	draw_circle(center + Vector2(0, 2), 15.0, Color(0.0, 0.0, 0.0, 0.35))
-	draw_circle(center, 14.0, ink)
-	draw_circle(center, 11.5, Color(color, 0.14))
-	draw_arc(center, 14.0, 0.0, TAU, 48, color, 1.5, true)
+func _draw_building_icon(center: Vector2, kind: String, color: Color, highlighted: bool, faction: int = 0, state: String = "base") -> void:
+	var slot: int = 0
+	for index in range(UnitArt.ACCENTS.size()):
+		if color.is_equal_approx(UnitArt.ACCENTS[index]):
+			slot = index
+	var image: Texture2D = UnitArt.building_texture(kind, faction if faction > 0 else slot + 1, state)
 	if highlighted:
-		draw_arc(center, 18.0, 0.0, TAU, 48, Color("fff0ad"), 1.5, true)
-	if kind == "headquarters":
-		# Central command block, wings, and a raised flag.
-		draw_rect(Rect2(center + Vector2(-9, 0), Vector2(18, 7)), color)
-		draw_rect(Rect2(center + Vector2(-4, -5), Vector2(8, 12)), color)
-		draw_line(center + Vector2(0, -5), center + Vector2(0, -11), color, 1.5, true)
-		_building_polygon(center, [Vector2(0, -11), Vector2(6, -9), Vector2(0, -7)], color)
-		draw_rect(Rect2(center + Vector2(-2, 2), Vector2(4, 5)), ink)
-	elif kind == "barracks":
-		# Pitched roof, long accommodation block, door and windows.
-		_building_polygon(center, [Vector2(-10, -1), Vector2(0, -8), Vector2(10, -1)], color)
-		draw_rect(Rect2(center + Vector2(-8, 0), Vector2(16, 7)), color)
-		draw_rect(Rect2(center + Vector2(-2, 2), Vector2(4, 5)), ink)
-		for x in [-6, 4]:
-			draw_rect(Rect2(center + Vector2(x, 2), Vector2(2, 2)), ink)
-	elif kind == "extractor":
-		_building_polygon(center, [Vector2(-8, 8), Vector2(0, -10), Vector2(8, 8)], color)
-		draw_line(center + Vector2(-7, 0), center + Vector2(7, 0), Color("071522"), 3.0)
-		draw_line(center + Vector2(0, -4), center + Vector2(0, 11), Color("071522"), 2.0)
-		draw_rect(Rect2(center + Vector2(-10, 8), Vector2(20, 3)), color)
-	elif kind == "power_plant":
-		_building_polygon(center, [Vector2(-10, 8), Vector2(-7, -9), Vector2(-2, -9), Vector2(0, 8)], color)
-		_building_polygon(center, [Vector2(1, 8), Vector2(3, -6), Vector2(7, -6), Vector2(10, 8)], color)
-		draw_line(center + Vector2(-11, 9), center + Vector2(11, 9), color, 2.0)
-	elif kind == "bunker":
-		draw_rect(Rect2(center + Vector2(-10, -5), Vector2(20, 12)), color)
-		draw_rect(Rect2(center + Vector2(-7, -2), Vector2(14, 3)), ink)
-	elif kind == "factory":
-		# Sawtooth roof, smokestack, and a wide vehicle bay.
-		_building_polygon(center, [Vector2(-9, 7), Vector2(-9, -2), Vector2(-3, -6), Vector2(-3, -2), Vector2(3, -6), Vector2(3, -2), Vector2(9, -2), Vector2(9, 7)], color)
-		draw_rect(Rect2(center + Vector2(5, -10), Vector2(3, 10)), color)
-		draw_rect(Rect2(center + Vector2(-5, 2), Vector2(9, 5)), ink)
+		draw_arc(center, 18.0, 0.0, TAU, 48, Color("131a17"), 4.0, true)
+		draw_arc(center, 18.0, 0.0, TAU, 48, Color("fff0ad"), 2.0, true)
+	if image != null:
+		var tint: Color = Color.WHITE if color != Color("889099") else Color("889099")
+		draw_texture_rect(image, Rect2(center - Vector2(16, 16), Vector2(32, 32)), false, tint)
+	else:
+		draw_string(ThemeDB.fallback_font, center, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
 
 
 func _building_polygon(center: Vector2, vertices: Array[Vector2], color: Color) -> void:

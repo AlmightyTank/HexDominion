@@ -2,18 +2,19 @@
 from pathlib import Path
 import json
 import re
-from infantry_badges import badge
+import xml.etree.ElementTree as ET
+from top_down_art import soldier, buildings, damage_marks, wreck
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets/units/roster'
 INK = '#202a28'
-FACTIONS = {'a': ('#738d9d', '#bed3dc', '#405b70', '#55aff0'),
-            'b': ('#626369', '#929298', '#383e46', '#f08075'),
-            'c': ('#74805a', '#b8b38a', '#505f43', '#e5ba59')}
+FACTIONS = {'a': ('#55aff0', '#97d0f5', '#3575a6', '#92997a'),
+            'b': ('#f08075', '#f7b8ae', '#a64f49', '#92997a'),
+            'c': ('#e5ba59', '#f2d99b', '#997b38', '#92997a')}
 ROSTER = {
- 'rifle': ('infantry', 'Rifleman', 'hex badge, helmeted rifleman and chevron'),
- 'rocket': ('infantry', 'Rocket Soldier', 'hex badge, shoulder launcher and rocket insignia'),
- 'gunner': ('infantry', 'Machine Gunner', 'hex badge, heavy gun, bipod and three rounds'),
+  'rifle': ('infantry', 'Rifleman', 'overhead helmet, shoulders, backpack and rifle'),
+  'rocket': ('infantry', 'Rocket Soldier', 'overhead soldier with broad shoulder launcher'),
+  'gunner': ('infantry', 'Machine Gunner', 'overhead soldier with heavy gun, ammunition box and bipod'),
  'tank': ('vehicles', 'Main Battle Tank', 'wide tracks and long turret cannon'),
  'scout': ('vehicles', 'Scout Vehicle', 'narrow body and four exposed wheels'),
  'apc': ('vehicles', 'APC', 'box troop compartment and eight wheels'),
@@ -88,20 +89,45 @@ def build():
                       'b': rect(49, 92, 30, 13, 'ACCENT') + '<circle cx="54" cy="98" r="2" fill="LIGHT"/><circle cx="74" cy="98" r="2" fill="LIGHT"/>',
                       'c': rect(49, 93, 11, 12, 'ACCENT') + rect(68, 93, 11, 12, 'ACCENT')}[faction]
             for state in ('base', 'damaged', 'destroyed', 'icon'):
-                body = badge(kind, faction, state) if category == 'infantry' else (icon(kind) if state == 'icon' else geometry(kind)) + panels
-                if state == 'damaged' and category != 'infantry':
+                body = soldier(kind) if category == 'infantry' else geometry(kind) + panels
+                if state == 'damaged':
                     body += path('M45 70 L59 63 L72 72 L63 88 L46 83 Z', '#292825') + path('M47 40 L60 52 L55 62 L70 70', 'none', 4)
-                if state == 'destroyed' and category != 'infantry':
-                    body = body.replace('BODY', '#45443f').replace('LIGHT', '#68665b').replace('DARK', '#252827').replace('ACCENT', '#777262')
-                    body += path('M32 35 L55 54 L46 68 L73 81 L63 97 L92 112', 'none', 7) + path('M36 97 L51 91 L48 111 L29 115 Z', '#302e29')
+                if state == 'destroyed':
+                    if category == 'infantry':
+                        body = body.replace('BODY', '#45443f').replace('LIGHT', '#68665b').replace('DARK', '#252827').replace('ACCENT', '#777262')
+                        body += path('M32 35 L55 54 L46 68 L73 81 L63 97 L92 112', 'none', 7) + path('M36 97 L51 91 L48 111 L29 115 Z', '#302e29')
+                    else:
+                        body = wreck(body, category)
                 for token, color in zip(('BODY', 'LIGHT', 'DARK', 'ACCENT'), palette):
                     body = body.replace(token, color)
                 dest = OUT / category / kind / f'{kind}_faction_{faction}_{state}.svg'
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_text(f'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>{name}: faction {faction}, {state}</title>{body}</svg>\n')
                 manifest['units'][kind]['files'].append(str(dest.relative_to(ROOT)).replace('\\', '/'))
+            if kind in ('tank', 'artillery'):
+                # Extract the same approved geometry into independently aimed layers.
+                base = ET.fromstring('<svg xmlns="http://www.w3.org/2000/svg">' + geometry(kind) + '</svg>')
+                if kind == 'tank':
+                    group = next(n for n in base if n.tag.endswith('g'))
+                    pieces = list(group)
+                    wrap = lambda nodes: '<g stroke="#202a28" stroke-width="3" stroke-linejoin="round">' + ''.join(ET.tostring(n, encoding='unicode') for n in nodes) + '</g>'
+                    layers = {'hull': wrap(pieces[:9]) + panels, 'turret': wrap(pieces[9:15]), 'barrel': wrap(pieces[15:])}
+                else:
+                    pieces = list(base)
+                    wrap = lambda nodes: ''.join(ET.tostring(n, encoding='unicode') for n in nodes)
+                    layers = {'hull': wrap(pieces[:3] + pieces[6:]) + panels, 'turret': wrap(pieces[3:4]), 'barrel': wrap(pieces[4:6])}
+                for state in ('base', 'damaged'):
+                    for layer, shapes in layers.items():
+                        if state == 'damaged' and layer != 'barrel':
+                            shapes += damage_marks() if layer == 'hull' else path('M55 72L65 79 60 89', 'none', 4)
+                        for token, color in zip(('BODY', 'LIGHT', 'DARK', 'ACCENT'), palette):
+                            shapes = shapes.replace(token, color)
+                        dest = OUT / category / kind / f'{kind}_faction_{faction}_{state}_{layer}.svg'
+                        dest.write_text(f'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>{name}: {faction}, {state}, {layer}</title>{shapes}</svg>\n')
+                        manifest['units'][kind]['files'].append(str(dest.relative_to(ROOT)).replace('\\', '/'))
     (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    print(f'Wrote {len(ROSTER) * len(FACTIONS) * 4} SVGs and manifest')
+    buildings(ROOT, FACTIONS)
+    print(f'Wrote {len(ROSTER) * len(FACTIONS) * 4} unit states, 36 armor layers, 54 building states and manifests')
 
 if __name__ == '__main__':
     build()

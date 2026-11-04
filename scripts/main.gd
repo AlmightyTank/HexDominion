@@ -25,6 +25,7 @@ const TAP_THRESHOLD: float = 14.0
 
 
 func _ready() -> void:
+	RenderingServer.set_default_clear_color(WorldMap.COLOR_OUTER)
 	hud.bind_camera(camera)
 	camera.configure_world_bounds(world_map.world_bounds())
 	hud.show_world_stats(world_map.map_data)
@@ -359,7 +360,7 @@ func _stack_action(kind: String) -> void:
 
 func _process(_delta: float) -> void:
 	if units != null:
-		hud.show_selection(units.selected_units, _attack_mode)
+		hud.show_selection(units.selected_units, _attack_mode, units.units)
 		if units.selected != null and units.selected.kind == "apc":
 			hud.selection_info.text += "\nPassengers: %d/4. Load/Unload APC buttons choose a map target." % TransportRules.passengers(units.selected, units.units).size()
 		var stack_members: Array[UnitState] = []

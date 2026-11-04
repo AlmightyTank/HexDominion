@@ -42,8 +42,19 @@ func run() -> void:
 		check(UnitArt.state_for(0, 100, kind) == "destroyed", "Infantry defeated " + kind)
 		for faction in range(1, 4):
 			var image: Image = UnitArt.texture(kind, faction).get_image()
-			check(image.get_pixel(15, 64).a > 0.9 and image.get_pixel(15, 15).a == 0, "Hex vertical edge and clipped corner")
-			check(UnitArt.texture(kind, faction, "icon").get_image().get_data() != image.get_data(), "Dedicated compact badge")
+			check(image.get_pixel(64, 105).a == 0 and image.get_pixel(64, 63).a > 0.9, "Overhead helmet with no visible legs")
+			check(UnitArt.texture(kind, faction, "icon").get_image().get_used_rect().has_area(), "Overhead strategic silhouette")
+	for kind in ["headquarters", "barracks", "factory", "extractor", "power_plant", "bunker"]:
+		var images: Array[PackedByteArray] = []
+		for faction in range(1, 4):
+			var texture: Texture2D = UnitArt.building_texture(kind, faction)
+			check(texture != null, "Building art " + kind)
+			if texture != null:
+				var image: Image = texture.get_image()
+				check(image.get_size() == Vector2i(128, 128), "Building dimensions " + kind)
+				check(image.get_pixel(0, 0).a == 0, "Building transparent corner " + kind)
+				images.append(image.get_data())
+		check(images.size() == 3 and images[0] != images[1] and images[1] != images[2], "Building faction colors " + kind)
 	check(UnitArt.texture("unknown", 1) == null, "Unknown placeholder support")
 	var game: Node2D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
