@@ -5,7 +5,8 @@ class_name HexPathfinding
 static func find_path(tiles: Dictionary, start: Vector2i, goal: Vector2i, kind: String = "rifle") -> Array[Vector2i]:
 	var empty: Array[Vector2i] = []
 	var airborne: bool = UnitCatalog.is_air(kind)
-	if not tiles.has(start) or not tiles.has(goal) or (not airborne and (not is_walkable(tiles, start) or not is_walkable(tiles, goal))):
+	var naval: bool = UnitCatalog.is_naval(kind)
+	if not tiles.has(start) or not tiles.has(goal) or (naval and (not NavalRules.water(tiles, start) or not NavalRules.water(tiles, goal))) or (not airborne and not naval and (not is_walkable(tiles, start) or not is_walkable(tiles, goal))):
 		return empty
 	var frontier: Array = [[0.0, 0, start, 0.0]]
 	var previous: Dictionary = {start: start}
@@ -23,8 +24,8 @@ static func find_path(tiles: Dictionary, start: Vector2i, goal: Vector2i, kind: 
 			path.reverse()
 			return path
 		for neighbor in HexMath.neighbors(current):
-			if tiles.has(neighbor) and (airborne or is_walkable(tiles, neighbor)):
-				var cost: float = distances[current] + (1.0 if airborne else TerrainRules.movement_cost(tiles, current, neighbor, kind))
+			if tiles.has(neighbor) and (airborne or (NavalRules.water(tiles, neighbor) if naval else is_walkable(tiles, neighbor))):
+				var cost: float = distances[current] + (1.0 if airborne or naval else TerrainRules.movement_cost(tiles, current, neighbor, kind))
 				if cost >= distances.get(neighbor, INF):
 					continue
 				distances[neighbor] = cost

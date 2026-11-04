@@ -2,11 +2,13 @@ extends RefCounted
 class_name UnitOrders
 ## Explicit attack pursuit; ordinary movement and Hold keep their existing rules.
 static func attack(unit: UnitState, tiles: Dictionary, goal: Vector2i, target: UnitState = null) -> bool:
+	if unit.kind == "landing_transport" or (unit.kind == "patrol_boat" and (target == null or target.domain != "naval")):
+		return false
 	if unit.kind == "fighter" and (unit.air_mission != "ready" or unit.airfield == AircraftRules.NO_BASE):
 		return false
 	if target != null and (not target.is_deployed() or target.faction == unit.faction or not UnitCatalog.can_target(unit, target)):
 		return false
-	if (unit.kind == "artillery" or (target != null and target.domain == "air")) and unit.is_deployed() and unit.path.is_empty() and HexMath.distance(unit.hex, goal) <= unit.attack_range and tiles.has(goal):
+	if (unit.kind in ["artillery", "destroyer"] or (target != null and target.domain in ["air", "naval"])) and unit.is_deployed() and unit.path.is_empty() and HexMath.distance(unit.hex, goal) <= unit.attack_range and tiles.has(goal):
 		unit.order_hold()
 		unit.holding = false
 	else:

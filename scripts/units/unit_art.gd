@@ -49,8 +49,8 @@ static func layer_texture(kind: String, faction: int, state: String, part: Strin
 	return _textures[path]
 
 static func building_texture(kind: String, faction: int, state: String = "base") -> Texture2D:
-	if kind == "airfield":
-		var air_path: String = "res://assets/buildings/airfield.svg"
+	if kind in ["airfield", "shipyard"]:
+		var air_path: String = "res://assets/buildings/%s.svg" % kind
 		if not _textures.has(air_path):
 			_textures[air_path] = load(air_path)
 		return _textures[air_path]

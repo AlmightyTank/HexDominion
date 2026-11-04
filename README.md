@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. v0.4 Slice D adds powered airfields, attack helicopters and fighter strike-and-return missions. Aircraft fly over land and water in a separate visual layer, with anti-air counters, animated rotors, shadows and missile feedback. Ground armies retain stack-first presentation; aircraft use type markers far away and individual sprites at medium/close zoom. Physical touchscreen acceptance and balance playtesting remain pending.
+> **Status:** Pre-alpha. v0.4 Slice E adds coastal shipyards, patrol boats, destroyers and amphibious landing transports. Ships navigate ocean routes, fight enemy fleets and deploy transported infantry and ground vehicles on another coast. Ground armies retain stack-first presentation; ships and aircraft use role markers far away and individual sprites at medium/close zoom. Physical touchscreen acceptance and balance playtesting remain pending.
 
 **Hex Dominion** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -167,6 +167,7 @@ Expanded infantry and armor, artillery, air units, naval units, transports, expa
 - [x] **Slice B: Vehicle Expansion:** Main battle tanks, scouts, four-seat APCs, mobile anti-air, stack-first army presentation and backward-compatible transport saves. ([Rules, controls and verification](docs/V0.4-SLICE-B.md).)
 - [x] **Slice C: Artillery & Long-Range Warfare:** Factory-built self-propelled artillery, range-three bombardment, fortification damage, non-capture, range overlays and shell feedback. ([Rules, scope and verification](docs/V0.4-SLICE-C.md).)
 - [x] **Slice D: Aircraft & Airfields:** Powered aircraft production, helicopters, fighter strike/return/rearm missions, AA counters, independent air presentation and validated saves. ([Rules and verification](docs/V0.4-SLICE-D.md).)
+- [x] **Slice E: Naval Warfare & Amphibious Invasions:** Coastal shipyards produce three distinct naval roles; water-only navigation, coastal bombardment and shared weighted transport support cross-ocean invasions. ([Rules and verification](docs/V0.4-SLICE-E.md).)
 
 #### Infantry controls
 

@@ -24,6 +24,8 @@ static func muzzle_points(kind: String, remaining: float, icon: bool = false) ->
 		"artillery": source = [Vector2(64, 4)]
 		"helicopter": source = [Vector2(37, 35), Vector2(91, 35)]
 		"fighter": source = [Vector2(37, 45), Vector2(91, 45)]
+		"patrol_boat": source = [Vector2(64, 24)]
+		"destroyer": source = [Vector2(64, 16), Vector2(64, 120)]
 	var points: Array[Vector2] = []
 	for tip in source:
 		points.append(Vector2(64 - tip.y, tip.x - 64) * (25.0 if icon else 28.0) / 128.0)
@@ -73,6 +75,12 @@ static func draw_armor(canvas: CanvasItem, unit: UnitState, point: Vector2, stat
 static func draw_unit(canvas: CanvasItem, unit: UnitState, point: Vector2, accent: Color, selected: bool, phase: float, size_scale: float = 1.0) -> void:
 	accent = UnitArt.ACCENTS[UnitArt.faction_slot(unit.faction)]
 	var state: String = UnitArt.state_for(unit.health, unit.max_health, unit.kind)
+	if unit.domain == "naval" and not unit.path.is_empty():
+		canvas.draw_set_transform(point, unit.facing, Vector2.ONE * size_scale)
+		var wake: float = 12 + fmod(phase * 12, 8)
+		for side in [-1, 1]:
+			canvas.draw_line(Vector2(-10, side * 4), Vector2(-wake - 8, side * 12), Color(0.7, 0.86, 0.88, 0.65), 1.5, true)
+		canvas.draw_set_transform(Vector2.ZERO)
 	if unit.domain == "air":
 		canvas.draw_set_transform(point + Vector2(8, 19) * size_scale, unit.facing + PI / 2, Vector2.ONE * size_scale)
 		canvas.draw_texture_rect(UnitArt.texture(unit.kind, unit.faction, state), Rect2(-14, -14, 28, 28), false, Color(0, 0, 0, 0.35))

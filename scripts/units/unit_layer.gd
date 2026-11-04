@@ -74,7 +74,7 @@ func select_box(screen_rect: Rect2, canvas_transform: Transform2D) -> void:
 	var batches: Array[Dictionary] = visual_stacks()
 	for unit in units:
 		var point: Vector2 = unit_position(unit)
-		if (unit.hex != expanded_hex or unit.faction != 1) and not (unit.domain == "air" and zoom_factor >= UnitVisuals.FAR_ZOOM):
+		if (unit.hex != expanded_hex or unit.faction != 1) and not (unit.domain in ["air", "naval"] and zoom_factor >= UnitVisuals.FAR_ZOOM):
 			for batch in batches:
 				if batch["members"].has(unit):
 					point = group_position(batch, batches, zoom_factor)
@@ -150,7 +150,7 @@ func unit_position(unit: UnitState) -> Vector2:
 	return _base_position(unit) + UnitVisuals.offset(unit, units)
 
 func group_position(batch: Dictionary, batches: Array[Dictionary], zoom_factor: float) -> Vector2:
-	if batch.get("domain", "ground") == "air" and zoom_factor >= UnitVisuals.FAR_ZOOM:
+	if batch.get("domain", "ground") in ["air", "naval"] and zoom_factor >= UnitVisuals.FAR_ZOOM:
 		return unit_position(batch["members"][0])
 	var point: Vector2 = to_local(world_map.hex_to_world(batch["hex"]))
 	if economy.buildings.has(batch["hex"]) or match_state.rival_economy.buildings.has(batch["hex"]):
@@ -168,7 +168,7 @@ func pick_faction(global_point: Vector2, zoom_factor: float, faction: int, _cycl
 	for batch in batches:
 		if batch["faction"] != faction:
 			continue
-		if (batch["hex"] == expanded_hex and faction == 1) or (batch.get("domain", "ground") == "air" and zoom_factor >= UnitVisuals.FAR_ZOOM):
+		if (batch["hex"] == expanded_hex and faction == 1) or (batch.get("domain", "ground") in ["air", "naval"] and zoom_factor >= UnitVisuals.FAR_ZOOM):
 			for unit in batch["members"]:
 				var distance: float = unit_position(unit).distance_to(to_local(global_point))
 				if distance < best:
@@ -368,9 +368,11 @@ func _draw_units() -> void:
 			injured = injured or UnitArt.state_for(member.health, member.max_health, member.kind) == "damaged"
 			health_fraction = minf(health_fraction, member.health / member.max_health)
 		var icon_scale: float = 1.0 / maxf(zoom_factor, 0.15)
-		if (batch["hex"] == expanded_hex and batch["faction"] == 1) or (batch.get("domain", "ground") == "air" and zoom_factor >= UnitVisuals.FAR_ZOOM):
+		if (batch["hex"] == expanded_hex and batch["faction"] == 1) or (batch.get("domain", "ground") in ["air", "naval"] and zoom_factor >= UnitVisuals.FAR_ZOOM):
 			for member in members:
 				UnitAppearance.draw_unit(self, member, unit_position(member), faction_color(member.faction), selected_units.has(member), animation_time, 0.85 if member.domain == "air" and zoom_factor < UnitVisuals.CLOSE_ZOOM else 1.0)
+				if member.kind == "landing_transport":
+					draw_string(ThemeDB.fallback_font, unit_position(member) + Vector2(-9, 21), "%d/%d" % [TransportRules.used(member, units), TransportRules.capacity(member)], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("fff0ad"))
 			continue
 		var firing_member: UnitState = null
 		for member in members:

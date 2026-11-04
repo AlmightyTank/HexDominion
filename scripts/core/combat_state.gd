@@ -34,7 +34,7 @@ static func advance(delta: float, units: Array[UnitState], tiles: Dictionary = {
 		if attacker.kind == "fighter" and attacker.air_mission != "striking":
 			continue
 		# Explicit bombardment keeps its structure target even when defenders share the hex.
-		if attacker.kind in ["artillery", "fighter"] and attacker.attack_order and attacker.attack_target == null:
+		if attacker.kind in ["artillery", "fighter", "destroyer"] and attacker.attack_order and attacker.attack_target == null:
 			continue
 		var target: UnitState = null
 		var best: int = attacker.attack_range + 1
@@ -70,6 +70,8 @@ static func attack_extractors(delta: float, units: Array[UnitState], economies: 
 	var damage: Dictionary = {}
 	for attacker in units:
 		# Unit fights take priority; one attack budget per tick, never double damage.
+		if attacker.kind in ["patrol_boat", "landing_transport"]:
+			continue
 		if not attacker.is_deployed() or not attacker.path.is_empty() or unit_targets.has(attacker):
 			continue
 		if attacker.kind == "fighter" and attacker.air_mission != "striking":

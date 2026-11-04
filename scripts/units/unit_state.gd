@@ -53,7 +53,7 @@ func configure_kind(unit_kind: String) -> void:
 	cooldown = definition["cooldown"]
 	attack_range = definition["range"]
 	seconds_per_hex = definition["speed"]
-	domain = "air" if UnitCatalog.is_air(kind) else "ground"
+	domain = "naval" if UnitCatalog.is_naval(kind) else ("air" if UnitCatalog.is_air(kind) else "ground")
 	weapon_elapsed = 0.0
 
 
@@ -107,7 +107,7 @@ func advance(delta: float, tiles: Dictionary) -> void:
 	while remaining > 0 and not path.is_empty():
 		var heading: float = (HexMath.axial_to_world(path[0], 1.0) - HexMath.axial_to_world(hex, 1.0)).angle()
 		facing = rotate_toward(facing, heading, remaining * 5.0) if domain == "air" else heading
-		var cost: float = 1.0 if domain == "air" else TerrainRules.movement_cost(tiles, hex, path[0], kind)
+		var cost: float = (1.0 if NavalRules.water(tiles, hex) and NavalRules.water(tiles, path[0]) else INF) if domain == "naval" else (1.0 if domain == "air" else TerrainRules.movement_cost(tiles, hex, path[0], kind))
 		if not is_finite(cost):
 			return
 		var duration: float = maxf(seconds_per_hex, 0.001) * cost

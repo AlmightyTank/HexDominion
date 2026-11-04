@@ -3,10 +3,10 @@ class_name EconomyState
 signal building_destroyed(hex: Vector2i, kind: String, rotation: int, owner: int)
 signal command_event(message: String, hex: Vector2i)
 ## Faction economy and production. All money mutations use the shared account.
-const BUILD_COSTS: Dictionary = {"headquarters": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100, "airfield": 250}
+const BUILD_COSTS: Dictionary = {"headquarters": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100, "airfield": 250, "shipyard": 220}
 const EXTRACTOR_HEALTH: float = 200.0
-const BUILD_SECONDS: Dictionary = {"headquarters": 12.0, "barracks": 6.0, "factory": 10.0, "extractor": 5.0, "power_plant": 8.0, "bunker": 8.0, "airfield": 12.0}
-const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0, "bunker": 400.0, "airfield": 350.0}
+const BUILD_SECONDS: Dictionary = {"headquarters": 12.0, "barracks": 6.0, "factory": 10.0, "extractor": 5.0, "power_plant": 8.0, "bunker": 8.0, "airfield": 12.0, "shipyard": 10.0}
+const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0, "bunker": 400.0, "airfield": 350.0, "shipyard": 400.0}
 const POWER_SUPPLY: Dictionary = {"headquarters": 20, "power_plant": 40}
 const POWER_DEMAND: Dictionary = {"factory": 20, "extractor": 10, "airfield": 20}
 const CANCEL_REFUND_FRACTION: float = 0.5
@@ -92,6 +92,8 @@ func can_build(hex: Vector2i, kind: String, tiles: Dictionary, territory: Territ
 		return false
 	if kind == "airfield" and TerrainRules.ground(tiles[hex]) not in ["plains", "desert", "city"]:
 		return false
+	if kind == "shipyard" and NavalRules.deployment(tiles, hex) == null:
+		return false
 	if not account.can_afford(BUILD_COSTS[kind]):
 		return false
 	return true
@@ -112,7 +114,7 @@ func production_site(kind: String, territory: TerritoryState) -> Variant:
 
 
 func set_primary(hex: Vector2i, territory: TerritoryState) -> bool:
-	if not buildings.has(hex) or territory.owner_at(hex) != faction or not is_complete(buildings[hex]) or not buildings[hex]["kind"] in ["barracks", "factory", "airfield"]:
+	if not buildings.has(hex) or territory.owner_at(hex) != faction or not is_complete(buildings[hex]) or not buildings[hex]["kind"] in ["barracks", "factory", "airfield", "shipyard"]:
 		return false
 	for site in buildings.values():
 		if site["kind"] == buildings[hex]["kind"]:
@@ -135,6 +137,12 @@ func train(hex: Vector2i, kind: String, territory: TerritoryState) -> bool:
 	return true
 
 func set_rally(hex: Vector2i, goal: Vector2i, tiles: Dictionary, territory: TerritoryState) -> bool:
+	if buildings.has(hex) and buildings[hex]["kind"] == "shipyard":
+		var port: Variant = NavalRules.deployment(tiles, hex)
+		if territory.owner_at(hex) != faction or port == null or HexPathfinding.find_path(tiles, port, goal, "patrol_boat").is_empty():
+			return false
+		buildings[hex]["rally"] = goal
+		return true
 	if not buildings.has(hex) or territory.owner_at(hex) != faction or HexPathfinding.find_path(tiles, hex, goal, "helicopter" if buildings[hex]["kind"] == "airfield" else "rifle").is_empty():
 		return false
 	buildings[hex]["rally"] = goal
@@ -225,6 +233,8 @@ func _advance_interval(delta: float, tiles: Dictionary, territory: TerritoryStat
 			continue
 		if territory.owner_at(hex) != faction or building["queue"].is_empty():
 			continue
+		if building["kind"] == "shipyard" and (territory.is_contested(hex) or NavalRules.deployment(tiles, hex) == null):
+			continue
 		if building["kind"] == "airfield" and (low_power(territory) or territory.is_contested(hex)):
 			continue
 		building["elapsed"] += delta * (factory_speed if building["kind"] == "factory" else 1.0)
@@ -234,7 +244,8 @@ func _advance_interval(delta: float, tiles: Dictionary, territory: TerritoryStat
 				break
 			building["elapsed"] -= TRAIN_SECONDS[kind]
 			building["queue"].pop_front()
-			var unit: UnitState = UnitState.new(hex, UnitCatalog.TYPES[kind]["name"])
+			var spawn: Vector2i = NavalRules.deployment(tiles, hex) if UnitCatalog.is_naval(kind) else hex
+			var unit: UnitState = UnitState.new(spawn, UnitCatalog.TYPES[kind]["name"])
 			unit.configure_kind(kind)
 			unit.faction = faction
 			if UnitCatalog.is_air(kind):

@@ -73,7 +73,7 @@ func _defensive_order(action: String) -> void:
 		_attack_mode = false
 		_rally_mode = false
 		units.build_kind = ""
-		hud.show_command_info("Load: select stationary infantry, then tap a friendly APC on the same hex (four slots)." if action == "load" else "Unload: tap the carrier hex or adjacent land. Esc cancels.")
+		hud.show_command_info("Load: select coastal infantry/vehicles, then click a friendly landing craft; APCs load same-hex infantry." if action == "load" else "Unload: choose clear adjacent coastal land; APCs also unload on their own hex. Esc cancels.")
 		return
 	if action == "attack":
 		_attack_mode = not _attack_mode and not units.selected_units.is_empty()
@@ -262,7 +262,7 @@ func _select_at(point: Vector2) -> void:
 	var picked: UnitState = units.pick_faction(point, camera.zoom.x, 1, true)
 	if hud.add_selection_button.button_pressed or Input.is_key_pressed(KEY_SHIFT):
 		if picked != null:
-			var members: Array[UnitState] = _hex_members(picked.hex).filter(func(member: UnitState) -> bool: return member.domain == picked.domain and (picked.domain != "air" or member.kind == picked.kind))
+			var members: Array[UnitState] = _hex_members(picked.hex).filter(func(member: UnitState) -> bool: return member.domain == picked.domain and (picked.domain == "ground" or member.kind == picked.kind))
 			var remove: bool = true
 			for member in members:
 				remove = remove and units.selected_units.has(member)
@@ -272,7 +272,7 @@ func _select_at(point: Vector2) -> void:
 	else:
 		units.select_one(picked)
 		if picked != null and picked.hex != units.expanded_hex:
-			units.selected_units = _hex_members(picked.hex).filter(func(member: UnitState) -> bool: return member.domain == picked.domain and (picked.domain != "air" or member.kind == picked.kind))
+			units.selected_units = _hex_members(picked.hex).filter(func(member: UnitState) -> bool: return member.domain == picked.domain and (picked.domain == "ground" or member.kind == picked.kind))
 	units.queue_redraw()
 	_inspect_world_at(world_map.hex_to_world(picked.hex) if picked != null else point)
 	if units.selected != null:
@@ -331,16 +331,16 @@ func _transport_at(point: Vector2) -> void:
 	var accepted: int = 0
 	if _transport_mode == "load":
 		var apc: UnitState = units.pick_faction(point, camera.zoom.x, 1)
-		if apc != null and apc.kind != "apc":
+		if apc != null and TransportRules.capacity(apc) == 0:
 			var hex: Vector2i = apc.hex
 			apc = null
 			for candidate in _hex_members(hex):
-				if candidate.kind == "apc" and candidate.path.is_empty() and TransportRules.passengers(candidate, units.units).size() < TransportRules.CAPACITY:
+				if TransportRules.capacity(candidate) > 0 and candidate.path.is_empty() and TransportRules.used(candidate, units.units) < TransportRules.capacity(candidate):
 					apc = candidate
 					break
-		if apc != null and apc.kind == "apc":
+		if apc != null and TransportRules.capacity(apc) > 0:
 			for unit in units.selected_units.duplicate():
-				if TransportRules.load(unit, apc, units.units):
+				if TransportRules.load(unit, apc, units.units, world_map.map_data["tiles"]):
 					accepted += 1
 			if accepted > 0:
 				units.select_one(apc)
@@ -351,7 +351,7 @@ func _transport_at(point: Vector2) -> void:
 	if accepted > 0:
 		_transport_mode = ""
 	units.queue_redraw()
-	hud.show_command_info("Transport: %d accepted." % accepted if accepted > 0 else "Transport rejected: need stationary friendly APC, available seats and same-hex infantry; unload on nearby land. Esc cancels.")
+	hud.show_command_info("Transport: %d accepted." % accepted if accepted > 0 else "Need a stationary friendly carrier and free capacity. APC: same hex; landing craft: adjacent clear coastal land. Esc cancels.")
 
 func _hex_members(hex: Vector2i) -> Array[UnitState]:
 	var members: Array[UnitState] = []
@@ -379,8 +379,8 @@ func _stack_action(kind: String) -> void:
 func _process(_delta: float) -> void:
 	if units != null:
 		hud.show_selection(units.selected_units, _attack_mode, units.units)
-		if units.selected != null and units.selected.kind == "apc":
-			hud.selection_info.text += "\nPassengers: %d/4. Load/Unload APC buttons choose a map target." % TransportRules.passengers(units.selected, units.units).size()
+		if units.selected != null and TransportRules.capacity(units.selected) > 0:
+			hud.selection_info.text += "\nPassengers: %d/%d (%d slots used). L loads; U chooses landing land." % [TransportRules.passengers(units.selected, units.units).size(), TransportRules.capacity(units.selected), TransportRules.used(units.selected, units.units)]
 		if units.selected != null and UnitCatalog.is_air(units.selected.kind):
 			var aircraft: UnitState = units.selected
 			hud.selection_info.text += "\nAIR | %s | Base %s | Rearm %.1fs" % [aircraft.air_mission if aircraft.kind == "fighter" else "Hover / flight", str(aircraft.airfield) if aircraft.airfield != AircraftRules.NO_BASE else "None", aircraft.mission_remaining]
@@ -482,7 +482,7 @@ func _begin_rally() -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	var hex: Vector2i = _economy_hex()
-	if not units.economy.buildings.has(hex) or not EconomyState.is_complete(units.economy.buildings[hex]) or not units.economy.buildings[hex]["kind"] in ["factory", "barracks", "airfield"]:
+	if not units.economy.buildings.has(hex) or not EconomyState.is_complete(units.economy.buildings[hex]) or not units.economy.buildings[hex]["kind"] in ["factory", "barracks", "airfield", "shipyard"]:
 		return
 	_begin_build("")
 	_rally_mode = true

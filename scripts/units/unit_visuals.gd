@@ -43,7 +43,7 @@ static func stacks(units: Array[UnitState]) -> Array[Dictionary]:
 		result.append(stack)
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if a["domain"] != b["domain"]:
-			return a["domain"] == "ground"
+			return {"ground": 0, "naval": 1, "air": 2}[a["domain"]] < {"ground": 0, "naval": 1, "air": 2}[b["domain"]]
 		if a["faction"] != b["faction"]:
 			return a["faction"] < b["faction"]
 		if a["hex"].y != b["hex"].y:

@@ -80,7 +80,10 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 		if unit.get("kind") not in UnitCatalog.TYPES or unit.get("faction") not in [1, 2] or not unit.get("garrisoned") is bool or not unit.get("title") is String:
 			return false
 		var airborne: bool = UnitCatalog.is_air(unit["kind"])
-		if not airborne and not _land(unit["hex"], tiles):
+		var naval: bool = UnitCatalog.is_naval(unit["kind"])
+		if naval and (not NavalRules.water(tiles, unit["hex"]) or unit["garrisoned"]):
+			return false
+		if not airborne and not naval and unit.get("carrier", -1) == -1 and not _land(unit["hex"], tiles):
 			return false
 		if not unit.get("airfield", AircraftRules.NO_BASE) is Vector2i or (unit.get("airfield", AircraftRules.NO_BASE) != AircraftRules.NO_BASE and not _land(unit["airfield"], tiles)):
 			return false
@@ -101,10 +104,10 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 		if carrier_index >= 0:
 			var transport: Variant = data["units"][carrier_index]
-			if not transport is Dictionary or transport.get("kind") != "apc" or transport.get("faction") != unit["faction"] or transport.get("hex") != unit["hex"] or not UnitCatalog.is_infantry(unit["kind"]) or not unit["path"].is_empty() or unit["garrisoned"] or unit.get("attack_order", false):
+			if not transport is Dictionary or transport.get("kind") not in ["apc", "landing_transport"] or not TransportRules.permits(transport["kind"], unit["kind"]) or transport.get("carrier", -1) != -1 or transport.get("faction") != unit["faction"] or transport.get("hex") != unit["hex"] or not unit["path"].is_empty() or unit["garrisoned"] or unit.get("attack_order", false):
 				return false
-			passenger_counts[carrier_index] = passenger_counts.get(carrier_index, 0) + 1
-			if passenger_counts[carrier_index] > TransportRules.CAPACITY:
+			passenger_counts[carrier_index] = passenger_counts.get(carrier_index, 0) + (1 if UnitCatalog.is_infantry(unit["kind"]) else 2)
+			if passenger_counts[carrier_index] > UnitCatalog.TYPES[transport["kind"]].get("capacity", TransportRules.CAPACITY):
 				return false
 		if not unit.get("attack_order", false) is bool or not unit.get("attack_target", -1) is int:
 			return false
@@ -112,7 +115,7 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 		if target_index < -1 or target_index >= data["units"].size():
 			return false
 		if unit.get("attack_order", false):
-			if not unit.get("attack_hex") is Vector2i or not tiles.has(unit["attack_hex"]) or (not airborne and not _land(unit["attack_hex"], tiles)) or unit.get("holding", false) or unit["garrisoned"]:
+			if not unit.get("attack_hex") is Vector2i or not tiles.has(unit["attack_hex"]) or unit.get("holding", false) or unit["garrisoned"]:
 				return false
 			if target_index >= 0:
 				var target_entry: Variant = data["units"][target_index]
@@ -126,7 +129,7 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 		var previous: Vector2i = unit["hex"]
 		for step in unit["path"]:
-			if not step is Vector2i or not tiles.has(step) or (not airborne and not _land(step, tiles)) or HexMath.distance(previous, step) != 1:
+			if not step is Vector2i or not tiles.has(step) or (naval and not NavalRules.water(tiles, step)) or (not airborne and not naval and not _land(step, tiles)) or HexMath.distance(previous, step) != 1:
 				return false
 			previous = step
 	for key in ["economy", "rival_economy"]:
@@ -148,8 +151,12 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 		var building: Variant = data["buildings"][hex]
 		if not _land(hex, tiles) or not building is Dictionary:
 			return false
-		if building.get("kind") not in EconomyState.BUILD_COSTS or not building.get("rally") is Vector2i or not tiles.has(building["rally"]) or (building["kind"] != "airfield" and not _land(building["rally"], tiles)) or not building.get("queue") is Array:
+		if building.get("kind") not in EconomyState.BUILD_COSTS or not building.get("rally") is Vector2i or not tiles.has(building["rally"]) or (building["kind"] not in ["airfield", "shipyard"] and not _land(building["rally"], tiles)) or not building.get("queue") is Array:
 			return false
+		if building["kind"] == "shipyard":
+			var port: Variant = NavalRules.deployment(tiles, hex)
+			if port == null or (building["rally"] != hex and HexPathfinding.find_path(tiles, port, building["rally"], "patrol_boat").is_empty()):
+				return false
 		if not building.get("rotation", 0) is int or building.get("rotation", 0) < 0 or building.get("rotation", 0) > 5:
 			return false
 		if not _number(building.get("construction", EconomyState.BUILD_SECONDS[building["kind"]]), 0, EconomyState.BUILD_SECONDS[building["kind"]]):
