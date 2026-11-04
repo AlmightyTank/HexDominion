@@ -14,6 +14,10 @@ func _capture(label: String) -> void:
 
 
 func _run() -> void:
+	create_timer(45).timeout.connect(func() -> void:
+		push_error("UI review exceeded 45 seconds; check assertion output")
+		quit(1)
+	)
 	root.size = Vector2i(1280, 720)
 	change_scene_to_file("res://scenes/main.tscn")
 	await process_frame
@@ -71,7 +75,7 @@ func _run() -> void:
 	assert(not "\n" in hud.economy_summary.text)
 	current_scene.set_process(true)
 	hud.match_action_requested.emit("resume")
-	DisplayServer.window_set_size(Vector2i(960, 640))
+	root.size = Vector2i(960, 640)
 	await process_frame
 	await process_frame
 	hud.command_tabs.current_tab = 1
