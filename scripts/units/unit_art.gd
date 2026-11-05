@@ -48,6 +48,15 @@ static func layer_texture(kind: String, faction: int, state: String, part: Strin
 		_textures[path] = load(path) if ResourceLoader.exists(path) else null
 	return _textures[path]
 
+static func oil_derrick_texture(faction: int, state: String = "base") -> Texture2D:
+	if faction not in [0, 1, 2] or state not in ["base", "damaged", "destroyed", "selected", "icon"]:
+		return null
+	var path: String = "res://assets/buildings/oil_derrick_%s.svg" % state if state in ["selected", "icon"] else "res://assets/buildings/oil_derrick_%s_%s.svg" % [["neutral", "a", "b"][faction], state]
+	if not _textures.has(path):
+		_textures[path] = load(path) if ResourceLoader.exists(path) else null
+	return _textures[path]
+
+
 static func building_texture(kind: String, faction: int, state: String = "base") -> Texture2D:
 	if kind in ["airfield", "shipyard"]:
 		var air_path: String = "res://assets/buildings/%s.svg" % kind

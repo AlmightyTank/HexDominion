@@ -96,6 +96,7 @@ func select_box(screen_rect: Rect2, canvas_transform: Transform2D) -> void:
 	selected = selected_units[0] if not selected_units.is_empty() else null
 	queue_redraw()
 var territory: TerritoryState = TerritoryState.new()
+var oil: OilDerrickNetwork = OilDerrickNetwork.new()
 var combat_targets: Dictionary = {}
 var economy: EconomyState = EconomyState.new()
 var match_state: MatchState = MatchState.new()
@@ -116,6 +117,7 @@ func can_place(hex: Vector2i, kind: String) -> bool:
 func configure(map: WorldMap) -> void:
 	world_map = map
 	_watch_building_damage()
+	_watch_oil_events()
 	# Start at named cities, spread across the world and guaranteed to be on land.
 	for tile in map.map_data["tiles"].values():
 		if tile["terrain"] == "city" and units.size() < 3:
@@ -144,7 +146,23 @@ func configure(map: WorldMap) -> void:
 	for unit in units:
 		starts.append(unit.hex)
 	territory.continents.configure(map.map_data["tiles"], starts, territory.owners)
+	var oil_reserved: Dictionary = {}
+	for unit in units:
+		oil_reserved[unit.hex] = true
+	for owner_economy in [economy, match_state.rival_economy]:
+		for hex in owner_economy.buildings:
+			oil_reserved[hex] = true
+	oil.configure_defaults(map.map_data["tiles"], match_state.player_hq, match_state.rival_hq, oil_reserved)
 	queue_redraw()
+
+
+func _watch_oil_events() -> void:
+	if not oil.command_event.is_connected(_on_oil_event):
+		oil.command_event.connect(_on_oil_event)
+
+
+func _on_oil_event(message: String, hex: Vector2i) -> void:
+	economy.command_event.emit(message, hex)
 
 
 func _add_starting_economy_assets() -> void:
@@ -316,9 +334,9 @@ func _physics_process(delta: float) -> void:
 		if unit.kind == "artillery" or UnitCatalog.is_air(unit.kind):
 			previous_shots[unit] = unit.shot_serial
 	UnitOrders.update(units, world_map.map_data["tiles"], economies)
-	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units, economy.buildings)
+	match_state.advance_ai(delta, world_map.map_data["tiles"], territory, units, economy.buildings, oil)
 	combat_targets = CombatState.advance(delta, units, world_map.map_data["tiles"], FortificationRules.protection(units, [economy, match_state.rival_economy], territory))
-	CombatState.attack_extractors(delta, units, economies, combat_targets, world_map.map_data["tiles"])
+	CombatState.attack_extractors(delta, units, economies, combat_targets, world_map.map_data["tiles"], oil)
 	AircraftRules.update(0, units, world_map.map_data["tiles"], economies, territory)
 	for unit in previous_shots:
 		if unit.shot_serial > previous_shots[unit]:
@@ -342,6 +360,7 @@ func _physics_process(delta: float) -> void:
 			unit.order_hold()
 	# No capture credit on the tick a squad arrives.
 	territory.advance(delta, world_map.map_data["tiles"], units)
+	oil.advance_capture(delta, units, territory)
 	match_state.evaluate(territory)
 	if match_state.result != "playing":
 		combat_targets.clear()
@@ -354,6 +373,7 @@ func _physics_process(delta: float) -> void:
 	SupplyLogistics.advance_all(delta, units, world_map.map_data["tiles"], territory, economies)
 	units.append_array(economy.advance(delta, world_map.map_data["tiles"], territory))
 	units.append_array(match_state.rival_economy.advance(delta, world_map.map_data["tiles"], territory))
+	oil.advance_economy(delta, territory, economies)
 	queue_redraw()
 
 
@@ -363,6 +383,7 @@ func _draw() -> void:
 	_draw_territory()
 	_draw_roads()
 	_draw_supply_deposits()
+	_draw_oil_derricks()
 	_draw_artillery_range()
 	_draw_isolated_locations()
 	for wreck in building_wrecks:
@@ -557,6 +578,29 @@ func _draw_supply_deposits() -> void:
 		draw_circle(center, radius, Color("17222a"))
 		draw_arc(center, radius, -PI / 2.0, -PI / 2.0 + TAU * remaining / capacity, 24, Color("e5c76b"), 3.0, true)
 		draw_string(ThemeDB.fallback_font, center + Vector2(-7, 4), "S", HORIZONTAL_ALIGNMENT_CENTER, 14, 10, Color("fff0ad"))
+
+
+func _draw_oil_derricks() -> void:
+	for hex in oil.sites:
+		var site: Dictionary = oil.sites[hex]
+		var center: Vector2 = to_local(world_map.hex_to_world(hex))
+		var owner: int = site.get("owner", 0)
+		var health: float = site.get("health", OilDerrickNetwork.MAX_HEALTH)
+		var state: String = "destroyed" if health <= 0.0 else ("damaged" if health < OilDerrickNetwork.MAX_HEALTH * 0.5 else "base")
+		var selected_oil: bool = world_map.selected_hex == hex
+		var texture: Texture2D = UnitArt.oil_derrick_texture(owner, "selected" if selected_oil and state == "base" else state)
+		if texture != null:
+			draw_texture_rect(texture, Rect2(center - Vector2(18, 18), Vector2(36, 36)), false)
+		else:
+			draw_circle(center, 12.0, Color("889099") if owner == 0 else faction_color(owner))
+		var capture_faction: int = site.get("capture_faction", 0)
+		if capture_faction > 0:
+			draw_arc(center, 20.0, -PI / 2.0, -PI / 2.0 + TAU * site.get("capture_elapsed", 0.0) / OilDerrickNetwork.CAPTURE_SECONDS, 32, faction_color(capture_faction), 3.0, true)
+		if site.get("contested", false):
+			draw_string(ThemeDB.fallback_font, center + Vector2(-3, -20), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("f08075"))
+		if health < OilDerrickNetwork.MAX_HEALTH:
+			draw_rect(Rect2(center + Vector2(-14, 19), Vector2(28, 3)), Color("071522"))
+			draw_rect(Rect2(center + Vector2(-14, 19), Vector2(28 * health / OilDerrickNetwork.MAX_HEALTH, 3)), Color("889099") if owner == 0 else faction_color(owner))
 
 
 func _draw_construction(center: Vector2, building: Dictionary, color: Color) -> void:

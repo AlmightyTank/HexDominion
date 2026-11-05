@@ -24,10 +24,12 @@ var cancel_construction_button: Button
 var _cancel_hex: Vector2i
 var _cancel_site: Dictionary = {}
 signal match_action_requested(action: String)
+signal difficulty_selected(difficulty: String)
 var match_panel: PanelContainer
 var match_label: Label
 var pause_overlay: Control
 var resume_button: Button
+var difficulty_selector: OptionButton
 signal save_slot_requested(title: String, path: String)
 signal load_slot_requested(path: String)
 var save_browser: Control
@@ -339,9 +341,10 @@ func _layout_allied_desktop(viewport_size: Vector2) -> void:
 	field_command_panel.size = Vector2(minf(520, left - 180 * scale), 204)
 	field_command_panel.z_index = 5
 	context_scroll.visible = context_expanded
-	deck_details.position = Vector2(175 * scale, viewport_size.y - 28 * scale)
-	deck_details.size = Vector2(160 * scale, 26 * scale)
-	deck_details.text = "Hide details" if context_expanded else "Selection details"
+	deck_details.position = Vector2(302 * scale, viewport_size.y - deck_height + 8 * scale)
+	deck_details.size = Vector2(84 * scale, 30 * scale)
+	deck_details.text = "Close" if context_expanded else "Details"
+	deck_details.tooltip_text = "Close selection details" if context_expanded else "Open selection details"
 	if order_grid.get_parent() != self:
 		order_grid.reparent(self)
 	order_grid.position = Vector2(397 * scale, viewport_size.y - deck_height + 10 * scale)
@@ -613,6 +616,25 @@ func _create_match_menu() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 22)
 	buttons.add_child(title)
+	var difficulty_row: HBoxContainer = HBoxContainer.new()
+	buttons.add_child(difficulty_row)
+	var difficulty_label: Label = Label.new()
+	difficulty_label.text = "Opponent"
+	difficulty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	difficulty_row.add_child(difficulty_label)
+	difficulty_selector = OptionButton.new()
+	difficulty_selector.custom_minimum_size = Vector2(132, 44)
+	difficulty_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	difficulty_selector.focus_mode = Control.FOCUS_ALL
+	difficulty_selector.tooltip_text = "Easy: smaller forces and slower decisions\nMedium: ground combined arms and light defense\nHard: full combined arms and the original pacing"
+	for id in AIDifficulty.ORDER:
+		var index: int = difficulty_selector.item_count
+		difficulty_selector.add_item(AIDifficulty.profile(id)["title"])
+		difficulty_selector.set_item_metadata(index, id)
+	difficulty_selector.item_selected.connect(func(index: int) -> void:
+		difficulty_selected.emit(String(difficulty_selector.get_item_metadata(index)))
+	)
+	difficulty_row.add_child(difficulty_selector)
 	for action in ["resume", "save", "load", "restart"]:
 		var button: Button = Button.new()
 		button.text = {"resume": "Resume • Esc", "save": "Save • F5", "load": "Load • F9", "restart": "Restart • F10"}[action]
@@ -624,6 +646,13 @@ func _create_match_menu() -> void:
 			resume_button = button
 	pause_overlay.hide()
 	_create_save_browser()
+
+
+func select_difficulty(value: String) -> void:
+	for index in range(difficulty_selector.item_count):
+		if difficulty_selector.get_item_metadata(index) == value:
+			difficulty_selector.select(index)
+			return
 
 
 func show_pause_menu(open: bool) -> void:
@@ -1087,7 +1116,7 @@ func show_selection(roster: Array[UnitState], attack_mode: bool, all_units: Arra
 		maximum += unit.max_health
 	var parts: PackedStringArray = []
 	for kind in composition:
-		parts.append("%d %s" % [composition[kind], UnitCatalog.TYPES[kind]["name"]])
+		parts.append("%d %s" % [composition[kind], UnitCatalog.display_name(kind, composition[kind])])
 	tactical_deck.update_values({"count": roster.size(), "composition": " · ".join(parts) if not parts.is_empty() else "Select an army or inspect a territory.", "health": health / maximum if maximum > 0 else 0.0})
 	if context_toggle != null:
 		context_toggle.text = ("%d units selected" % roster.size() if _army_selected else "Field command") + (" | Hide details" if context_expanded else " | Show details")
@@ -1161,7 +1190,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 			active_trucks += 1
 	var source_status: String = "SOURCE ACTIVE" if economy.has_working_income_source() else "NO WORKING SOURCE"
 	economy_summary.text = "%.2f CR | 60s +%.0f | TRK %d | OIL %d | %s" % [economy.credits, income, active_trucks, economy.oil_derrick_count, source_status]
-	economy_summary.tooltip_text = "Available credits, approved income received in the last 60 seconds, active Supply Trucks and operational oil derricks. Truck cargo credits only after a completed Supply Center unload."
+	economy_summary.tooltip_text = "Available credits, approved income received in the last 60 seconds, active Supply Trucks and operational oil derricks. Oil contributes 3 CR/s plus continent bonus without trucks or roads. Truck cargo credits only after a completed Supply Center unload."
 	economy_summary.add_theme_color_override("font_color", CommandTheme.POSITIVE if income > 0 else CommandTheme.WARNING)
 	var power: Dictionary = economy.power_balance(territory)
 	power_summary.text = "PWR %d / %d%s" % [power["supply"], power["demand"], " LOW" if economy.low_power(territory) else ""]
@@ -1288,6 +1317,37 @@ static func production_target(kind: String, selected_hex: Vector2i, economy: Eco
 		if site["kind"] == UnitCatalog.producer(kind) and EconomyState.is_complete(site):
 			return selected_hex
 	return economy.production_site(kind, territory)
+
+
+func show_oil_site(hex: Vector2i, oil: OilDerrickNetwork, territory: TerritoryState, viewer_faction: int = 1) -> void:
+	if not oil.sites.has(hex):
+		return
+	var site: Dictionary = oil.sites[hex]
+	var owner: int = site.get("owner", 0)
+	var operational: bool = oil.operational(hex, territory)
+	var status: String = "OPERATIONAL" if operational else "OFFLINE"
+	if site.get("health", 0.0) <= 0.0:
+		status = "DESTROYED: owner retains site; repair to restore"
+	elif site.get("contested", false) or territory.is_contested(hex):
+		status = "CONTESTED: capture and income paused"
+	elif site.get("capture_faction", 0) != 0:
+		status = "CAPTURING %.1f / 5s: income paused" % site.get("capture_elapsed", 0.0)
+	elif territory.owner_at(hex) != owner:
+		status = "CONTROL DISPUTED: income paused"
+	var contribution: float = OilDerrickNetwork.INCOME_PER_SECOND * 60.0 * (1.0 + territory.continents.bonus(owner)) if operational else 0.0
+	supply_info.visible = not _army_selected
+	supply_info.text = "OIL DERRICK | %s | %s\nHP %.0f / %.0f | +%.0f CR/min | 3 CR/s base, no road bonus" % [{0: "Neutral", 1: "Player", 2: "Rival"}.get(owner, "Unknown"), status, site.get("health", 0.0), OilDerrickNetwork.MAX_HEALTH, contribution]
+	supply_info.add_theme_color_override("font_color", CommandTheme.POSITIVE if operational else CommandTheme.WARNING)
+	if owner != viewer_faction:
+		return
+	_cancel_hex = hex
+	_cancel_site = site
+	repair_button.text = "Stop oil repairs" if site.get("repairing", false) else "Repair oil derrick (1 CR / HP)"
+	repair_button.visible = not _army_selected and (site.get("health", 0.0) < OilDerrickNetwork.MAX_HEALTH or site.get("repairing", false))
+	build_status.text = "Oil derrick • (%d, %d)\nHP: %.0f / %.0f\n%s\nContribution: +%.0f CR/min" % [hex.x, hex.y, site.get("health", 0.0), OilDerrickNetwork.MAX_HEALTH, status, contribution]
+	if site.get("repairing", false):
+		build_status.text += "\nRepairing: 20 HP/s; paused if unfunded or contested"
+	build_status.visible = not _army_selected
 
 
 func show_supply(hex: Vector2i, economy: EconomyState, territory: TerritoryState, tiles: Dictionary) -> void:

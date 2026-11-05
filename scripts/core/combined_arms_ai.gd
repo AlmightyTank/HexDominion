@@ -4,7 +4,10 @@ class_name CombinedArmsAI
 var _shore_goal: Variant = null
 var _shore_key: Array = []
 
-static func production(economy: EconomyState, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState], enemy_buildings: Dictionary, home: Vector2i, objective: Vector2i) -> bool:
+static func production(economy: EconomyState, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState], enemy_buildings: Dictionary, home: Vector2i, objective: Vector2i, difficulty: String = AIDifficulty.HARD) -> bool:
+	var profile: Dictionary = AIDifficulty.profile(difficulty)
+	if not profile["combined_arms"]:
+		return false
 	var counts: Dictionary = {}
 	var total: int = 0
 	var enemy_air: bool = false
@@ -18,19 +21,19 @@ static func production(economy: EconomyState, tiles: Dictionary, territory: Terr
 		for kind in site["queue"]:
 			counts[kind] = counts.get(kind, 0) + 1
 			total += 1
-	if total >= RivalEconomyAI.ARMY_LIMIT:
+	if total >= int(profile["army_limit"]):
 		return false
 	var desired: String = ""
 	if enemy_air and counts.get("anti_air", 0) == 0:
 		desired = "anti_air"
 	elif not enemy_buildings.is_empty() and counts.get("tank", 0) >= 1 and total >= 4 and counts.get("artillery", 0) == 0:
 		desired = "artillery"
-	elif total >= 5 and counts.get("helicopter", 0) == 0:
+	elif profile["air_and_naval"] and total >= 5 and counts.get("helicopter", 0) == 0:
 		desired = "helicopter"
-	elif total >= 5 and counts.get("fighter", 0) == 0:
+	elif profile["air_and_naval"] and total >= 5 and counts.get("fighter", 0) == 0:
 		desired = "fighter"
 	var overseas: bool = HexPathfinding.find_path(tiles, home, objective).is_empty()
-	if overseas and total >= 2:
+	if profile["air_and_naval"] and overseas and total >= 2:
 		if counts.get("landing_transport", 0) == 0:
 			desired = "landing_transport"
 		elif counts.get("destroyer", 0) == 0:

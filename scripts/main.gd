@@ -25,6 +25,9 @@ var _transport_mode: String = ""
 var _tactical_mode: String = ""
 var military_orders_panel: MilitaryOrdersPanel
 const TAP_THRESHOLD: float = 14.0
+const HUD_REFRESH_INTERVAL: float = 0.1
+var _hud_refresh_elapsed: float = HUD_REFRESH_INTERVAL
+static var _selected_difficulty: String = AIDifficulty.EASY
 
 
 func _ready() -> void:
@@ -36,6 +39,8 @@ func _ready() -> void:
 	units.name = "Units"
 	add_child(units)
 	units.configure(world_map)
+	units.match_state.set_difficulty(_selected_difficulty)
+	hud.select_difficulty(_selected_difficulty)
 	hud.build_requested.connect(_begin_build)
 	hud.train_requested.connect(_train_selected)
 	hud.facility_selected.connect(_select_facility)
@@ -45,6 +50,7 @@ func _ready() -> void:
 	hud.cancel_construction_requested.connect(_cancel_construction)
 	hud.building_action_requested.connect(_building_action)
 	hud.match_action_requested.connect(_match_action)
+	hud.difficulty_selected.connect(_difficulty_selected)
 	hud.save_slot_requested.connect(_save_slot)
 	hud.load_slot_requested.connect(_load_slot)
 	hud.show_command_info("Click/tap selects a hex army. Use its panel to select a type or expand individuals. Shift-click adds stacks. Right-click enemies attacks. J holds, G garrisons; L loads and U unloads APCs.")
@@ -264,6 +270,9 @@ func _inspect_world_at(world_point: Vector2) -> void:
 			_facility_hex = hex
 			_facility_site = building
 		hud.show_command_info("%s • Queue %d/5 • Manage pinned facility in sidebar • I rifle / T tank" % [String(building["kind"]).capitalize(), building["queue"].size()])
+	elif units.oil.sites.has(hex):
+		var site: Dictionary = units.oil.sites[hex]
+		hud.show_command_info("Oil derrick • %s • HP %.0f / %.0f • Stationary infantry capture in 5s" % [{0: "Neutral", 1: "Player", 2: "Rival"}[site["owner"]], site["health"], OilDerrickNetwork.MAX_HEALTH])
 
 
 func _select_at(point: Vector2) -> void:
@@ -326,7 +335,9 @@ func _move_to(point: Vector2) -> void:
 		_set_facility_rally(point)
 		return
 	var enemy: UnitState = units.pick_faction(point, camera.zoom.x, 2)
-	if _attack_mode or (units.selected != null and (enemy != null or units.match_state.rival_economy.buildings.has(world_map.world_to_hex(point)))):
+	var clicked_hex: Vector2i = world_map.world_to_hex(point)
+	var hostile_oil: bool = units.oil.sites.has(clicked_hex) and units.oil.sites[clicked_hex].get("owner", 0) != 1
+	if _attack_mode or (units.selected != null and (enemy != null or units.match_state.rival_economy.buildings.has(clicked_hex) or hostile_oil)):
 		_attack_at(point, enemy)
 		return
 	if units.selected == null:
@@ -366,8 +377,8 @@ func _attack_at(point: Vector2, target: UnitState = null) -> void:
 	if target == null:
 		target = units.pick_faction(point, camera.zoom.x, 2)
 	var goal: Vector2i = target.hex if target != null else world_map.world_to_hex(point)
-	if target == null and not units.match_state.rival_economy.buildings.has(goal):
-		hud.show_command_info("Choose an enemy unit or building. Esc cancels.")
+	if target == null and not units.match_state.rival_economy.buildings.has(goal) and not (units.oil.sites.has(goal) and units.oil.sites[goal].get("owner", 0) != 1):
+		hud.show_command_info("Choose an enemy unit, structure, or non-player oil derrick. Esc cancels.")
 		return
 	var accepted: int = 0
 	for unit in units.selected_units:
@@ -427,7 +438,21 @@ func _stack_action(kind: String) -> void:
 	units.queue_redraw()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if units != null:
+		var build_hex: Vector2i = world_map.world_to_hex(get_global_mouse_position())
+		if units.build_hex != build_hex:
+			units.build_hex = build_hex
+			if not units.build_kind.is_empty():
+				units.queue_redraw()
+		if not units.build_kind.is_empty():
+			hud.build_status.text = "%s • %d°\n%s\nLeft-click place • Q rotate\nRight-click / Esc cancel" % [units.build_kind.capitalize(), units.build_rotation * 60, "VALID — controlled empty hex" if units.can_place(units.build_hex, units.build_kind) else "BLOCKED — ownership / terrain / structure / credits"]
+			if units.build_kind == "road":
+				hud.build_status.text = "ROAD | 100 CR / hex\n%s\nClick consecutive hexes. Esc cancels." % ("VALID: controlled road terrain" if units.can_place(units.build_hex, "road") else "BLOCKED: terrain / owner / road / credits")
+	_hud_refresh_elapsed += delta
+	if delta > 0.0 and _hud_refresh_elapsed < HUD_REFRESH_INTERVAL:
+		return
+	_hud_refresh_elapsed = 0.0
 	if military_orders_panel != null:
 		military_orders_panel.show_orders(units.selected_units)
 	if units != null:
@@ -445,21 +470,16 @@ func _process(_delta: float) -> void:
 		var inspected: Vector2i = world_map.selected_hex
 		var income_economy: EconomyState = units.match_state.rival_economy if units.territory.owner_at(inspected) == 2 else units.economy
 		hud.show_supply(inspected, income_economy, units.territory, world_map.map_data["tiles"])
+		hud.show_oil_site(inspected, units.oil, units.territory, 1)
 		if units.managed_hex != _facility_hex:
 			units.managed_hex = _facility_hex
 			units.queue_redraw()
 		hud.show_match_status(units.match_state)
-		units.build_hex = world_map.world_to_hex(get_global_mouse_position())
-		if not units.build_kind.is_empty():
-			hud.build_status.text = "%s • %d°\n%s\nLeft-click place • Q rotate\nRight-click / Esc cancel" % [units.build_kind.capitalize(), units.build_rotation * 60, "VALID — controlled empty hex" if units.can_place(units.build_hex, units.build_kind) else "BLOCKED — ownership / terrain / structure / credits"]
-			if units.build_kind == "road":
-				hud.build_status.text = "ROAD | 100 CR / hex\n%s\nClick consecutive hexes. Esc cancels." % ("VALID: controlled road terrain" if units.can_place(units.build_hex, "road") else "BLOCKED: terrain / owner / road / credits")
-			units.queue_redraw()
 		var trucks: int = 0
 		for unit in units.units:
 			if unit.faction == 1 and unit.kind == "supply_truck" and unit.is_alive() and unit.is_deployed():
 				trucks += 1
-		hud.world_stats_label.text = "%d CR | 60s +%.0f | TRK %d | OIL %d\n%s" % [int(units.economy.credits), units.economy.income_last_seconds(60.0), trucks, units.economy.oil_derrick_count, "WORKING INCOME SOURCE" if units.economy.has_working_income_source() else "NO WORKING INCOME SOURCE"]
+		hud.world_stats_label.text = "%d CR | 60s +%.0f | TRK %d | OIL %d +%.0f/min\n%s" % [int(units.economy.credits), units.economy.income_last_seconds(60.0), trucks, units.economy.oil_derrick_count, units.oil.income_per_minute(1, units.territory), "WORKING INCOME SOURCE" if units.economy.has_working_income_source() else "NO WORKING INCOME SOURCE"]
 		var power: Dictionary = units.economy.power_balance(units.territory)
 		hud.world_stats_label.text += "\nPOWER %d / %d used%s" % [power["demand"], power["supply"], " • LOW" if units.economy.low_power(units.territory) else " • OK"]
 
@@ -488,12 +508,20 @@ func _building_action(action: String, hex: Vector2i, site: Dictionary) -> void:
 	if _menu_open or units.match_state.result != "playing":
 		return
 	var accepted: bool = false
-	if action == "sell":
-		accepted = units.economy.sell_building(hex, units.territory, site)
-	elif action == "repair":
-		accepted = units.economy.set_repair(hex, units.territory, site, not site.get("repairing", false))
-	hud.show_command_info("Building order accepted" if accepted else "Building order rejected: site changed, unfinished or no longer controlled")
+	var oil_action: bool = units.oil.sites.has(hex) and is_same(site, units.oil.sites[hex])
+	if oil_action:
+		if action == "repair":
+			accepted = units.oil.set_repair(hex, 1, units.territory, site, not site.get("repairing", false))
+		hud.show_command_info("Oil derrick repair order accepted" if accepted else "Oil repair rejected: site changed, unowned, uncontested control required, or fully repaired")
+	else:
+		if action == "sell":
+			accepted = units.economy.sell_building(hex, units.territory, site)
+		elif action == "repair":
+			accepted = units.economy.set_repair(hex, units.territory, site, not site.get("repairing", false))
+		hud.show_command_info("Building order accepted" if accepted else "Building order rejected: site changed, unfinished or no longer controlled")
 	hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"], units.units)
+	if oil_action:
+		hud.show_oil_site(hex, units.oil, units.territory, 1)
 	units.queue_redraw()
 
 
@@ -553,6 +581,13 @@ func _set_facility_rally(point: Vector2) -> void:
 	units.queue_redraw()
 
 
+func _difficulty_selected(value: String) -> void:
+	if not units.match_state.set_difficulty(value):
+		return
+	_selected_difficulty = value
+	hud.select_difficulty(value)
+
+
 func _set_menu_open(open: bool) -> void:
 	_tactical_mode = ""
 	_move_mode = false
@@ -572,6 +607,7 @@ func _set_menu_open(open: bool) -> void:
 	camera.set_process_unhandled_input(not open)
 	# Do not resume a held mouse drag or pinch after closing the modal.
 	camera.restore_view(camera.position, camera.zoom)
+	hud.select_difficulty(units.match_state.difficulty)
 	hud.show_pause_menu(open)
 
 
@@ -610,6 +646,8 @@ func _load_slot(path: String) -> void:
 	if snapshot.is_empty() or not MatchSave.restore(units, snapshot):
 		hud.save_message.text = "Save unavailable or incompatible. Match unchanged."
 		return
+	_selected_difficulty = units.match_state.difficulty
+	hud.select_difficulty(_selected_difficulty)
 	_set_menu_open(false)
 	camera.restore_view(snapshot["camera_position"], snapshot["camera_zoom"])
 	world_map.inspect_at_world(world_map.hex_to_world(snapshot["inspected"]))

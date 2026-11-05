@@ -4,7 +4,7 @@ class_name MatchSave
 const PATH: String = "user://quicksave.hds"
 const SAVE_DIRECTORY: String = "user://saves"
 const MAP_ID: String = "earth-120x70-v1"
-const SAVE_VERSION: int = 3
+const SAVE_VERSION: int = 5
 
 static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vector2, inspected: Vector2i) -> Dictionary:
 	var roster: Array = []
@@ -29,15 +29,17 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 		"owners": layer.territory.owners.duplicate(true), "captures": layer.territory.captures.duplicate(true),
 		"contested": layer.territory.contested.duplicate(true),
 		"roads": RoadRules.snapshot(layer.world_map.map_data["tiles"]), "supply_deposits": deposits,
+		"oil_derricks": layer.oil.snapshot(),
 		"economy": _economy_data(layer.economy), "rival_economy": _economy_data(match_state.rival_economy),
 		"player_hq": match_state.player_hq, "rival_hq": match_state.rival_hq,
 		"result": match_state.result, "ai_countdown": match_state.ai_countdown,
+		"ai_difficulty": match_state.difficulty,
 		"camera_position": camera_position, "camera_zoom": camera_zoom, "inspected": inspected}
 
 static func _economy_data(economy: EconomyState) -> Dictionary:
 	return {"credits": economy.credits, "account": economy.account.snapshot(), "buildings": economy.buildings.duplicate(true), "activity": economy.activity_snapshot()}
 
-static func migrate(data: Variant) -> Dictionary:
+static func migrate(data: Variant, tiles: Dictionary = {}) -> Dictionary:
 	if not data is Dictionary:
 		return {}
 	var migrated: Dictionary = data.duplicate(true)
@@ -63,6 +65,21 @@ static func migrate(data: Variant) -> Dictionary:
 				deposit["capacity"] = SupplyLogistics.DEPOSIT_CAPACITIES["medium"]
 				deposit["remaining"] = minf(float(deposit.get("remaining", 0.0)), float(deposit["capacity"]))
 		migrated["version"] = 3
+	if migrated.get("version") == 3 and not tiles.is_empty():
+		var reserved: Dictionary = {}
+		for unit in migrated.get("units", []):
+			if unit is Dictionary and unit.get("hex") is Vector2i:
+				reserved[unit["hex"]] = true
+		for key in ["economy", "rival_economy"]:
+			for hex in migrated.get(key, {}).get("buildings", {}):
+				reserved[hex] = true
+		migrated["oil_derricks"] = OilDerrickNetwork.default_snapshot(tiles, migrated.get("player_hq", Vector2i.ZERO), migrated.get("rival_hq", Vector2i.ZERO), reserved)
+		migrated["version"] = 4
+	if migrated.get("version") == 4:
+		# Matches saved before difficulty selection retain their original Hard opponent.
+		migrated["ai_difficulty"] = AIDifficulty.HARD
+		migrated["ai_countdown"] = minf(float(migrated.get("ai_countdown", 0.0)), AIDifficulty.opening_delay(AIDifficulty.HARD))
+		migrated["version"] = 5
 	return migrated
 
 static func _number(value: Variant, minimum: float, maximum: float) -> bool:
@@ -72,7 +89,7 @@ static func _land(value: Variant, tiles: Dictionary) -> bool:
 	return value is Vector2i and HexPathfinding.is_walkable(tiles, value)
 
 static func validate(data: Variant, tiles: Dictionary) -> bool:
-	data = migrate(data)
+	data = migrate(data, tiles)
 	if data.is_empty() or data.get("version") != SAVE_VERSION or data.get("map") != MAP_ID:
 		return false
 	if data.has("save_name") and (not data["save_name"] is String or data["save_name"].strip_edges().is_empty() or data["save_name"].length() > 80):
@@ -82,7 +99,10 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 	for key in ["player_hq", "rival_hq"]:
 		if not _land(data.get(key), tiles):
 			return false
-	if data["player_hq"] == data["rival_hq"] or data.get("result") not in ["playing", "victory", "defeat", "draw"] or not _number(data.get("ai_countdown"), 0, 8):
+	var difficulty: Variant = data.get("ai_difficulty")
+	if not AIDifficulty.is_valid(difficulty):
+		return false
+	if data["player_hq"] == data["rival_hq"] or data.get("result") not in ["playing", "victory", "defeat", "draw"] or not _number(data.get("ai_countdown"), 0, AIDifficulty.opening_delay(String(difficulty))):
 		return false
 	if not data.get("camera_position") is Vector2 or not data["camera_position"].is_finite() or not data.get("camera_zoom") is Vector2:
 		return false
@@ -114,6 +134,8 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 		deposit_hexes[deposit["hex"]] = true
 		deposit_ids[deposit["id"]] = true
+	if not _valid_oil(data.get("oil_derricks", {}), tiles, deposit_hexes):
+		return false
 	if data.has("contested"):
 		if not data["contested"] is Dictionary:
 			return false
@@ -278,6 +300,39 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 			return false
 	return headquarters <= 1
 
+static func _valid_oil(data: Variant, tiles: Dictionary, deposit_hexes: Dictionary) -> bool:
+	if not data is Dictionary or not data.get("sites") is Array or data["sites"].size() != OilDerrickNetwork.SITE_COUNT:
+		return false
+	if not _number(data.get("payout_elapsed"), 0.0, OilDerrickNetwork.PAYOUT_INTERVAL) or data["payout_elapsed"] >= OilDerrickNetwork.PAYOUT_INTERVAL:
+		return false
+	if not data.get("pending_income") is Dictionary or data["pending_income"].size() != 2:
+		return false
+	for faction in [1, 2]:
+		if not _number(data["pending_income"].get(faction), 0.0, OilDerrickNetwork.SITE_COUNT * OilDerrickNetwork.INCOME_PER_SECOND * OilDerrickNetwork.PAYOUT_INTERVAL + 0.001):
+			return false
+	var ids: Dictionary = {}
+	var hexes: Dictionary = {}
+	for site in data["sites"]:
+		if not site is Dictionary or not _land(site.get("hex"), tiles) or not OilDerrickNetwork.valid_site_tile(tiles, site["hex"]):
+			return false
+		var hex: Vector2i = site["hex"]
+		if hexes.has(hex) or deposit_hexes.has(hex) or site.get("id") != OilDerrickNetwork.site_id(hex) or ids.has(site["id"]):
+			return false
+		if site.get("owner") not in [0, 1, 2] or not _number(site.get("health"), 0.0, OilDerrickNetwork.MAX_HEALTH):
+			return false
+		if site.get("capture_faction") not in [0, 1, 2] or not _number(site.get("capture_elapsed"), 0.0, OilDerrickNetwork.CAPTURE_SECONDS):
+			return false
+		if not site.get("contested") is bool or not site.get("repairing") is bool:
+			return false
+		if (site["capture_faction"] == 0 and site["capture_elapsed"] != 0.0) or (site["capture_faction"] != 0 and site["capture_elapsed"] >= OilDerrickNetwork.CAPTURE_SECONDS) or (site["capture_faction"] != 0 and site["capture_faction"] == site["owner"]):
+			return false
+		if site["repairing"] and (site["owner"] == 0 or site["health"] >= OilDerrickNetwork.MAX_HEALTH):
+			return false
+		ids[site["id"]] = true
+		hexes[hex] = true
+	return true
+
+
 static func _valid_activity(data: Variant) -> bool:
 	if not data is Dictionary or not _number(data.get("time"), 0.0, 1.0e15) or not data.get("income_events") is Array:
 		return false
@@ -315,7 +370,7 @@ static func _valid_supply_state(unit: Dictionary, tiles: Dictionary, deposit_ids
 	return true
 
 static func restore(layer: UnitLayer, data: Dictionary) -> bool:
-	data = migrate(data)
+	data = migrate(data, layer.world_map.map_data["tiles"])
 	if not validate(data, layer.world_map.map_data["tiles"]):
 		return false # Never mutate the live match before the entire snapshot validates.
 	var roster: Array[UnitState] = []
@@ -383,11 +438,15 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 	layer.territory.owners = data["owners"].duplicate(true)
 	layer.territory.captures = data["captures"].duplicate(true)
 	layer.territory.contested = data.get("contested", {}).duplicate(true)
+	layer.oil = OilDerrickNetwork.new()
+	layer.oil.restore(data["oil_derricks"])
+	layer._watch_oil_events()
 	layer.economy = _restore_economy(data["economy"], 1)
 	var match_state: MatchState = MatchState.new()
 	match_state.player_hq = data["player_hq"]
 	match_state.rival_hq = data["rival_hq"]
 	match_state.result = data["result"]
+	match_state.set_difficulty(data["ai_difficulty"], false)
 	match_state.ai_countdown = data["ai_countdown"]
 	match_state.rival_economy = _restore_economy(data["rival_economy"], 2)
 	layer.match_state = match_state
@@ -482,5 +541,5 @@ static func _read_candidate(tiles: Dictionary, path: String) -> Dictionary:
 	file.seek(0)
 	var data: Variant = file.get_var(false)
 	file.close()
-	var migrated: Dictionary = migrate(data)
+	var migrated: Dictionary = migrate(data, tiles)
 	return migrated if validate(migrated, tiles) else {}

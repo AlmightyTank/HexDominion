@@ -18,12 +18,21 @@ func _draw() -> void:
 	draw_line(Vector2.ZERO if deck else Vector2(0, size.y - 1), Vector2(size.x, 0 if deck else size.y - 1), Color("4e7486"), 2)
 	var font: Font = ThemeDB.fallback_font
 	if deck:
-		_write(font, "SELECTED ARMY" if values.get("count", 0) > 0 else "FIELD COMMAND", Vector2(175, 16), 11, Color("a6c4d4"), scale)
-		_write(font, ("1 Unit" if values["count"] == 1 else "%d Units" % values["count"]) if values.get("count", 0) > 0 else "No army selected", Vector2(175, 37), 17, CommandTheme.TEXT, scale)
-		_write(font, values.get("composition", "Select an army or inspect a territory."), Vector2(175, 55), 11, Color("c0d4df"), scale, 210 * scale)
-		if values.get("count", 0) > 0:
-			draw_style_box(CommandTheme.box(Color("2a4857"), Color("2a4857")), Rect2(Vector2(300, 29) * scale, Vector2(80, 6) * scale))
-			draw_rect(Rect2(Vector2(300, 29) * scale, Vector2(80 * values.get("health", 0.0), 6) * scale), Color("5cb487"))
+		var count: int = values.get("count", 0)
+		if count > 0:
+			var health: float = clampf(values.get("health", 0.0), 0.0, 1.0)
+			var health_color: Color = Color("5cb487") if health >= 0.67 else (Color("d19a4c") if health >= 0.34 else Color("d97872"))
+			_write(font, "SELECTED FORCE", Vector2(175, 16), 10, Color("a6c4d4"), scale)
+			_write(font, "1 UNIT" if count == 1 else "%d UNITS" % count, Vector2(175, 40), 20, CommandTheme.TEXT, scale)
+			_write(font, values.get("composition", ""), Vector2(175, 57), 11, Color("c0d4df"), scale, 210 * scale)
+			_write(font, "HEALTH", Vector2(175, 74), 9, Color("a6c4d4"), scale)
+			draw_rect(Rect2(Vector2(222, 67) * scale, Vector2(127, 7) * scale), Color("2a4857"))
+			draw_rect(Rect2(Vector2(222, 67) * scale, Vector2(127 * health, 7) * scale), health_color)
+			_write(font, "%d%%" % roundi(health * 100.0), Vector2(356, 74), 9, health_color, scale, 30 * scale)
+		else:
+			_write(font, "FIELD COMMAND", Vector2(175, 16), 10, Color("a6c4d4"), scale)
+			_write(font, "No force selected", Vector2(175, 40), 18, CommandTheme.TEXT, scale)
+			_write(font, "Select units on the battlefield to issue orders.", Vector2(175, 59), 11, Color("c0d4df"), scale, 210 * scale)
 	else:
 		_write(font, "HEX FRONTLINES", Vector2(18, 20), 17, Color("e9f4fc"), scale)
 		_write(font, "WORLD CONQUEST", Vector2(18, 34), 10, Color("a6c4d4"), scale)

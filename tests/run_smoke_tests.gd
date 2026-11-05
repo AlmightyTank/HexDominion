@@ -658,10 +658,12 @@ func _run_tests() -> void:
 	_test_repairs_and_sales()
 	_test_economy_interface()
 	preload("res://tests/rival_economy_tests.gd").run(_check)
+	preload("res://tests/ai_difficulty_tests.gd").run(_check)
 	preload("res://tests/terrain_tests.gd").run(_check)
 	preload("res://tests/road_tests.gd").run(_check)
 	preload("res://tests/supply_tests.gd").run(_check)
 	preload("res://tests/continent_tests.gd").run(_check)
+	preload("res://tests/oil_derrick_tests.gd").run(_check)
 	preload("res://tests/fortification_tests.gd").run(_check)
 	preload("res://tests/infantry_tests.gd").run(_check)
 	_test_fortification_save()
@@ -706,7 +708,7 @@ func _run_tests() -> void:
 		_check(restarted.units.units.size() == 6 and restarted.units.economy.credits == 2000 and restarted.units.match_state.rival_economy.credits == 2000 and restarted.units.selected == null, "Restart resets both factions to exact Slice A funds and starter assets")
 		restarted.free()
 	current_scene = null
-	print("Hex Frontlines v0.5 Slice B: %d passed, %d failed" % [_successes, _failures])
+	print("Hex Frontlines v0.5 Slice C: %d passed, %d failed" % [_successes, _failures])
 	quit(1 if _failures > 0 else 0)
 
 
@@ -717,6 +719,8 @@ func _test_ai_integration() -> void:
 	root.add_child(restored)
 	game.units.set_physics_process(false)
 	restored.units.set_physics_process(false)
+	game.units.match_state.set_difficulty(AIDifficulty.HARD)
+	restored.units.match_state.set_difficulty(AIDifficulty.HARD)
 	var tiles: Dictionary = game.world_map.map_data["tiles"]
 	var barracks: Vector2i = game.units.units[1].hex
 	var factory: Vector2i = game.units.units[2].hex
@@ -772,6 +776,7 @@ func _test_match_ai() -> void:
 	territory.owners[Vector2i(8, 0)] = 2
 	territory.owners[Vector2i(7, 0)] = 2
 	var match_state: MatchState = MatchState.new()
+	match_state.set_difficulty(AIDifficulty.HARD)
 	match_state.player_hq = Vector2i.ZERO
 	match_state.rival_hq = Vector2i(8, 0)
 	match_state.rival_economy.add_building(Vector2i(8, 0), "headquarters")
@@ -833,11 +838,35 @@ func _test_match_save(game: Node) -> void:
 	var tiles: Dictionary = game.world_map.map_data["tiles"]
 	var initial: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, game.world_map.selected_hex)
 	_check(MatchSave.validate(initial, tiles), "Initial match snapshot validates")
+	_check(initial["oil_derricks"]["sites"].size() == OilDerrickNetwork.SITE_COUNT, "Initial save includes every authoritative oil derrick")
+	var pre_oil: Dictionary = initial.duplicate(true)
+	pre_oil["version"] = 3
+	pre_oil.erase("oil_derricks")
+	pre_oil.erase("ai_difficulty")
+	var credits_before_migration: float = pre_oil["economy"]["credits"]
+	_check(MatchSave.restore(game.units, pre_oil) and game.units.oil.sites.size() == OilDerrickNetwork.SITE_COUNT and game.units.economy.credits == credits_before_migration, "Pre-oil saves deterministically add derricks without duplicate income")
+	_check(MatchSave.restore(game.units, initial), "Oil migration test restores the current snapshot")
+	var bad_oil: Dictionary = initial.duplicate(true)
+	bad_oil["oil_derricks"]["sites"][0]["id"] = "oil_duplicate_or_unstable"
+	_check(not MatchSave.validate(bad_oil, tiles), "Malformed oil site identity is rejected")
 	var legacy: Dictionary = initial.duplicate(true)
 	legacy["economy"].erase("account")
 	legacy["rival_economy"].erase("account")
 	_check(MatchSave.restore(game.units, legacy) and game.units.economy.account.get_history().size() == 1, "Balance-only legacy saves initialize an opening ledger")
 	_check(MatchSave.restore(game.units, initial), "Account-aware initial save restores")
+	_check(initial["ai_difficulty"] == AIDifficulty.EASY and MatchSave.validate(initial, tiles), "Easy difficulty and its longer countdown validate in new saves")
+	game.units.match_state.set_difficulty(AIDifficulty.MEDIUM)
+	var difficulty_save: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, game.world_map.selected_hex)
+	_check(MatchSave.restore(game.units, difficulty_save) and game.units.match_state.difficulty == AIDifficulty.MEDIUM, "Selected difficulty survives save and load")
+	var hard_legacy: Dictionary = difficulty_save.duplicate(true)
+	hard_legacy["version"] = 4
+	hard_legacy["ai_countdown"] = 8.0
+	hard_legacy.erase("ai_difficulty")
+	_check(MatchSave.restore(game.units, hard_legacy) and game.units.match_state.difficulty == AIDifficulty.HARD, "Legacy saves retain their original Hard opponent through migration")
+	var bad_difficulty: Dictionary = difficulty_save.duplicate(true)
+	bad_difficulty["ai_difficulty"] = "nightmare"
+	_check(not MatchSave.validate(bad_difficulty, tiles), "Unknown saved difficulty is rejected")
+	_check(MatchSave.restore(game.units, initial), "Difficulty tests restore the initial Easy match")
 	var rival_hq: Vector2i = game.units.match_state.rival_hq
 	var moving: UnitState = game.units.units[0]
 	moving.order_move(tiles, rival_hq)
@@ -960,6 +989,7 @@ func _test_match_save(game: Node) -> void:
 	var sold_hq: Vector2i = other.units.match_state.player_hq
 	_check(other.units.economy.sell_building(sold_hq, other.units.territory, other.units.economy.buildings[sold_hq]) and MatchSave.validate(MatchSave.capture(other.units, Vector2.ZERO, Vector2.ONE, sold_hq), tiles), "Selling HQ leaves a valid savable match with original capture objective")
 	MatchSave.restore(other.units, initial)
+	other.units.match_state.set_difficulty(AIDifficulty.HARD)
 	for index in range(2400):
 		other.units._physics_process(0.1)
 		if other.units.match_state.result != "playing":

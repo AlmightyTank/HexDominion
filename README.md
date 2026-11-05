@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. v0.5 Slice B makes the logistics economy playable. Both factions start with 2,000 credits, a headquarters, a Supply Center, an unarmed Supply Truck and equivalent finite supply access. Trucks physically load, travel and unload before credits are paid. Oil income remains planned for Slice C.
+> **Status:** Pre-alpha. v0.5 Slice C adds capturable neutral Oil Derricks to the physical logistics economy. Trucks still earn credits only after delivery, while operational owned derricks provide the first passive recurring income.
 
 **Hex Frontlines** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -117,6 +117,14 @@ Buildings occupy a specific hex or designated building site. Factories support r
 - A delivery receives a 10% road bonus only when every hex of its actual deposit-to-center route is a friendly, uncontested road at payout time. Continent bonuses remain additive.
 - Select only Supply Trucks and right-click or tap a deposit or friendly Supply Center to override their current assignment. The same controls work on desktop and touch layouts.
 
+### Neutral Oil Derricks
+
+- Twenty deterministic derricks are distributed across reachable land without replacing cities, supply deposits, named sites, starting units or buildings.
+- Stationary infantry captures a site after five uncontested seconds. Vehicles cannot capture, and any opposing ground force stops progress.
+- An operational owned derrick pays 3 credits per second through the approved economy ledger. Full-continent bonuses are additive; roads never increase derrick income.
+- Neutral, contested and destroyed derricks pay nothing. Destruction retains ownership, allowing the owner to restore the site through paid repairs at 1 credit per HP.
+- The HUD reports ownership, health, capture state, repairs, operational count and income per minute. Rival infantry must physically reach a derrick to capture it.
+
 ## Game modes
 
 **First priority: Single-player skirmish** against a basic AI opponent.
@@ -151,16 +159,16 @@ The **current, detailed slice-by-slice roadmap** is maintained in **[docs/ROADMA
 | v0.2 | Economy and construction | Implemented historically; passive-income rules superseded by v0.5 |
 | v0.3 | Territorial strategy | Implemented historically; payout rules revised in v0.5 |
 | v0.4 | Military expansion | Implemented baseline, 13 combat roles |
-| v0.5 | Physical supplies, oil derricks, cities, research and fog | **In progress: Slices A and B complete; Slice C next** |
+| v0.5 | Physical supplies, oil derricks, cities, research and fog | **In progress: Slices A, B and C complete; Slice D next** |
 | v0.6 | Three asymmetric factions | Planned |
 | v0.7 | Smarter opponents and neutral world | Planned |
 | v0.8 | Skirmish customization | Planned |
 | v0.9 | Interface and polish | Planned |
 | v1.0 | First complete release | Planned |
 
-**Current pickup: v0.5 Slice C, Neutral Oil Derricks.** Physical finite-supply collection is complete, including automatic and manual assignments, delivery payouts, road qualification, depletion and save/load through every phase. Slice C adds capturable oil derricks as the first passive recurring income source.
+**Current pickup: v0.5 Slice D, Logistics Automation, Economic AI and Raids.** Physical finite-supply collection and neutral Oil Derricks are complete. The next slice expands route protection, truck replacement, logistics raids, economic feedback and long-running solvency.
 
-Older milestone documents under docs/ record historical implementations, including features later changed by the v0.5 economy redesign. See [v0.5 Slice A](docs/V0.5-SLICE-A.md) for the approved payout API and [v0.5 Slice B](docs/V0.5-SLICE-B.md) for the physical delivery contract.
+Older milestone documents under docs/ record historical implementations, including features later changed by the v0.5 economy redesign. See [v0.5 Slice A](docs/V0.5-SLICE-A.md) for the approved payout API, [v0.5 Slice B](docs/V0.5-SLICE-B.md) for the physical delivery contract and [v0.5 Slice C](docs/V0.5-SLICE-C.md) for neutral Oil Derricks.
 
 ## Proposed project layout
 
@@ -195,14 +203,14 @@ HexFrontlines/
 
 ## Getting started
 
-> **Current pre-alpha:** The world map, military, construction and physical finite-supply delivery systems are implemented. Successful deliveries provide spendable credits. Oil derricks, city development, research, radar and fog remain planned.
+> **Current pre-alpha:** The world map, military, construction, physical finite-supply delivery and neutral Oil Derrick systems are implemented. City development, research, radar and fog remain planned.
 
 To run the current project:
 
 1. Install **Godot 4.7.2 stable**.
 2. Clone the repository and open `project.godot` in Godot.
 3. Press **F5** to run the configured main scene, then pan with WASD/arrows or drag and zoom with the mouse wheel. Touch drag and pinch gestures are also supported.
-4. Read the [v0.5 Slice B detail](docs/V0.5-SLICE-B.md), then run its headless verification commands.
+4. Read the [v0.5 Slice C detail](docs/V0.5-SLICE-C.md), then run its headless verification commands.
 5. Try [Slice C selection and movement](docs/SLICE-C.md). Touch: tap a squad, then tap land. Escape clears selection; dragging still pans.
 
 ## Development guidelines
@@ -217,7 +225,7 @@ To run the current project:
 
 ## Project status and licensing
 
-**Status:** Pre-alpha. v0.5 Slices A and B are implemented; neutral oil derricks are next.
+**Status:** Pre-alpha. v0.5 Slices A, B and C are implemented; logistics automation, economic AI and raids are next.
 
 **License:** Not selected. All rights are reserved unless and until the repository owner adds an explicit license. Please do not assume the project is open source solely because its source might be publicly viewable.
 

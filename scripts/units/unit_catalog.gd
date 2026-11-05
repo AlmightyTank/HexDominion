@@ -2,6 +2,22 @@ extends RefCounted
 class_name UnitCatalog
 ## Stable save IDs and shared tuning for simulation, production and presentation.
 const INFANTRY: Array[String] = ["rifle", "rocket", "gunner"]
+const PLURAL_NAMES: Dictionary = {
+	"rifle": "Riflemen",
+	"rocket": "Rocket Soldiers",
+	"gunner": "Machine Gunners",
+	"tank": "Main battle tanks",
+	"scout": "Scout Vehicles",
+	"apc": "Armored Personnel Carriers",
+	"anti_air": "Mobile Anti-Air",
+	"artillery": "Self-Propelled Artillery",
+	"helicopter": "Attack Helicopters",
+	"fighter": "Fighter Jets",
+	"patrol_boat": "Patrol Boats",
+	"destroyer": "Destroyers",
+	"landing_transport": "Landing Transports",
+	"supply_truck": "Supply Trucks",
+}
 const COSTS: Dictionary = {"rifle": 50, "rocket": 85, "gunner": 75, "tank": 150, "scout": 80, "apc": 120, "anti_air": 140, "artillery": 200, "helicopter": 180, "fighter": 240, "patrol_boat": 90, "destroyer": 300, "landing_transport": 180, "supply_truck": 200}
 const TRAIN_SECONDS: Dictionary = {"rifle": 4.0, "rocket": 6.0, "gunner": 5.0, "tank": 8.0, "scout": 4.0, "apc": 6.0, "anti_air": 7.0, "artillery": 10.0, "helicopter": 9.0, "fighter": 12.0, "patrol_boat": 5.0, "destroyer": 14.0, "landing_transport": 9.0, "supply_truck": 6.0}
 const TYPES: Dictionary = {
@@ -29,6 +45,12 @@ static func is_naval(kind: String) -> bool:
 
 static func is_infantry(kind: String) -> bool:
 	return kind in INFANTRY
+
+
+static func display_name(kind: String, count: int = 1) -> String:
+	if not TYPES.has(kind):
+		return kind.capitalize()
+	return TYPES[kind]["name"] if count == 1 else PLURAL_NAMES.get(kind, TYPES[kind]["name"])
 
 static func producer(kind: String) -> String:
 	return "shipyard" if is_naval(kind) else ("airfield" if is_air(kind) else ("barracks" if is_infantry(kind) else "factory"))

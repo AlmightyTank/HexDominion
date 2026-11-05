@@ -4,7 +4,7 @@
 **Updated:** November 4, 2026  
 **Repository:** https://github.com/AlmightyTank/HexFrontlines  
 **Engine:** Godot 4.7.2 / GDScript  
-**Current development stage:** Pre-alpha; **v0.5 Slices A and B implemented; v0.5 Slice C is next**.
+**Current development stage:** Pre-alpha; **v0.5 Slices A, B and C implemented; v0.5 Slice D is next**.
 
 > The repository was previously named HexDominion. HexFrontlines is its current name. This roadmap supersedes the high-level v0.5 description in older plans. Historical slice documents remain records of what was implemented at that time.
 
@@ -23,8 +23,8 @@
 - Army orders: Move, Attack, Attack-Move, Hold Position, Guard, Patrol; transport loading and unloading; three visual zoom tiers.
 - Existing minimap is camera navigation and territory display; it does not yet implement true faction-specific radar detection and fog of war.
 - v0.5 Slice B starts both factions with 2,000 credits, an HQ, one Supply Center, one unarmed Supply Truck and one equivalent nearby **4,500-unit medium deposit** each. Existing world resource sites are deterministic small, medium or large finite deposits.
-- Supply Trucks now perform physical collection and delivery. City, HQ and legacy extractor passive income remains disabled; completed deliveries are the only implemented income source until Slice C.
-- Last reviewed predecessor: main at commit 28fc14a (2026-11-04). Slice B was verified locally with Godot 4.7.2 import, a 1,317-assertion smoke suite and focused regression runners before commit; CI and human balance/mobile acceptance remain separate gates.
+- Supply Trucks perform physical collection and delivery. Captured operational Oil Derricks provide the only passive recurring income. City, HQ, territory and legacy extractor passive income remains disabled.
+- Slice C was verified locally with Godot 4.7.2 import, focused Oil Derrick coverage and the full headless regression suite. CI and human balance/mobile acceptance remain separate gates.
 
 ## Milestone overview
 
@@ -34,7 +34,7 @@
 | v0.2 | Economy and construction | **Implemented historically** | Credits, buildings, power, queues, repairs and construction controls |
 | v0.3 | Territorial strategy | **Implemented historically** | Terrain, roads, supply links, continent control, bunkers |
 | v0.4 | Military expansion | **Implemented baseline** | 13 combat roles, air/sea operations, mixed orders and AI |
-| v0.5 | Logistics economy, cities and technology | **In progress: A–B done, C–F planned** | Physical deliveries, oil derricks, city/research, radar and fog |
+| v0.5 | Logistics economy, cities and technology | **In progress: A-C done, D-F planned** | Physical deliveries, oil derricks, city/research, radar and fog |
 | v0.6 | Three asymmetric factions | Planned | Distinct strategies and recognizable faction identity |
 | v0.7 | Smarter opponents and neutral world | Planned | Strategic AI, utility competition, diplomacy |
 | v0.8 | Skirmish customization | Planned | Match setup, victory options, difficulty and scenarios |
@@ -126,18 +126,18 @@
 
 **Acceptance met:** A match earns spendable credits from starting finite supplies only after a completed visible truck round trip. No direct pickup payout occurs. See [v0.5 Slice B detail](V0.5-SLICE-B.md).
 
-### Slice C — Neutral oil derricks — PLANNED
+### Slice C — Neutral oil derricks — IMPLEMENTED
 
-- [ ] Place roughly **18–24** capturable oil derricks across valid, reachable world hexes; avoid existing city/resource site collisions and unfair early-game placement.
-- [ ] Eligible infantry can contest/capture derricks (initial target **5 seconds**). No remote instant capture; ownership transfers once.
-- [ ] Operational uncontested owned derricks pay **3 CR/second**, using approved oil_derrick income only.
-- [ ] Apply continent bonus additively; **no road payout bonus for derricks**, and no truck needed.
-- [ ] Support health, destruction, repair/restore and disabled income while contested/destroyed.
-- [ ] Provide neutral/owned/damaged/destroyed art, strategic markers and HUD events.
-- [ ] Teach basic rival AI to capture accessible derricks using real infantry.
-- [ ] Save ownership/condition and prevent double payment.
+- [x] Place exactly **20** capturable Oil Derricks across valid, reachable world hexes with stable IDs, fair early access and no city, resource, named-site, starting-unit or building collisions.
+- [x] Stationary infantry captures a derrick after **5 seconds**. Opposing ground defenders contest and reset capture; ownership and territory transfer atomically.
+- [x] Operational uncontested owned derricks pay **3 CR/second** through approved `oil_derrick` income only.
+- [x] Apply continent bonuses additively with **no road payout bonus** and no truck requirement.
+- [x] Support 300 HP, destruction with retained ownership, paid repair/restore and zero income while neutral, contested or destroyed.
+- [x] Provide neutral/owned/damaged/destroyed artwork, selected and strategic markers, health/capture rendering, HUD status and non-spamming events.
+- [x] Route basic rival infantry to reachable derricks through normal movement without direct ownership mutation.
+- [x] Persist ownership, health, repairs, capture progress and partial payout time; migrate older saves deterministically without duplicate income.
 
-**Acceptance:** Taking a derrick provides the only passive recurring money; losing it or contesting it stops payment.
+**Acceptance met:** Taking a derrick provides the only passive recurring money; losing it, contesting it or destroying it stops payment. See [v0.5 Slice C detail](V0.5-SLICE-C.md).
 
 ### Slice D — Logistics automation, economic AI and raids — PLANNED
 

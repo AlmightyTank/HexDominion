@@ -5,7 +5,8 @@ class_name RivalEconomyAI
 const ARMY_LIMIT: int = 8
 const REPAIR_RESERVE: float = 200.0
 
-static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState], other_buildings: Dictionary, home: Vector2i, objective: Vector2i = Vector2i(-99999, -99999)) -> void:
+static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState], other_buildings: Dictionary, home: Vector2i, objective: Vector2i = Vector2i(-99999, -99999), difficulty: String = AIDifficulty.HARD) -> void:
+	var profile: Dictionary = AIDifficulty.profile(difficulty)
 	var living: int = 0
 	var tanks: int = 0
 	var infantry: Dictionary = {"rifle": 0, "rocket": 0, "gunner": 0}
@@ -67,9 +68,9 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 				return
 		elif _build(economy, "factory", tiles, territory, other_buildings, home):
 			return
-	if living + queued >= ARMY_LIMIT:
+	if living + queued >= int(profile["army_limit"]):
 		return
-	if objective != Vector2i(-99999, -99999) and CombinedArmsAI.production(economy, tiles, territory, units, other_buildings, home, objective):
+	if objective != Vector2i(-99999, -99999) and CombinedArmsAI.production(economy, tiles, territory, units, other_buildings, home, objective, difficulty):
 		return
 	# Leave space in the roster for armor once a factory has been funded.
 	var wants_tank: bool = counts.get("factory", 0) > 0 and tanks < 2 and living + queued >= 3

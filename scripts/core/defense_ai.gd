@@ -1,7 +1,8 @@
 extends RefCounted
 class_name DefenseAI
 ## At most half the army (and two infantry) defend; the remainder keep expanding.
-static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState], other: Dictionary, home: Vector2i) -> Dictionary:
+static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryState, units: Array[UnitState], other: Dictionary, home: Vector2i, difficulty: String = AIDifficulty.HARD) -> Dictionary:
+	var profile: Dictionary = AIDifficulty.profile(difficulty)
 	var army: Array[UnitState] = []
 	for unit in units:
 		if unit.faction == economy.faction and unit.is_deployed():
@@ -33,7 +34,7 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 	var bunkers: int = 0
 	for site in economy.buildings.values():
 		bunkers += int(site["kind"] == "bunker")
-	if army.size() >= 3 and bunkers < 2 and economy.credits >= 350:
+	if army.size() >= 3 and bunkers < int(profile["bunker_limit"]) and economy.credits >= 350:
 		var candidates: Array[Vector2i] = sites.duplicate()
 		for neighbor in HexMath.neighbors(home):
 			if not candidates.has(neighbor):
@@ -42,7 +43,7 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 			if economy.build(hex, "bunker", tiles, territory, 0, other):
 				break
 	var reserved: Dictionary = {}
-	var limit: int = mini(2, army.size() / 2)
+	var limit: int = mini(int(profile["defender_limit"]), army.size() / 2)
 	for hex in sites:
 		if reserved.size() >= limit:
 			break

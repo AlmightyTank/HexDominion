@@ -11,6 +11,7 @@ static func run(check: Callable) -> void:
 	tiles[deposit]["terrain"] = "resource"
 	var territory: TerritoryState = TerritoryState.new()
 	var match_state: MatchState = MatchState.new()
+	match_state.set_difficulty(AIDifficulty.HARD)
 	match_state.rival_hq = home
 	match_state.player_hq = Vector2i(11, 0)
 	match_state.ai_countdown = 0
@@ -110,6 +111,7 @@ static func _test_exploits(check: Callable, tiles: Dictionary) -> void:
 
 static func _test_military(check: Callable, tiles: Dictionary) -> void:
 	var match_state: MatchState = MatchState.new()
+	match_state.set_difficulty(AIDifficulty.HARD)
 	match_state.rival_hq = Vector2i.ZERO
 	match_state.player_hq = Vector2i(11, 0)
 	match_state.ai_countdown = 0
@@ -155,6 +157,7 @@ static func _test_salvage_and_reachability(check: Callable, tiles: Dictionary) -
 	check.call(goal == Vector2i(0, 5) and not HexPathfinding.find_path(land, home, goal).is_empty(), "AI ignores unreachable valuable territory rather than repeatedly ordering an impossible route")
 	var credits: float = economy.credits
 	var match_state: MatchState = MatchState.new()
+	match_state.set_difficulty(AIDifficulty.HARD)
 	match_state.rival_economy = economy
 	match_state.advance_ai(NAN, tiles, territory, units)
 	match_state.advance_ai(INF, tiles, territory, units)

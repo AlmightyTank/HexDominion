@@ -36,19 +36,31 @@ func _run() -> void:
 	economy.add_building(producer, "barracks")
 	assert(economy.train(producer, "rifle", territory))
 	economy.advance(1, {}, territory)
-	var rifle: UnitState = UnitState.new(Vector2i.ZERO, "rifle")
-	rifle.configure_kind("rifle")
+	var selected_force: Array[UnitState] = []
+	for index in range(5):
+		var rifle: UnitState = UnitState.new(Vector2i.ZERO, "rifle")
+		rifle.configure_kind("rifle")
+		selected_force.append(rifle)
+	for index in range(2):
+		var gunner: UnitState = UnitState.new(Vector2i.ZERO, "gunner")
+		gunner.configure_kind("gunner")
+		selected_force.append(gunner)
 	hud.production_tabs.current_tab = 2
-	hud.show_selection([rifle], false)
-	hud.show_stack([rifle], [rifle], Vector2i(-1, -1), [rifle])
+	hud.show_selection(selected_force, false)
+	hud.show_stack(selected_force, selected_force, Vector2i(-1, -1), selected_force)
 	hud.show_tile_actions(Vector2i(9, 9), economy, territory, {})
 	assert(hud.command_tabs.current_tab == 0 and hud.production_tabs.current_tab == 2)
 	assert("1 queued" in hud.production_queue.text)
+	assert(hud.tactical_deck.values["count"] == 7)
+	assert(hud.tactical_deck.values["composition"] == "5 Riflemen · 2 Machine Gunners")
 	await _capture("production-fighting")
 	hud.command_tabs.current_tab = 0
-	hud.context_expanded = true
-	hud._layout_for_viewport()
 	await _capture("army-selected")
+	hud.deck_details.pressed.emit()
+	assert(hud.context_expanded and hud.deck_details.text == "Close")
+	await _capture("army-details")
+	hud.deck_details.pressed.emit()
+	assert(not hud.context_expanded and hud.deck_details.text == "Details")
 	current_scene.set_process(true)
 	hud.match_action_requested.emit("pause")
 	assert(hud.pause_overlay.visible)

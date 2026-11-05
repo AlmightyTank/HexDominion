@@ -93,8 +93,16 @@ func _run() -> void:
 	var before: Vector2 = camera.position
 	hud.radar._navigate(hud.radar.size * Vector2(0.8, 0.5))
 	assert(camera.position != before)
+	assert(current_scene.units.match_state.difficulty == AIDifficulty.EASY)
+	assert(hud.difficulty_selector.item_count == 3 and hud.difficulty_selector.custom_minimum_size.y >= 44)
 	hud.match_action_requested.emit("pause")
 	assert(hud.pause_overlay.visible)
+	hud.difficulty_selector.item_selected.emit(1)
+	assert(current_scene.units.match_state.difficulty == AIDifficulty.MEDIUM and hud.difficulty_selector.selected == 1)
+	hud.difficulty_selector.item_selected.emit(2)
+	assert(current_scene.units.match_state.difficulty == AIDifficulty.HARD and current_scene.units.match_state.ai_countdown == 8.0)
+	hud.difficulty_selector.item_selected.emit(0)
+	assert(current_scene.units.match_state.difficulty == AIDifficulty.EASY)
 	hud.match_action_requested.emit("resume")
 	assert(not hud.pause_overlay.visible)
 	current_scene.set_process(false)
@@ -157,6 +165,10 @@ func _run() -> void:
 	assert(hud.context_expanded)
 	assert(not hud.command_tabs.tabs_visible and not hud.sidebar_options.visible)
 	assert(hud.production_tabs.get_tab_bar().get_tab_rect(3).end.x <= hud.production_tabs.size.x)
+	hud.match_action_requested.emit("pause")
+	await process_frame
+	assert(hud.difficulty_selector.get_global_rect().end.x <= root.size.x and hud.difficulty_selector.get_global_rect().end.y <= root.size.y)
+	hud.match_action_requested.emit("resume")
 	var victory: MatchState = MatchState.new()
 	victory.result = "victory"
 	hud.show_match_status(victory)
