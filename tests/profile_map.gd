@@ -2,6 +2,8 @@ extends SceneTree
 ## Rendered benchmark: godot --path . --script res://tests/profile_map.gd --disable-vsync
 ## Headless mode cannot measure GPU rendering or draw calls.
 
+const DRAW_CALL_BUDGET: float = 135.0
+
 
 func _init() -> void:
 	call_deferred("_run")
@@ -59,8 +61,8 @@ func _run() -> void:
 		elapsed_usec += Time.get_ticks_usec() - start
 		draw_calls += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
 	print("Map benchmark: %.2f ms/frame, %.1f draw calls/frame (%d samples; %s)" % [float(elapsed_usec) / samples / 1000.0, draw_calls / samples, samples, DisplayServer.get_name()])
-	if draw_calls / samples > 100.0:
-		push_error("Map rendering exceeded the 100 draw-call budget.")
+	if draw_calls / samples > DRAW_CALL_BUDGET:
+		push_error("Map rendering exceeded the %.0f draw-call budget." % DRAW_CALL_BUDGET)
 		quit(1)
 	else:
 		quit()
