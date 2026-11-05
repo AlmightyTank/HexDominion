@@ -134,106 +134,24 @@ Godot scene nodes should handle presentation and input; core systems should own 
 
 ## Roadmap
 
-The version milestones and slices below are **planned**, not completed.
+The **current, detailed slice-by-slice roadmap** is maintained in **[docs/ROADMAP.md](docs/ROADMAP.md)**. It distinguishes implemented code from proposed work and captures the v0.5 economy redesign.
 
-### v0.1 — First playable world war
+| Version | Milestone | Status |
+| --- | --- | --- |
+| v0.1 | First playable world war | Implemented baseline |
+| v0.2 | Economy and construction | Implemented historically; passive-income rules superseded by v0.5 |
+| v0.3 | Territorial strategy | Implemented historically; payout rules revised in v0.5 |
+| v0.4 | Military expansion | Implemented baseline, 13 combat roles |
+| v0.5 | Physical supplies, oil derricks, cities, research and fog | **In progress: Slice A complete; Slice B next** |
+| v0.6 | Three asymmetric factions | Planned |
+| v0.7 | Smarter opponents and neutral world | Planned |
+| v0.8 | Skirmish customization | Planned |
+| v0.9 | Interface and polish | Planned |
+| v1.0 | First complete release | Planned |
 
-- [x] **Slice A:** Godot project setup, main scene, camera pan and zoom, input foundation. (Implemented locally; engine runtime verification remains pending.)
-- [ ] **Slice B:** Earth-inspired hex world, land/ocean masking, basic terrain rendering.
-- [x] **Slice C:** Unit selection, movement commands, hex pathfinding. (Headless verified; interactive acceptance checklist in [Slice C](docs/SLICE-C.md).)
-- [x] **Slice D:** Territory ownership, capture progress, garrisons, faction borders. (Headless verified; [rules and manual checklist](docs/SLICE-D.md).)
-- [x] **Slice E:** Rifle squads, tanks, health, damage, and real-time combat. (Headless verified; [rules and manual checklist](docs/SLICE-E.md).)
-- [x] **Slice F:** Headquarters, barracks, factory, basic resource income, training and rally points. (Headless verified; [rules and controls](docs/SLICE-F.md).)
-- [x] **Slice G:** Basic AI opponent, HQ win/loss conditions, match restart, and versioned save/load. (Headless verified; [rules, controls and limitations](docs/SLICE-G.md).)
+**Current pickup: v0.5 Slice B — Physical Supply Collection.** Both factions already start with 2,000 credits, a Supply Center, an unarmed Supply Truck and a nearby 5,000-unit finite deposit, but **trucks cannot collect or deliver cargo yet**, so passive income remains zero. Slice B implements actual pickup, travel, unloading and one-time delivery payments; Slice C adds capturable oil derricks for steady income.
 
-**v0.1 acceptance test:** Start a match on a small hexagonal world map, capture territory with infantry, station defenders, produce reinforcements, fight an AI opponent, and win by taking its headquarters. The goal is a complete small skirmish, not final artwork or perfect balance.
-
-**Prototype sizing target:** Approximately 30 × 16 hex positions, with two factions and a limited playable land area. This is a tuning target, not a final map size.
-
-### v0.2 — Economy and construction
-
-Money, power, resources, building placement and cancellation, repairs, selling, construction rules.
-
-- [x] **Slice A — Economy Foundation:** Shared player/AI credits accounts, configurable starting funds, income, atomic spending checks and saved transaction history. Construction and training cannot overdraw funds. ([API and verification](docs/V0.2-SLICE-A.md).)
-- [x] **Slice B — Territory Income:** Owned, uncontested cities provide passive credits; ordinary/resource hexes do not. Capture, loss and contest immediately update faction rates. ([Rules and verification](docs/V0.2-SLICE-B.md).)
-- [x] **Slice C — Resource Extraction:** Build destructible extractors on captured resource deposits for automated income. Lost, contested or destroyed extractors stop earning. ([Rules and verification](docs/V0.2-SLICE-C.md).)
-- [x] **Slice D: Building Placement:** Construction sidebar, hex-snapped valid/invalid ghosts, six-way rotation and controlled empty-hex placement. ([Rules and verification](docs/V0.2-SLICE-D.md).)
-- [x] **Slice E: Construction Progress:** Timed, vulnerable foundations with visible progress, operational gating and saved construction state. ([Rules and verification](docs/V0.2-SLICE-E.md).)
-- [x] **Slice F: Cancellation & Refunds:** Cancel controlled unfinished sites for a 50% refund, once only, releasing the construction hex. ([Rules and verification](docs/V0.2-SLICE-F.md).)
-- [x] **Slice G: Power System:** Power plants, faction supply/demand meters, half-speed factories and offline extractors under low power, with immediate recovery when supply returns. ([Rules and verification](docs/V0.2-SLICE-G.md).)
-- [x] **Slice H: Repairing & Selling Buildings:** Paid repairs over time, stop-repair controls, completed-building sales with 50% salvage, and destruction cleanup. ([Rules and verification](docs/V0.2-SLICE-H.md).)
-- [x] **Slice I: Production & Construction Interface:** Scrollable structure/job roster, costs and requirements catalog, pinned facility controls, individual production queues and rally points. ([Rules and verification](docs/V0.2-SLICE-I.md).)
-- [x] **Slice J: AI, Balancing & Integration:** Enemy base construction, resource expansion, power recovery, repair budgets, mixed recruitment and economic recovery with exploit, save/load and full-match regression tests. ([Rules and verification](docs/V0.2-SLICE-J.md).)
-
-### v0.3 — Territorial strategy
-
-Improved terrain rules, supply connections, continent bonuses, fortifications, defended choke points.
-
-- [x] **Slice A: Terrain Advantages:** Forest infantry protection 15%, mountain ground speed -20% and protection 25%, desert vehicle speed +10%, city protection 20%. Weighted routing, hex inspection and existing crossing rules remain integrated. ([Rules and verification](docs/V0.3-SLICE-A.md).)
-- [x] **Slice B: Roads and Transportation:** Persistent 100 CR roads on controlled land, continuous connections, 30% faster ground travel and road-aware routing. ([Rules and verification](docs/V0.3-SLICE-B.md).)
-- [x] **Slice C: Supply Connections and Income:** Cities and extractors require friendly land supply from an operational HQ; connected friendly roads grant a single 10% income bonus. Cached networks, isolation indicators and save reconstruction. ([Rules and verification](docs/V0.3-SLICE-C.md).)
-- [x] **Slice D: Continent Bonuses:** Complete eligible continents grant +10% income each, additive with roads, with event-driven control counts and a faction overview. ([Rules and verification](docs/V0.3-SLICE-D.md).)
-- [x] **Slice E: Fortifications, Chokepoints and Defense AI:** Paid, repairable bunkers shelter two infantry; Hold Position (J) and Garrison (G) have sidebar controls; bounded AI defenses protect strategic sites without committing the whole army. ([Rules and verification](docs/V0.3-SLICE-E.md).)
-
-### v0.4 — Military expansion
-
-Expanded infantry and armor, artillery, air units, naval units, transports, expanded combat orders.
-
-- [x] **Slice A: Infantry Expansion and Unit Visual Foundation:** Three barracks infantry roles, weapon cooldowns and counters, attack commands, shared faction-accented soldier silhouettes, grouped zoom presentation and backward-compatible saves. ([Tuning, controls, verification and limitations](docs/V0.4-SLICE-A.md).)
-- [x] **Slice B: Vehicle Expansion:** Main battle tanks, scouts, four-seat APCs, mobile anti-air, stack-first army presentation and backward-compatible transport saves. ([Rules, controls and verification](docs/V0.4-SLICE-B.md).)
-- [x] **Slice C: Artillery & Long-Range Warfare:** Factory-built self-propelled artillery, range-three bombardment, fortification damage, non-capture, range overlays and shell feedback. ([Rules, scope and verification](docs/V0.4-SLICE-C.md).)
-- [x] **Slice D: Aircraft & Airfields:** Powered aircraft production, helicopters, fighter strike/return/rearm missions, AA counters, independent air presentation and validated saves. ([Rules and verification](docs/V0.4-SLICE-D.md).)
-- [x] **Slice E: Naval Warfare & Amphibious Invasions:** Coastal shipyards produce three distinct naval roles; water-only navigation, coastal bombardment and shared weighted transport support cross-ocean invasions. ([Rules and verification](docs/V0.4-SLICE-E.md).)
-- [x] **Slice F: Combined Arms, Army Grouping, Orders & AI:** Attack-Move, Guard and Patrol orders with multi-unit support, three zoom-tier army presentation that never alters simulated units, attack-move rally points, and a combined-arms enemy AI. ([Rules, controls, verification and limitations](docs/V0.4-SLICE-F.md).)
-
-#### Infantry controls
-
-- Train all three roles in the **Inf** tab with a completed barracks selected.
-- Click/tap a marker to select its hex army. Use the existing panel's type rows, **Select all**, and **Expand/Collapse**. Shift-click or **Add selection** toggles whole stacks; drag a box for multiple armies. Expanded units can be picked individually.
-- **Load APC (L)** then click a friendly stack with a stationary APC to board selected stationary, same-hex infantry. **Unload APC (U)** then click nearby land to deploy the selected APCs' passengers. Capacity is four; passengers are lost if their APC is destroyed.
-- Right-click an enemy to attack, or use **Attack (X)** and tap/click the target. Right-click land moves. Touch: select then tap land to move.
-- **Hold (J)** stops pursuit; **Garrison (G)** occupies a friendly bunker (two infantry slots). Accepted movement/attack releases Hold and garrison.
-- Zoom changes presentation only: role/count markers, grouped sprites, then individual soldiers. All simulated units always remain present.
-
-#### Combined arms controls
-
-- **Attack-Move (Z)** then click a destination: units engage threats along the route, then resume and finish at the destination.
-- **Guard (V)** then click a friendly unit or hex: units follow or defend it without pursuing enemies away.
-- **Patrol (O)** then click a waypoint: units loop between two and sixteen waypoints and engage threats in range.
-- The orders panel also shows the current order of every selected unit, and its **Rally: attack-move** checkbox applies to the next rally point you set, so freshly built units arrive fighting.
-- Fighters keep their strike/return/rearm missions and reject geographic orders; ships and aircraft keep their own movement rules.
-
-#### Validation
-
-`.github/workflows/godot-validation.yml` imports the pinned Godot 4.7.2 project, runs smoke, HUD, vehicle, artillery, aircraft, naval, artwork and combined-arms checks plus a startup check, and renders zoom/feedback fixtures with Xvfb. Rendered screenshots are uploaded as CI artifacts. Local commands and evidence are documented in the slice notes.
-
-### v0.5 — Cities and technology
-
-The v0.5 economy transition begins with physical logistics and captured oil income. Research, upgrades, radar, scouting and fog of war remain later v0.5 work.
-
-- [x] **Slice A: Economy Foundation & Starting Funds:** 2,000-credit starts, deterministic free logistics scaffolding, finite nearby deposits, zero passive HQ/city/extractor income, approved payout API, 60-second HUD accounting and save v2 migration. Supply collection is not playable yet. ([Rules, migration and verification](docs/V0.5-SLICE-A.md).)
-- [ ] **Slice B: Supply Deliveries:** Supply Trucks collect from finite deposits and complete physical deliveries to Supply Centers.
-- [ ] **Slice C: Oil Derricks:** Captured operational derricks provide the second approved recurring income source.
-
-### v0.6 — Factions
-
-Three asymmetric factions with distinct buildings, units, and battlefield abilities.
-
-### v0.7 — Smarter opponents
-
-Strategic AI, neutral locations, alliances, and diplomacy rules.
-
-### v0.8 — Skirmish customization
-
-Scenario setup, map sizes, game speed, difficulty, and victory mode options.
-
-### v0.9 — Interface and polish
-
-Desktop and mobile-oriented controls, performance optimization, sound, feedback, balance, and usability.
-
-### v1.0 — First complete release
-
-Full single-player testing, stability fixes, documentation, and release builds.
+Older milestone documents under docs/ record historical implementations, including features later changed by the v0.5 economy redesign. See [v0.5 Slice A](docs/V0.5-SLICE-A.md) for the approved payout API and save migration.
 
 ## Proposed project layout
 
@@ -268,9 +186,9 @@ HexFrontlines/
 
 ## Getting started
 
-> **v0.1 Slice C** runs on the Earth hex map. Click a teal squad, then right-click reachable land to move it; this is not yet a complete strategy game.
+> **Current pre-alpha:** The world map, military and construction systems are implemented. v0.5's new economy is in transition: supply trucks and finite deposits exist, but active collection begins in Slice B. No recurring income is active until deliveries and derricks are implemented.
 
-Once the project exists:
+To run the current project:
 
 1. Install **Godot 4.7.2 stable**.
 2. Clone the repository and open `project.godot` in Godot.
@@ -290,7 +208,7 @@ Once the project exists:
 
 ## Project status and licensing
 
-**Status:** Planning / pre-alpha.
+**Status:** Pre-alpha — v0.5 Slice A implemented; physical supply delivery is the next feature.
 
 **License:** Not selected. All rights are reserved unless and until the repository owner adds an explicit license. Please do not assume the project is open source solely because its source might be publicly viewable.
 
