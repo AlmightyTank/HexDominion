@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Supply Truck: faction a, icon</title><desc>Original overhead unarmed six-wheel logistics truck with enclosed cab, segmented cargo bed, and faction markings. Transparent background.</desc><g stroke="#202a28" stroke-width="3" stroke-linejoin="round">
+  <g fill="#303936">
+    <rect x="27" y="24" width="14" height="23" rx="4"/><rect x="87" y="24" width="14" height="23" rx="4"/>
+    <rect x="27" y="55" width="14" height="22" rx="4"/><rect x="87" y="55" width="14" height="22" rx="4"/>
+    <rect x="27" y="87" width="14" height="23" rx="4"/><rect x="87" y="87" width="14" height="23" rx="4"/>
+  </g>
+  <path d="M38 34h52M38 66h52M38 98h52" stroke="#3575a6" stroke-width="5"/>
+  <path d="M43 18h42l7 18v74H36V36Z" fill="#55aff0"/>
+  <path d="M43 18h10L47 38v72H36V36Z" fill="#97d0f5" stroke="none"/>
+  <path d="M75 18h10l7 18v74H81V38Z" fill="#3575a6" stroke="none"/>
+  <path d="M47 24h34l5 17H42Z" fill="#92997a" stroke-width="2"/>
+  <path d="M48 27h13v10H45Z" fill="#97d0f5" stroke="none"/><path d="M67 27h13l3 10H67Z" fill="#97d0f5" stroke="none"/>
+  <path d="M40 47h48v59H40Z" fill="#77796a"/>
+  <path d="M44 51h40v51H44Z" fill="#b5b29b" stroke-width="2"/>
+  <path d="M44 68h40M44 85h40M57 51v51M71 51v51" fill="none" stroke="#3575a6" stroke-width="3"/>
+  <path d="M42 45h44M40 107h48" fill="none" stroke-width="4"/>
+  <path d="M50 54h9v11h-9Zm19 18h10v10H69ZM49 88h10v11H49Z" fill="#55aff0" stroke-width="2"/>
+  <path d="M44 51h6v51h-6" fill="#97d0f5" stroke="none" opacity=".7"/>
+  <path d="M51 19h5m16 0h5" stroke="#97d0f5" stroke-width="2"/>
+</g></svg>

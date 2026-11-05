@@ -44,7 +44,7 @@ func run() -> void:
 			var image: Image = UnitArt.texture(kind, faction).get_image()
 			check(image.get_pixel(64, 105).a == 0 and image.get_pixel(64, 63).a > 0.9, "Overhead helmet with no visible legs")
 			check(UnitArt.texture(kind, faction, "icon").get_image().get_used_rect().has_area(), "Overhead strategic silhouette")
-	for kind in ["headquarters", "barracks", "factory", "extractor", "power_plant", "bunker"]:
+	for kind in ["headquarters", "barracks", "factory", "supply_center", "extractor", "power_plant", "bunker"]:
 		var images: Array[PackedByteArray] = []
 		for faction in range(1, 4):
 			var texture: Texture2D = UnitArt.building_texture(kind, faction)
@@ -55,6 +55,13 @@ func run() -> void:
 				check(image.get_pixel(0, 0).a == 0, "Building transparent corner " + kind)
 				images.append(image.get_data())
 		check(images.size() == 3 and images[0] != images[1] and images[1] != images[2], "Building faction colors " + kind)
+	check(UnitArt.asset_path("supply_truck", 1) != UnitArt.asset_path("scout", 1), "Supply truck has dedicated art")
+	check(UnitArt.building_texture("supply_center", 1).get_image().get_data() != UnitArt.building_texture("factory", 1).get_image().get_data(), "Supply center has dedicated art")
+	for faction in range(1, 4):
+		var supply_center_states: Array[PackedByteArray] = []
+		for state in ["base", "damaged", "destroyed"]:
+			supply_center_states.append(UnitArt.building_texture("supply_center", faction, state).get_image().get_data())
+		check(supply_center_states[0] != supply_center_states[1] and supply_center_states[1] != supply_center_states[2], "Supply center has distinct damage states")
 	check(UnitArt.texture("unknown", 1) == null, "Unknown placeholder support")
 	var game: Node2D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)

@@ -17,8 +17,7 @@ static func faction_slot(faction: int) -> int:
 static func asset_path(kind: String, faction: int, state: String = "base") -> String:
 	if not CATEGORIES.has(kind) or state not in ["base", "damaged", "destroyed", "icon"]:
 		return ""
-	var art_kind: String = "scout" if kind == "supply_truck" else kind
-	return "res://assets/units/roster/%s/%s/%s_faction_%s_%s.svg" % [CATEGORIES[kind], art_kind, art_kind, ["a", "b", "c"][faction_slot(faction)], state]
+	return "res://assets/units/roster/%s/%s/%s_faction_%s_%s.svg" % [CATEGORIES[kind], kind, kind, ["a", "b", "c"][faction_slot(faction)], state]
 
 static func state_for(health: float, maximum: float, kind: String = "") -> String:
 	var threshold: float = maximum * 0.5 if CATEGORIES.get(kind, "") == "infantry" else maximum
@@ -50,8 +49,6 @@ static func layer_texture(kind: String, faction: int, state: String, part: Strin
 	return _textures[path]
 
 static func building_texture(kind: String, faction: int, state: String = "base") -> Texture2D:
-	if kind == "supply_center":
-		kind = "factory"
 	if kind in ["airfield", "shipyard"]:
 		var air_path: String = "res://assets/buildings/%s.svg" % kind
 		var faction_key: String = "%s:%d" % [air_path, faction_slot(faction)]

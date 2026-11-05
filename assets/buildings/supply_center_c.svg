@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Supply Center: faction c, base</title><desc>Original overhead logistics warehouse with three loading bays, manifest office, rooftop tank, and stacked supply pallets. Transparent background.</desc><g stroke="#131a17" stroke-width="3" stroke-linejoin="round">
+  <rect x="13" y="25" width="102" height="82" rx="2" fill="#e5ba59"/>
+  <path d="M18 30h64v72H18Z" fill="#f2d99b"/>
+  <path d="M18 30h10v72H18Z" fill="#e5ba59" stroke="none"/>
+  <path d="M34 36h39v25H34Z" fill="#92997a"/>
+  <path d="M39 41h29M39 48h29M39 55h29" fill="none" stroke="#997b38" stroke-width="3"/>
+  <path d="M18 68h64v34H18Z" fill="#997b38"/>
+  <path d="M22 74h17v28H22Zm20 0h17v28H42Zm20 0h16v28H62Z" fill="#303936"/>
+  <path d="M25 81h11M45 81h11M65 81h10" stroke="#f2d99b" stroke-width="3"/>
+  <path d="M88 35h18v21H88Z" fill="#77796a"/>
+  <circle cx="97" cy="45" r="6" fill="#b5b29b" stroke="#997b38"/>
+  <path d="M87 65h21v34H87Z" fill="#92997a"/>
+  <path d="M91 70h13v8H91Zm0 12h13v12H91Z" fill="#997b38"/>
+  <path d="M13 107h102M82 25v82" fill="none" stroke-width="4"/>
+  <path d="M22 66h56" stroke="#f2d99b" stroke-width="3"/>
+</g></svg>
