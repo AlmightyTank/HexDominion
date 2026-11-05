@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. v0.5 Slice A replaces passive territory income with a logistics-ready economy foundation. Both factions start with 2,000 credits, a headquarters, a Supply Center, an unarmed Supply Truck and equivalent finite supply access. Supply deliveries are not active until Slice B, so recurring income is currently zero.
+> **Status:** Pre-alpha. v0.5 Slice B makes the logistics economy playable. Both factions start with 2,000 credits, a headquarters, a Supply Center, an unarmed Supply Truck and equivalent finite supply access. Trucks physically load, travel and unload before credits are paid. Oil income remains planned for Slice C.
 
 **Hex Frontlines** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -57,7 +57,7 @@ Static terrain is rendered once into a cached texture; camera movement and hex s
 | Mountains | Restricted movement and strong defensive positions |
 | Desert | Open terrain favorable to mobile vehicles |
 | Cities | Strategic objectives; no automatic income |
-| Resource areas | Finite supply locations; delivery collection arrives in v0.5 Slice B |
+| Resource areas | Finite small (1,500), medium (4,500) or large (9,000) supply deposits collected by trucks |
 | Ocean | Naval travel and amphibious operations (later milestone) |
 
 Terrain bonuses and penalties will be tuned through playtesting.
@@ -97,7 +97,7 @@ Every order accepts a multi-unit selection and each unit is validated independen
 Implemented structures:
 
 - **Headquarters:** critical command and defeat objective.
-- **Supply Center:** starting logistics structure; active truck collection arrives in v0.5 Slice B.
+- **Supply Center:** 300-credit, 300-HP logistics structure that consumes 10 power and accepts completed truck deliveries.
 - **Barracks:** train infantry and deploy reinforcements.
 - **Vehicle factory:** produce armored units.
 - **Power plant:** supply power to your infrastructure.
@@ -107,6 +107,15 @@ Implemented structures:
 - **Shipyard:** produce naval units and stage amphibious landings.
 
 Buildings occupy a specific hex or designated building site. Factories support rally points so new units can reinforce assigned positions automatically; a rally may be a plain move or an attack-move. Exact building limits, costs, and production rates will be balanced iteratively.
+
+### Physical supply collection
+
+- Supply Trucks cost 200 credits, take 6 seconds to produce, have 100 HP and carry up to 150 supply units. They cannot attack, capture or use military transports.
+- A truck automatically chooses a reachable friendly, uncontested deposit, travels there, loads for 3 seconds, returns to an operational friendly Supply Center and unloads for 2 seconds.
+- Supply stock is withdrawn atomically when loading completes. Competing trucks cannot overdraw a deposit, and a final partial load is allowed.
+- Pickup never pays credits. The approved delivery payout occurs once after unloading. Cargo remains aboard if a center is damaged, captured, contested or unpowered, but is lost if the truck is destroyed.
+- A delivery receives a 10% road bonus only when every hex of its actual deposit-to-center route is a friendly, uncontested road at payout time. Continent bonuses remain additive.
+- Select only Supply Trucks and right-click or tap a deposit or friendly Supply Center to override their current assignment. The same controls work on desktop and touch layouts.
 
 ## Game modes
 
@@ -142,16 +151,16 @@ The **current, detailed slice-by-slice roadmap** is maintained in **[docs/ROADMA
 | v0.2 | Economy and construction | Implemented historically; passive-income rules superseded by v0.5 |
 | v0.3 | Territorial strategy | Implemented historically; payout rules revised in v0.5 |
 | v0.4 | Military expansion | Implemented baseline, 13 combat roles |
-| v0.5 | Physical supplies, oil derricks, cities, research and fog | **In progress: Slice A complete; Slice B next** |
+| v0.5 | Physical supplies, oil derricks, cities, research and fog | **In progress: Slices A and B complete; Slice C next** |
 | v0.6 | Three asymmetric factions | Planned |
 | v0.7 | Smarter opponents and neutral world | Planned |
 | v0.8 | Skirmish customization | Planned |
 | v0.9 | Interface and polish | Planned |
 | v1.0 | First complete release | Planned |
 
-**Current pickup: v0.5 Slice B — Physical Supply Collection.** Both factions already start with 2,000 credits, a Supply Center, an unarmed Supply Truck and a nearby 5,000-unit finite deposit, but **trucks cannot collect or deliver cargo yet**, so passive income remains zero. Slice B implements actual pickup, travel, unloading and one-time delivery payments; Slice C adds capturable oil derricks for steady income.
+**Current pickup: v0.5 Slice C, Neutral Oil Derricks.** Physical finite-supply collection is complete, including automatic and manual assignments, delivery payouts, road qualification, depletion and save/load through every phase. Slice C adds capturable oil derricks as the first passive recurring income source.
 
-Older milestone documents under docs/ record historical implementations, including features later changed by the v0.5 economy redesign. See [v0.5 Slice A](docs/V0.5-SLICE-A.md) for the approved payout API and save migration.
+Older milestone documents under docs/ record historical implementations, including features later changed by the v0.5 economy redesign. See [v0.5 Slice A](docs/V0.5-SLICE-A.md) for the approved payout API and [v0.5 Slice B](docs/V0.5-SLICE-B.md) for the physical delivery contract.
 
 ## Proposed project layout
 
@@ -182,18 +191,18 @@ HexFrontlines/
 └── docs/
 ```
 
-*The layout above is the intended long-term structure. Slice A creates the actual `project.godot`, `scenes/`, camera, HUD, and basic `scripts/`, `tests/`, and `docs/`. Other directories will fill in as their slices are implemented.*
+*The layout above is the intended long-term structure. The implemented project already contains the active `project.godot`, scenes, camera, HUD, simulation scripts, tests and slice documentation. Other directories will fill in as later slices require them.*
 
 ## Getting started
 
-> **Current pre-alpha:** The world map, military and construction systems are implemented. v0.5's new economy is in transition: supply trucks and finite deposits exist, but active collection begins in Slice B. No recurring income is active until deliveries and derricks are implemented.
+> **Current pre-alpha:** The world map, military, construction and physical finite-supply delivery systems are implemented. Successful deliveries provide spendable credits. Oil derricks, city development, research, radar and fog remain planned.
 
 To run the current project:
 
 1. Install **Godot 4.7.2 stable**.
 2. Clone the repository and open `project.godot` in Godot.
 3. Press **F5** to run the configured main scene, then pan with WASD/arrows or drag and zoom with the mouse wheel. Touch drag and pinch gestures are also supported.
-4. Read [Slice A acceptance criteria](docs/SLICE-A.md), then run the headless test commands documented there.
+4. Read the [v0.5 Slice B detail](docs/V0.5-SLICE-B.md), then run its headless verification commands.
 5. Try [Slice C selection and movement](docs/SLICE-C.md). Touch: tap a squad, then tap land. Escape clears selection; dragging still pans.
 
 ## Development guidelines
@@ -208,7 +217,7 @@ To run the current project:
 
 ## Project status and licensing
 
-**Status:** Pre-alpha — v0.5 Slice A implemented; physical supply delivery is the next feature.
+**Status:** Pre-alpha. v0.5 Slices A and B are implemented; neutral oil derricks are next.
 
 **License:** Not selected. All rights are reserved unless and until the repository owner adds an explicit license. Please do not assume the project is open source solely because its source might be publicly viewable.
 

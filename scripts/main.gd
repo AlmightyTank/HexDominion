@@ -336,6 +336,18 @@ func _move_to(point: Vector2) -> void:
 			return
 		hud.show_command_info("Select a squad first (teal markers)")
 		return
+	var target_hex: Vector2i = world_map.world_to_hex(point)
+	var supply_target: bool = world_map.map_data["tiles"].get(target_hex, {}).has("supply_id") or (units.economy.buildings.has(target_hex) and units.economy.buildings[target_hex].get("kind", "") == "supply_center")
+	var only_trucks: bool = not units.selected_units.is_empty()
+	for selected_unit in units.selected_units:
+		only_trucks = only_trucks and selected_unit.kind == "supply_truck"
+	if only_trucks and supply_target:
+		var assigned: int = 0
+		for truck in units.selected_units:
+			assigned += int(units.assign_supply_target(truck, target_hex))
+		units.queue_redraw()
+		hud.show_command_info("Supply assignment accepted: %d/%d trucks." % [assigned, units.selected_units.size()] if assigned > 0 else "Supply assignment rejected: check ownership, stock, cargo and route.")
+		return
 	var ordered: int = 0
 	var group: Array[UnitState] = units.selected_units.duplicate()
 	if group.is_empty():

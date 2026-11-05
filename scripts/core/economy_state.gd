@@ -3,12 +3,12 @@ class_name EconomyState
 signal building_destroyed(hex: Vector2i, kind: String, rotation: int, owner: int)
 signal command_event(message: String, hex: Vector2i)
 ## Faction economy and production. All money mutations use the shared account.
-const BUILD_COSTS: Dictionary = {"headquarters": 300, "supply_center": 200, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100, "airfield": 250, "shipyard": 220}
+const BUILD_COSTS: Dictionary = {"headquarters": 300, "supply_center": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100, "airfield": 250, "shipyard": 220}
 const EXTRACTOR_HEALTH: float = 200.0
 const BUILD_SECONDS: Dictionary = {"headquarters": 12.0, "supply_center": 8.0, "barracks": 6.0, "factory": 10.0, "extractor": 5.0, "power_plant": 8.0, "bunker": 8.0, "airfield": 12.0, "shipyard": 10.0}
-const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "supply_center": 350.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0, "bunker": 400.0, "airfield": 350.0, "shipyard": 400.0}
+const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "supply_center": 300.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0, "bunker": 400.0, "airfield": 350.0, "shipyard": 400.0}
 const POWER_SUPPLY: Dictionary = {"headquarters": 20, "power_plant": 40}
-const POWER_DEMAND: Dictionary = {"factory": 20, "extractor": 10, "airfield": 20}
+const POWER_DEMAND: Dictionary = {"supply_center": 10, "factory": 20, "extractor": 10, "airfield": 20}
 const CANCEL_REFUND_FRACTION: float = 0.5
 const SALVAGE_FRACTION: float = 0.5
 const REPAIR_HP_PER_SECOND: float = 20.0
@@ -182,8 +182,17 @@ func income_last_seconds(seconds: float = 60.0) -> float:
 	return total
 
 func has_working_income_source() -> bool:
-	# Supply trucks become working sources when Slice B adds delivery behavior.
+	for event in income_events:
+		if event.get("source", "") == SOURCE_DELIVERY:
+			return true
 	return oil_derrick_count > 0
+
+
+func operational_supply_center(hex: Vector2i, territory: TerritoryState) -> bool:
+	if not buildings.has(hex):
+		return false
+	var center: Dictionary = buildings[hex]
+	return center.get("kind", "") == "supply_center" and is_complete(center) and center.get("health", 0.0) > 0.0 and territory.owner_at(hex) == faction and not territory.is_contested(hex) and not low_power(territory)
 
 func activity_snapshot() -> Dictionary:
 	return {"time": economy_time, "income_events": income_events.duplicate(true), "oil_derrick_count": oil_derrick_count}

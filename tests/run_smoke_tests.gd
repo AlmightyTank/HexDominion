@@ -131,26 +131,69 @@ func _test_supply_ui_and_save() -> void:
 		if unit.kind == "supply_truck":
 			truck_counts[unit.faction] += 1
 	var center_counts: Dictionary = {1: 0, 2: 0}
+	var player_center: Variant = null
 	for site in game.units.economy.buildings.values():
 		center_counts[1] += 1 if site["kind"] == "supply_center" else 0
+	for hex in game.units.economy.buildings:
+		if game.units.economy.buildings[hex]["kind"] == "supply_center":
+			player_center = hex
+			break
 	for site in game.units.match_state.rival_economy.buildings.values():
 		center_counts[2] += 1 if site["kind"] == "supply_center" else 0
 	var deposits: Array[Vector2i] = []
+	var player_deposit: Variant = null
+	var rival_deposit: Variant = null
 	for hex in tiles:
 		if tiles[hex].has("supply_capacity"):
 			deposits.append(hex)
-	var player_distance: int = mini(HexMath.distance(home, deposits[0]), HexMath.distance(home, deposits[1])) if deposits.size() == 2 else -1
-	var rival_distance: int = mini(HexMath.distance(game.units.match_state.rival_hq, deposits[0]), HexMath.distance(game.units.match_state.rival_hq, deposits[1])) if deposits.size() == 2 else -2
+			if game.units.territory.owner_at(hex) == 1:
+				player_deposit = hex
+			elif game.units.territory.owner_at(hex) == 2:
+				rival_deposit = hex
+	var player_distance: int = HexMath.distance(home, player_deposit) if player_deposit != null else -1
+	var rival_distance: int = HexMath.distance(game.units.match_state.rival_hq, rival_deposit) if rival_deposit != null else -2
 	_check(game.units.economy.credits == 2000 and game.units.match_state.rival_economy.credits == 2000, "Both factions start with exactly 2,000 credits")
 	_check(truck_counts == {1: 1, 2: 1} and center_counts == {1: 1, 2: 1}, "New match creates exactly one free Supply Center and Supply Truck per faction")
-	_check(deposits.size() == 2 and player_distance == rival_distance and tiles[deposits[0]]["supply_remaining"] == 5000.0 and tiles[deposits[1]]["supply_remaining"] == 5000.0, "Both factions receive equivalent nearby finite supply deposits")
+	_check(deposits.size() > 2 and player_distance == rival_distance and tiles[player_deposit]["supply_remaining"] == 4500.0 and tiles[rival_deposit]["supply_remaining"] == 4500.0, "World resources and equivalent nearby medium deposits receive finite Slice B stock")
+	var manual_truck: UnitState = game.units.units.filter(func(unit: UnitState) -> bool: return unit.kind == "supply_truck" and unit.faction == 1)[0]
+	game.units.select_one(manual_truck)
+	game._move_to(game.world_map.hex_to_world(player_deposit))
+	_check(manual_truck.supply_task == "to_deposit" and manual_truck.assigned_deposit_id == tiles[player_deposit]["supply_id"], "Selected Supply Truck right-click assignment enters the physical pickup route")
+	manual_truck.supply_task = "idle"
+	manual_truck.assigned_deposit_id = ""
+	manual_truck.path.clear()
+	manual_truck.progress = 0.0
+	game.units.select_one(null)
 	game.world_map.inspect_at_world(game.world_map.hex_to_world(home))
 	game._process(0)
-	_check(game.hud.supply_info.visible and "SUPPLIED" in game.hud.supply_info.text and "No automatic income" in game.hud.supply_info.text, "Selected HQ city reports connectivity without passive income")
+	_check(game.hud.supply_info.visible and "SUPPLIED" in game.hud.supply_info.text and "Physical delivery income" in game.hud.supply_info.text, "Selected HQ city reports connectivity and physical delivery income")
 	var snapshot: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home)
+	var delivery_route: Array[Vector2i] = HexPathfinding.find_path(tiles, player_deposit, player_center, "supply_truck")
+	var phases: Array[Dictionary] = [
+		{"task": "idle", "cargo": 0.0, "timer": 0.0, "deposit": "", "center": SupplyLogistics.NO_CENTER, "route": []},
+		{"task": "to_deposit", "cargo": 0.0, "timer": 0.0, "deposit": tiles[player_deposit]["supply_id"], "center": SupplyLogistics.NO_CENTER, "route": []},
+		{"task": "loading", "cargo": 0.0, "timer": 1.25, "deposit": tiles[player_deposit]["supply_id"], "center": SupplyLogistics.NO_CENTER, "route": []},
+		{"task": "to_center", "cargo": 75.0, "timer": 0.0, "deposit": tiles[player_deposit]["supply_id"], "center": player_center, "route": delivery_route},
+		{"task": "unloading", "cargo": 75.0, "timer": 1.0, "deposit": tiles[player_deposit]["supply_id"], "center": player_center, "route": delivery_route},
+		{"task": "waiting_deposit", "cargo": 0.0, "timer": 0.0, "deposit": tiles[player_deposit]["supply_id"], "center": SupplyLogistics.NO_CENTER, "route": []},
+		{"task": "waiting_center", "cargo": 75.0, "timer": 0.0, "deposit": tiles[player_deposit]["supply_id"], "center": player_center, "route": delivery_route},
+	]
+	for phase in phases:
+		var phase_truck: UnitState = game.units.units.filter(func(unit: UnitState) -> bool: return unit.kind == "supply_truck" and unit.faction == 1)[0]
+		phase_truck.supply_task = phase["task"]
+		phase_truck.supply_cargo = phase["cargo"]
+		phase_truck.supply_timer = phase["timer"]
+		phase_truck.assigned_deposit_id = phase["deposit"]
+		phase_truck.assigned_center = phase["center"]
+		phase_truck.delivery_route.assign(phase["route"])
+		var phase_save: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home)
+		phase_truck.supply_task = "idle"
+		phase_truck.supply_cargo = 0.0
+		_check(MatchSave.restore(game.units, phase_save) and MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home) == phase_save, "Supply %s phase restores exactly" % phase["task"])
+	_check(MatchSave.restore(game.units, snapshot), "Original supply snapshot restores after phase coverage")
 	game.units.economy.damage_building(home, 10000)
 	game._process(0)
-	_check("NO SUPPLY" in game.hud.supply_info.text and "No automatic income" in game.hud.supply_info.text and game.units.economy.income_rate(tiles, game.units.territory) == 0, "HQ destruction updates inspected supply state without creating income")
+	_check("NO SUPPLY" in game.hud.supply_info.text and "Physical delivery income" in game.hud.supply_info.text and game.units.economy.income_rate(tiles, game.units.territory) == 0, "HQ destruction updates inspected supply state without passive income")
 	_check(MatchSave.restore(game.units, snapshot), "Supply state snapshot restores without serializing a graph")
 	game._process(0)
 	_check("SUPPLIED" in game.hud.supply_info.text and game.units.economy.income_status(home, tiles, game.units.territory)["income"] == 0, "Load rebuilds supply without stale isolation or passive income")
@@ -588,7 +631,7 @@ func _run_tests() -> void:
 	_check(game.units.selected_units.size() == 1, "Click replaces group selection")
 	game.units.select_box(Rect2(-100000, -100000, 1, 1), Transform2D.IDENTITY)
 	_check(game.units.selected_units.is_empty() and game.units.selected == null, "Empty box clears selection")
-	_check(game.hud.build_buttons.size() == 7 and game.hud.build_buttons.has("shipyard") and game.hud.build_buttons.has("airfield") and game.hud.build_buttons.has("bunker") and not game.hud.build_buttons.has("headquarters"), "HQ-victory construction menu includes shipyards and airfields")
+	_check(game.hud.build_buttons.size() == 8 and game.hud.build_buttons.has("supply_center") and game.hud.build_buttons.has("shipyard") and game.hud.build_buttons.has("airfield") and game.hud.build_buttons.has("bunker") and not game.hud.build_buttons.has("headquarters"), "HQ-victory construction menu includes logistics, shipyards and airfields")
 	game.hud.show_tile_actions(game.units.units[0].hex, game.units.economy, game.units.territory, tiles)
 	game.hud.production_open = true
 	game.hud._layout_for_viewport()
@@ -663,7 +706,7 @@ func _run_tests() -> void:
 		_check(restarted.units.units.size() == 6 and restarted.units.economy.credits == 2000 and restarted.units.match_state.rival_economy.credits == 2000 and restarted.units.selected == null, "Restart resets both factions to exact Slice A funds and starter assets")
 		restarted.free()
 	current_scene = null
-	print("Hex Frontlines v0.5 Slice A: %d passed, %d failed" % [_successes, _failures])
+	print("Hex Frontlines v0.5 Slice B: %d passed, %d failed" % [_successes, _failures])
 	quit(1 if _failures > 0 else 0)
 
 

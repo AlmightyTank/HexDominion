@@ -30,15 +30,18 @@ func run() -> void:
 	for hex in tiles:
 		territory.set_owner(hex, 1)
 	var economies: Array[EconomyState] = [economy, enemy_economy]
-	check(UnitCatalog.COSTS.size() == 13, "Exactly thirteen paid military roles")
-	check(UnitCatalog.TYPES.has("supply_truck") and not UnitCatalog.COSTS.has("supply_truck") and not UnitCatalog.TRAIN_SECONDS.has("supply_truck"), "Supply truck remains free starting-state scaffolding")
+	check(UnitCatalog.COSTS.size() == 14, "Thirteen military roles plus one paid logistics role")
+	check(UnitCatalog.COSTS.get("supply_truck") == 200 and UnitCatalog.TRAIN_SECONDS.get("supply_truck") == 6.0 and UnitCatalog.TYPES["supply_truck"]["health"] == 100.0, "Supply truck production and health match Slice B tuning")
 	for kind in UnitCatalog.COSTS:
 		var hex: Vector2i = Vector2i(0, 2 if UnitCatalog.is_naval(kind) else 0)
 		var unit: UnitState = make(kind, hex)
 		check(UnitCatalog.COSTS.has(kind) and UnitCatalog.TRAIN_SECONDS.has(kind), kind + " paid production configured")
 		check(ResourceLoader.exists(UnitArt.asset_path(kind, 1, "base")) and ResourceLoader.exists(UnitArt.asset_path(kind, 2, "damaged")), kind + " distinct faction/state artwork")
 		check(unit.order_move(tiles, Vector2i(4, hex.y)), kind + " correct-domain movement")
-		if kind != "fighter":
+		if kind == "supply_truck":
+			check(not UnitOrders.tactical(unit, "attack_move", Vector2i(5, hex.y), tiles), "Supply truck rejects combat orders")
+			check(not UnitOrders.attack(unit, tiles, Vector2i(5, hex.y)), "Supply truck rejects explicit attack orders")
+		elif kind != "fighter":
 			check(UnitOrders.tactical(unit, "attack_move", Vector2i(5, hex.y), tiles), kind + " attack-move accepted")
 			check(UnitOrders.tactical(unit, "patrol", Vector2i(3, hex.y), tiles), kind + " patrol accepted")
 			check(UnitOrders.tactical(unit, "guard", Vector2i(1, hex.y), tiles), kind + " guard accepted")

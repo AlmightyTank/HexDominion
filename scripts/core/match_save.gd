@@ -4,7 +4,7 @@ class_name MatchSave
 const PATH: String = "user://quicksave.hds"
 const SAVE_DIRECTORY: String = "user://saves"
 const MAP_ID: String = "earth-120x70-v1"
-const SAVE_VERSION: int = 2
+const SAVE_VERSION: int = 3
 
 static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vector2, inspected: Vector2i) -> Dictionary:
 	var roster: Array = []
@@ -16,13 +16,15 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 			"airfield": unit.airfield, "air_mission": unit.air_mission, "mission_remaining": unit.mission_remaining,
 			"carrier": layer.units.find(unit.carrier.get_ref()) if unit.is_embarked() else -1, "attack_order": unit.attack_order,
 			"attack_hex": unit.attack_hex, "attack_target": layer.units.find(unit.attack_target.get_ref()) if unit.attack_target != null else -1,
-			"tactical_order": unit.tactical_order.duplicate(true), "guard_target": layer.units.find(unit.guard_target.get_ref()) if unit.guard_target != null else -1})
+			"tactical_order": unit.tactical_order.duplicate(true), "guard_target": layer.units.find(unit.guard_target.get_ref()) if unit.guard_target != null else -1,
+			"supply_cargo": unit.supply_cargo, "supply_task": unit.supply_task, "supply_timer": unit.supply_timer,
+			"assigned_deposit_id": unit.assigned_deposit_id, "assigned_center": unit.assigned_center, "delivery_route": unit.delivery_route.duplicate()})
 	var match_state: MatchState = layer.match_state
 	var deposits: Array[Dictionary] = []
 	for hex in layer.world_map.map_data["tiles"]:
 		var tile: Dictionary = layer.world_map.map_data["tiles"][hex]
 		if tile.has("supply_capacity"):
-			deposits.append({"hex": hex, "capacity": tile["supply_capacity"], "remaining": tile.get("supply_remaining", 0.0), "original_terrain": tile.get("supply_original_terrain", "resource")})
+			deposits.append({"hex": hex, "id": tile.get("supply_id", SupplyLogistics.deposit_id(hex)), "size": tile.get("supply_size", "medium"), "capacity": tile["supply_capacity"], "remaining": tile.get("supply_remaining", 0.0), "original_terrain": tile.get("supply_original_terrain", "resource")})
 	return {"version": SAVE_VERSION, "map": MAP_ID, "units": roster,
 		"owners": layer.territory.owners.duplicate(true), "captures": layer.territory.captures.duplicate(true),
 		"contested": layer.territory.contested.duplicate(true),
@@ -40,11 +42,27 @@ static func migrate(data: Variant) -> Dictionary:
 		return {}
 	var migrated: Dictionary = data.duplicate(true)
 	if migrated.get("version") == 1:
-		migrated["version"] = SAVE_VERSION
+		migrated["version"] = 2
 		migrated["supply_deposits"] = []
 		for key in ["economy", "rival_economy"]:
 			if migrated.get(key) is Dictionary:
 				migrated[key]["activity"] = {"time": 0.0, "income_events": [], "oil_derrick_count": 0}
+	if migrated.get("version") == 2:
+		for unit in migrated.get("units", []):
+			if unit is Dictionary:
+				unit["supply_cargo"] = 0.0
+				unit["supply_task"] = "idle"
+				unit["supply_timer"] = 0.0
+				unit["assigned_deposit_id"] = ""
+				unit["assigned_center"] = SupplyLogistics.NO_CENTER
+				unit["delivery_route"] = []
+		for deposit in migrated.get("supply_deposits", []):
+			if deposit is Dictionary and deposit.get("hex") is Vector2i:
+				deposit["id"] = SupplyLogistics.deposit_id(deposit["hex"])
+				deposit["size"] = "medium"
+				deposit["capacity"] = SupplyLogistics.DEPOSIT_CAPACITIES["medium"]
+				deposit["remaining"] = minf(float(deposit.get("remaining", 0.0)), float(deposit["capacity"]))
+		migrated["version"] = 3
 	return migrated
 
 static func _number(value: Variant, minimum: float, maximum: float) -> bool:
@@ -81,17 +99,21 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 	for hex in data.get("roads", {}):
 		if not hex is Vector2i or not tiles.has(hex) or not RoadRules.supports(tiles[hex]) or data["roads"][hex] != true:
 			return false
-	if not data.get("supply_deposits", []) is Array or data["supply_deposits"].size() > 2:
+	if not data.get("supply_deposits", []) is Array or data["supply_deposits"].size() > 256:
 		return false
 	var deposit_hexes: Dictionary = {}
+	var deposit_ids: Dictionary = {}
 	for deposit in data["supply_deposits"]:
 		if not deposit is Dictionary or not _land(deposit.get("hex"), tiles) or deposit_hexes.has(deposit["hex"]):
 			return false
-		if not _number(deposit.get("capacity"), 0.001, 1.0e12) or not _number(deposit.get("remaining"), 0.0, deposit["capacity"]):
+		if not deposit.get("id") is String or deposit["id"] != SupplyLogistics.deposit_id(deposit["hex"]) or deposit_ids.has(deposit["id"]):
+			return false
+		if deposit.get("size") not in SupplyLogistics.DEPOSIT_CAPACITIES or deposit.get("capacity") != SupplyLogistics.DEPOSIT_CAPACITIES[deposit["size"]] or not _number(deposit.get("remaining"), 0.0, deposit["capacity"]):
 			return false
 		if deposit.get("original_terrain", "") not in WorldMapData.TERRAIN_TYPES:
 			return false
 		deposit_hexes[deposit["hex"]] = true
+		deposit_ids[deposit["id"]] = true
 	if data.has("contested"):
 		if not data["contested"] is Dictionary:
 			return false
@@ -155,6 +177,8 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 		elif target_index != -1:
 			return false
 		if not _valid_order(unit, data["units"], tiles):
+			return false
+		if not _valid_supply_state(unit, tiles, deposit_ids):
 			return false
 		if (unit["path"].is_empty() and unit["progress"] != 0) or (unit["garrisoned"] and not unit["path"].is_empty()):
 			return false
@@ -269,6 +293,27 @@ static func _valid_activity(data: Variant) -> bool:
 			return false
 	return true
 
+
+static func _valid_supply_state(unit: Dictionary, tiles: Dictionary, deposit_ids: Dictionary) -> bool:
+	if not _number(unit.get("supply_cargo"), 0.0, SupplyLogistics.CARGO_CAPACITY) or unit.get("supply_task") not in SupplyLogistics.TASKS or not _number(unit.get("supply_timer"), 0.0, SupplyLogistics.LOAD_SECONDS):
+		return false
+	if not unit.get("assigned_deposit_id") is String or (not unit["assigned_deposit_id"].is_empty() and not deposit_ids.has(unit["assigned_deposit_id"])):
+		return false
+	if not unit.get("assigned_center") is Vector2i or (unit["assigned_center"] != SupplyLogistics.NO_CENTER and not _land(unit["assigned_center"], tiles)):
+		return false
+	if not unit.get("delivery_route") is Array or unit["delivery_route"].size() > 10000:
+		return false
+	var previous: Variant = null
+	for hex in unit["delivery_route"]:
+		if not _land(hex, tiles) or (previous != null and HexMath.distance(previous, hex) != 1):
+			return false
+		previous = hex
+	if unit["kind"] != "supply_truck":
+		return unit["supply_cargo"] == 0.0 and unit["supply_task"] == "idle" and unit["supply_timer"] == 0.0 and unit["assigned_deposit_id"].is_empty() and unit["assigned_center"] == SupplyLogistics.NO_CENTER and unit["delivery_route"].is_empty()
+	if unit["supply_task"] in ["to_center", "unloading", "waiting_center"] and unit["supply_cargo"] <= 0.0:
+		return false
+	return true
+
 static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 	data = migrate(data)
 	if not validate(data, layer.world_map.map_data["tiles"]):
@@ -292,6 +337,12 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		unit.tactical_order = entry.get("tactical_order", {}).duplicate(true)
 		unit.attack_order = entry.get("attack_order", false)
 		unit.attack_hex = entry.get("attack_hex", Vector2i.ZERO)
+		unit.supply_cargo = entry["supply_cargo"]
+		unit.supply_task = entry["supply_task"]
+		unit.supply_timer = entry["supply_timer"]
+		unit.assigned_deposit_id = entry["assigned_deposit_id"]
+		unit.assigned_center = entry["assigned_center"]
+		unit.delivery_route.assign(entry["delivery_route"])
 		roster.append(unit)
 	for index in range(roster.size()):
 		var carrier_index: int = data["units"][index].get("carrier", -1)
@@ -312,15 +363,16 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 		tile.erase("road")
 		if tile.has("supply_capacity"):
 			tile["terrain"] = tile.get("supply_original_terrain", tile.get("terrain", "plains"))
-			tile.erase("supply_capacity")
-			tile.erase("supply_remaining")
-			tile.erase("supply_original_terrain")
+			for key in ["supply_id", "supply_size", "supply_capacity", "supply_remaining", "supply_original_terrain"]:
+				tile.erase(key)
 	for hex in data.get("roads", {}):
 		layer.world_map.map_data["tiles"][hex]["road"] = true
 	for deposit in data.get("supply_deposits", []):
 		var tile: Dictionary = layer.world_map.map_data["tiles"][deposit["hex"]]
 		tile["supply_original_terrain"] = deposit["original_terrain"]
 		tile["terrain"] = "resource"
+		tile["supply_id"] = deposit["id"]
+		tile["supply_size"] = deposit["size"]
 		tile["supply_capacity"] = deposit["capacity"]
 		tile["supply_remaining"] = deposit["remaining"]
 	layer.select_one(null)

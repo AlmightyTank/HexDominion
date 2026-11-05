@@ -4,7 +4,7 @@
 **Updated:** November 4, 2026  
 **Repository:** https://github.com/AlmightyTank/HexFrontlines  
 **Engine:** Godot 4.7.2 / GDScript  
-**Current development stage:** Pre-alpha; **v0.5 Slice A implemented; v0.5 Slice B is next**.
+**Current development stage:** Pre-alpha; **v0.5 Slices A and B implemented; v0.5 Slice C is next**.
 
 > The repository was previously named HexDominion. HexFrontlines is its current name. This roadmap supersedes the high-level v0.5 description in older plans. Historical slice documents remain records of what was implemented at that time.
 
@@ -19,12 +19,12 @@
 
 - One continuous real-time Earth-inspired 120 × 70 hex world (8,400 tiles), with named city/resource sites and no turn-based battles.
 - Territory capture, terrain modifiers, roads, continent control, power, construction, repairs, sales, production queues, rally points, and versioned saves.
-- Combined-arms roster: 3 infantry, 5 ground vehicles, 2 aircraft and 3 naval units. A separate unarmed logistics Supply Truck now exists as v0.5 scaffolding, **not** as a fourteenth combat class.
+- Combined-arms roster: 3 infantry, 5 ground vehicles, 2 aircraft and 3 naval units. The separate unarmed logistics Supply Truck is producible but is **not** a fourteenth combat class.
 - Army orders: Move, Attack, Attack-Move, Hold Position, Guard, Patrol; transport loading and unloading; three visual zoom tiers.
 - Existing minimap is camera navigation and territory display; it does not yet implement true faction-specific radar detection and fog of war.
-- v0.5 Slice A starts both factions with 2,000 credits, an HQ, one Supply Center, one unarmed Supply Truck and one nearby **5,000-unit finite deposit** each.
-- **Important current limitation:** trucks do not yet collect or deliver supplies. City, HQ and legacy extractor passive income has been removed; recurring income is currently zero until Slices B and C are built.
-- Last reviewed code baseline: main at commit 8002a59 (2026-11-04 UTC / 2026-11-04 US Central). Two Godot Actions workflows passed for that commit. Future changes should be re-audited before marking a slice complete.
+- v0.5 Slice B starts both factions with 2,000 credits, an HQ, one Supply Center, one unarmed Supply Truck and one equivalent nearby **4,500-unit medium deposit** each. Existing world resource sites are deterministic small, medium or large finite deposits.
+- Supply Trucks now perform physical collection and delivery. City, HQ and legacy extractor passive income remains disabled; completed deliveries are the only implemented income source until Slice C.
+- Last reviewed predecessor: main at commit 28fc14a (2026-11-04). Slice B was verified locally with Godot 4.7.2 import, a 1,317-assertion smoke suite and focused regression runners before commit; CI and human balance/mobile acceptance remain separate gates.
 
 ## Milestone overview
 
@@ -34,7 +34,7 @@
 | v0.2 | Economy and construction | **Implemented historically** | Credits, buildings, power, queues, repairs and construction controls |
 | v0.3 | Territorial strategy | **Implemented historically** | Terrain, roads, supply links, continent control, bunkers |
 | v0.4 | Military expansion | **Implemented baseline** | 13 combat roles, air/sea operations, mixed orders and AI |
-| v0.5 | Logistics economy, cities and technology | **In progress: A done, B–F planned** | Physical deliveries, oil derricks, city/research, radar and fog |
+| v0.5 | Logistics economy, cities and technology | **In progress: A–B done, C–F planned** | Physical deliveries, oil derricks, city/research, radar and fog |
 | v0.6 | Three asymmetric factions | Planned | Distinct strategies and recognizable faction identity |
 | v0.7 | Smarter opponents and neutral world | Planned | Strategic AI, utility competition, diplomacy |
 | v0.8 | Skirmish customization | Planned | Match setup, victory options, difficulty and scenarios |
@@ -110,21 +110,21 @@
 - [x] Save schema v2 with validated migration from v1 and no duplicated starting assets.
 - [x] HUD recent approved income reporting.
 
-**Not yet playable:** Truck loading, cargo, unloading, completed deliveries and oil payments are still missing. See [v0.5 Slice A detail](V0.5-SLICE-A.md).
+**Slice A historical boundary:** At that checkpoint, truck loading, cargo, unloading and completed deliveries were still missing. Slice B below completes that loop. See [v0.5 Slice A detail](V0.5-SLICE-A.md).
 
-### Slice B — Physical supply collection — NEXT
+### Slice B — Physical supply collection — IMPLEMENTED
 
-- [ ] Support finite small/medium/large supply stockpiles, with visible remaining amounts and depletion. Preserve Slice A's valid 5,000-unit starting deposits; add broader map deposits through stable IDs.
-- [ ] Give the existing Supply Truck actual assignments, loading, cargo capacity, travel, unloading and delivery states. Initial balance target: **150 credits/cargo**, **3-second load**, **2-second unload**.
-- [ ] Pay credits **only after** unloading at an eligible friendly operational Supply Center through the approved EconomyState payout API; do not credit on pickup.
-- [ ] Reserve or atomically withdraw stock so competing trucks cannot extract more than the deposit contains. Undelivered cargo is lost with a destroyed truck.
-- [ ] Make additional Supply Trucks buildable (proposed **200 credits / 6 seconds**) and Supply Centers constructible with the existing build/power/repair/sell rules (proposed **300 credits / 8 seconds / 10 power**).
-- [ ] Use actual terrain/pathfinding/road travel. Road payout bonus must be proven by a qualifying route; it cannot be claimed by merely being near a road.
-- [ ] Add distinct top-down logistics sprites and appropriate strategic icons, not reused tank or scout art.
-- [ ] Persist deposits, cargo, routes and every delivery phase; handle center loss and retry without free credits.
-- [ ] Test contested deposits, simultaneous collection, partial loads, empty deposits, truck destruction, brownouts, alternate centers, save/load and non-duplication.
+- [x] Finite small (1,500), medium (4,500) and large (9,000) stockpiles use stable axial IDs, visible remaining stock and depleted markers. Slice A's legacy 5,000-unit saves migrate to valid medium deposits without increasing remaining stock.
+- [x] Supply Trucks have automatic and manual assignments, physical travel, 150-unit cargo, 3-second loading, 2-second unloading and explicit blocked/retry states.
+- [x] Credits are paid **only after** unloading at an eligible friendly operational Supply Center through `EconomyState.credit_approved_income()`; pickup never pays.
+- [x] Stock is withdrawn atomically when loading completes, final partial loads are supported, and undelivered cargo is lost with a destroyed truck.
+- [x] Additional Supply Trucks are buildable for **200 credits / 6 seconds / 100 HP**. Supply Centers use **300 credits / 8 seconds / 300 HP / 10 power** with existing construction, power, repair and sale rules.
+- [x] Trucks use existing terrain-aware A* movement and road travel speed. The +10% delivery bonus requires the saved actual deposit-to-center route to qualify at payout.
+- [x] Dedicated original faction/state logistics sprites and strategic icons are used for trucks and centers rather than military artwork.
+- [x] Save schema v3 persists stable deposits, cargo, assignments, routes, timers and every delivery phase. Failed centers retain cargo and can reroute without free credits.
+- [x] Regression coverage includes contested and depleted deposits, simultaneous atomic collection, partial loads, truck destruction, brownouts, alternate centers, exact-once payout and save/load for every phase.
 
-**Acceptance:** A match can earn spendable credits from the starting finite supplies through a completed visible truck round trip. No direct pickup payout.
+**Acceptance met:** A match earns spendable credits from starting finite supplies only after a completed visible truck round trip. No direct pickup payout occurs. See [v0.5 Slice B detail](V0.5-SLICE-B.md).
 
 ### Slice C — Neutral oil derricks — PLANNED
 
@@ -141,8 +141,8 @@
 
 ### Slice D — Logistics automation, economic AI and raids — PLANNED
 
-- [ ] Idle trucks find discovered reachable stockpiles and operational drop-off centers using bounded route-cost searches.
-- [ ] Trucks collect/reassign automatically; players can override deposits, centers or automation.
+- [x] Slice B baseline: idle trucks find reachable stockpiles and operational drop-off centers deterministically.
+- [x] Slice B baseline: trucks collect/reassign automatically and players can override deposits or centers.
 - [ ] Avoid pileups and repeated selection of depleted or unreachable sites; handle multiple trucks and centers.
 - [ ] Supply trucks are attackable and can be intercepted; actual route disruption should materially impact income.
 - [ ] Upgrade RivalEconomyAI and CombinedArmsAI to protect routes, replace trucks, expand collection, capture derricks and raid enemy logistics under the same cost rules as the player.
@@ -270,6 +270,6 @@
 
 ## Immediate next pickup
 
-**Implement v0.5 Slice B — Physical Supply Collection.** Specifically: make the existing Supply Truck travel to its already-created finite starting deposit, load up to its configured cargo capacity, return to its existing Supply Center, unload, and pay through EconomyState.credit_approved_income exactly once. Add tests for simultaneous pickup, lost cargo, brownouts, save/load at every phase and depleted deposits **before** broadening distribution and adding new art.
+**Implement v0.5 Slice C, Neutral Oil Derricks.** Place fair reachable neutral derricks, add physical capture and operational health states, and pay 3 CR/second only while an owned derrick is operational and uncontested. Use the approved `oil_derrick` payout source, retain additive continent bonuses and never apply the road-delivery bonus.
 
-Start from [v0.5 Slice A](V0.5-SLICE-A.md) and current Godot validation workflows. Once deliveries are end-to-end and economically sustainable, move to **v0.5 Slice C — Oil Derricks**.
+Start from [v0.5 Slice B](V0.5-SLICE-B.md) and the existing Godot validation workflows. Preserve the physical delivery economy and save schema migration while adding the first passive recurring income source.

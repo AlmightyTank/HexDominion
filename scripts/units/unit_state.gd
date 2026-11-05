@@ -29,6 +29,12 @@ var air_mission: String = "ready"
 var mission_remaining: float = 0.0
 var tactical_order: Dictionary = {}
 var guard_target: WeakRef
+var supply_cargo: float = 0.0
+var supply_task: String = "idle"
+var supply_timer: float = 0.0
+var assigned_deposit_id: String = ""
+var assigned_center: Vector2i = Vector2i(-99999, -99999)
+var delivery_route: Array[Vector2i] = []
 
 func is_embarked() -> bool:
 	return carrier != null and carrier.get_ref() != null

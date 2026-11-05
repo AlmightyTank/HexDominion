@@ -989,13 +989,13 @@ func _create_build_menu() -> void:
 	road_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	road_button.pressed.connect(func() -> void: build_requested.emit("road"))
 	structure_grid.add_child(road_button)
-	for kind in ["barracks", "factory", "extractor", "power_plant", "bunker", "airfield", "shipyard"]:
+	for kind in ["supply_center", "barracks", "factory", "extractor", "power_plant", "bunker", "airfield", "shipyard"]:
 		var button: ProductionItem = ProductionItem.new()
 		button.configure(String(kind).capitalize(), EconomyState.BUILD_COSTS[kind], EconomyState.BUILD_SECONDS[kind], UnitArt.building_texture(kind, 1))
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.custom_minimum_size = Vector2(0, 128)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.tooltip_text = {"barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "Legacy strategic structure • No passive income • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP", "bunker": "Two infantry • G assigns garrison • J holds • 40% less incoming damage; passable", "airfield": "Aircraft production and fighter rearming. Plains, desert or city. 20 power; offline under low power.", "shipyard": "Naval production. Owned coastal land adjoining navigable ocean. 220 CR; 10 seconds."}[kind]
+		button.tooltip_text = {"supply_center": "Unload Supply Trucks for approved credits. 300 CR, 8 seconds, 300 HP, 10 power.", "barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "Legacy strategic structure • No passive income • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP", "bunker": "Two infantry • G assigns garrison • J holds • 40% less incoming damage; passable", "airfield": "Aircraft production and fighter rearming. Plains, desert or city. 20 power; offline under low power.", "shipyard": "Naval production. Owned coastal land adjoining navigable ocean. 220 CR; 10 seconds."}[kind]
 		button.pressed.connect(func() -> void: build_requested.emit(kind))
 		(defense_grid if kind == "bunker" else structure_grid).add_child(button)
 		build_buttons[kind] = button
@@ -1123,6 +1123,9 @@ func show_selection(roster: Array[UnitState], attack_mode: bool, all_units: Arra
 	var primary: UnitState = roster[0]
 	var summary: String = labels[0] if counts.size() == 1 else "%d selected | %d unit types" % [roster.size(), counts.size()]
 	selection_info.text = "%s\nLead: %.0f / %.0f HP | %s" % [summary, primary.health, primary.max_health, "Garrisoned" if primary.garrisoned else ("Holding" if primary.holding else ("Attacking" if primary.attack_order else "Mobile"))]
+	if primary.kind == "supply_truck":
+		selection_info.text += "\nCargo: %.0f / %.0f | %s | %.1fs" % [primary.supply_cargo, SupplyLogistics.CARGO_CAPACITY, primary.supply_task.replace("_", " ").capitalize(), primary.supply_timer]
+		selection_info.text += "\nRight-click or tap a friendly deposit or Supply Center to assign."
 	selection_info.tooltip_text = "%s\nLead unit: %.0f damage / %.2fs | Range %d\n%.2fs/hex" % [", ".join(labels), primary.damage, primary.cooldown, primary.attack_range, primary.seconds_per_hex]
 
 func _set_command_cursors(node: Node) -> void:
@@ -1158,7 +1161,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 			active_trucks += 1
 	var source_status: String = "SOURCE ACTIVE" if economy.has_working_income_source() else "NO WORKING SOURCE"
 	economy_summary.text = "%.2f CR | 60s +%.0f | TRK %d | OIL %d | %s" % [economy.credits, income, active_trucks, economy.oil_derrick_count, source_status]
-	economy_summary.tooltip_text = "Available credits, actual approved income received in the last 60 seconds, active supply trucks and operational oil derricks. Supply delivery behavior arrives in Slice B."
+	economy_summary.tooltip_text = "Available credits, approved income received in the last 60 seconds, active Supply Trucks and operational oil derricks. Truck cargo credits only after a completed Supply Center unload."
 	economy_summary.add_theme_color_override("font_color", CommandTheme.POSITIVE if income > 0 else CommandTheme.WARNING)
 	var power: Dictionary = economy.power_balance(territory)
 	power_summary.text = "PWR %d / %d%s" % [power["supply"], power["demand"], " LOW" if economy.low_power(territory) else ""]
@@ -1258,7 +1261,7 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 		elif building["kind"] == "headquarters":
 			build_status.text += "\nCommand infrastructure only; no passive income.\nBuild barracks to train rifles."
 		elif building["kind"] == "supply_center":
-			build_status.text += "\nSupply-delivery scaffold ready. Active collection arrives in Slice B."
+			build_status.text += "\n%s. Trucks unload cargo here in 2 seconds." % ("Operational" if economy.operational_supply_center(hex, territory) else "OFFLINE: restore power, control, health and uncontested status")
 		elif building["kind"] == "extractor":
 			build_status.text += "\nStrategic legacy structure; no passive income."
 		elif building["kind"] == "power_plant":
@@ -1298,7 +1301,13 @@ func show_supply(hex: Vector2i, economy: EconomyState, territory: TerritoryState
 		supply_info.text = "%s | Bunker holds two infantry\nGarrison protection does not require supply" % ("SUPPLIED" if status["supplied"] else "ISOLATED")
 		return
 	var owner: int = territory.owner_at(hex)
-	supply_info.text = "%s | %s | No automatic income\n%s%s" % [{0: "Neutral", 1: "Player", 2: "Rival"}.get(owner, "Faction %d" % owner), "SUPPLIED" if status["supplied"] else "NO SUPPLY", "Road present" if RoadRules.has_road(tiles, hex) else "No road", " | Route may qualify for +10% on a completed delivery" if status["road_route"] else ""]
+	var tile: Dictionary = tiles[hex]
+	var detail: String = ""
+	if tile.has("supply_id"):
+		detail = "\n%s deposit: %.0f / %.0f remaining%s" % [String(tile.get("supply_size", "medium")).capitalize(), tile.get("supply_remaining", 0.0), tile.get("supply_capacity", 0.0), " | DEPLETED" if tile.get("supply_remaining", 0.0) <= 0.0 else ""]
+	if economy.buildings.has(hex) and economy.buildings[hex].get("kind", "") == "supply_center":
+		detail += "\nSupply Center: %s" % ("OPERATIONAL" if economy.operational_supply_center(hex, territory) else "OFFLINE")
+	supply_info.text = "%s | %s | Physical delivery income\n%s%s%s" % [{0: "Neutral", 1: "Player", 2: "Rival"}.get(owner, "Faction %d" % owner), "SUPPLIED" if status["supplied"] else "NO SUPPLY", "Road present" if RoadRules.has_road(tiles, hex) else "No road", " | Actual all-road delivery earns +10%" if status["road_route"] else "", detail]
 	supply_info.add_theme_color_override("font_color", CommandTheme.TEXT if status["supplied"] or owner == 0 else CommandTheme.WARNING)
 
 

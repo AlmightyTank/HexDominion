@@ -2,7 +2,7 @@ extends RefCounted
 class_name UnitOrders
 ## Explicit attack pursuit; ordinary movement and Hold keep their existing rules.
 static func attack(unit: UnitState, tiles: Dictionary, goal: Vector2i, target: UnitState = null) -> bool:
-	if unit.kind == "landing_transport" or (unit.kind == "patrol_boat" and (target == null or target.domain != "naval")):
+	if unit.kind in ["landing_transport", "supply_truck"] or (unit.kind == "patrol_boat" and (target == null or target.domain != "naval")):
 		return false
 	if unit.kind == "fighter" and (unit.air_mission != "ready" or unit.airfield == AircraftRules.NO_BASE):
 		return false
@@ -54,7 +54,7 @@ static func tactical(unit: UnitState, mode: String, goal: Vector2i, tiles: Dicti
 	if mode not in ["attack_move", "guard", "patrol"] or not unit.is_deployed():
 		return false
 	# Jets use explicit strike missions; a geographic order cannot bypass rearming.
-	if unit.kind == "fighter":
+	if unit.kind in ["fighter", "supply_truck"]:
 		return false
 	if target != null and (mode != "guard" or target.faction != unit.faction or not target.is_deployed() or target == unit):
 		return false

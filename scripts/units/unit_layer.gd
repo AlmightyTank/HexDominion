@@ -149,6 +149,7 @@ func configure(map: WorldMap) -> void:
 
 func _add_starting_economy_assets() -> void:
 	var tiles: Dictionary = world_map.map_data["tiles"]
+	_configure_world_deposits(tiles)
 	var occupied: Dictionary = {}
 	for hex in economy.buildings:
 		occupied[hex] = true
@@ -176,11 +177,18 @@ func _add_starting_economy_assets() -> void:
 	var player_deposit: Vector2i = _starting_tile(match_state.player_hq, deposit_distance, deposit_distance, occupied)
 	occupied[player_deposit] = true
 	var rival_deposit: Vector2i = _starting_tile(match_state.rival_hq, deposit_distance, deposit_distance, occupied)
-	for deposit in [player_deposit, rival_deposit]:
-		tiles[deposit]["supply_original_terrain"] = tiles[deposit].get("terrain", "plains")
-		tiles[deposit]["terrain"] = "resource"
-		tiles[deposit]["supply_capacity"] = 5000.0
-		tiles[deposit]["supply_remaining"] = 5000.0
+	SupplyLogistics.configure_deposit(tiles[player_deposit], player_deposit, "medium")
+	SupplyLogistics.configure_deposit(tiles[rival_deposit], rival_deposit, "medium")
+	territory.owners[player_deposit] = 1
+	territory.owners[rival_deposit] = 2
+
+
+func _configure_world_deposits(tiles: Dictionary) -> void:
+	for hex in tiles:
+		if tiles[hex].get("terrain", "") != "resource":
+			continue
+		var selector: int = absi(hex.x * 73856093 + hex.y * 19349663) % 3
+		SupplyLogistics.configure_deposit(tiles[hex], hex, ["small", "medium", "large"][selector])
 
 
 func _add_supply_center_and_truck(hex: Vector2i, owner: int, owner_economy: EconomyState) -> void:
@@ -200,6 +208,16 @@ func _starting_tile(home: Vector2i, minimum_distance: int, maximum_distance: int
 			candidates.append(hex)
 	candidates.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.x < b.x or (a.x == b.x and a.y < b.y))
 	return null if candidates.is_empty() else candidates[0]
+
+
+func assign_supply_target(truck: UnitState, target_hex: Vector2i) -> bool:
+	if truck == null or truck.kind != "supply_truck" or truck.faction < 1 or truck.faction > 2:
+		return false
+	var tiles: Dictionary = world_map.map_data["tiles"]
+	var owner_economy: EconomyState = economy if truck.faction == 1 else match_state.rival_economy
+	if tiles.has(target_hex) and tiles[target_hex].has("supply_id") and territory.owner_at(target_hex) == truck.faction and not territory.is_contested(target_hex):
+		return SupplyLogistics.assign_deposit(truck, target_hex, tiles)
+	return SupplyLogistics.assign_center(truck, target_hex, tiles, owner_economy)
 
 
 func _base_position(unit: UnitState) -> Vector2:
@@ -333,6 +351,7 @@ func _physics_process(delta: float) -> void:
 		if not unit.path.is_empty():
 			unit.advance(delta, world_map.map_data["tiles"])
 	TransportRules.synchronize(units)
+	SupplyLogistics.advance_all(delta, units, world_map.map_data["tiles"], territory, economies)
 	units.append_array(economy.advance(delta, world_map.map_data["tiles"], territory))
 	units.append_array(match_state.rival_economy.advance(delta, world_map.map_data["tiles"], territory))
 	queue_redraw()
@@ -343,6 +362,7 @@ func _draw() -> void:
 		return
 	_draw_territory()
 	_draw_roads()
+	_draw_supply_deposits()
 	_draw_artillery_range()
 	_draw_isolated_locations()
 	for wreck in building_wrecks:
@@ -518,6 +538,25 @@ func _draw_roads() -> void:
 				var end: Vector2 = to_local(world_map.hex_to_world(neighbor))
 				draw_line(center, end, Color("38372f"), 7.0, true)
 				draw_line(center, end, Color("c8b78f"), 3.5, true)
+
+
+func _draw_supply_deposits() -> void:
+	for hex in world_map.map_data["tiles"]:
+		var tile: Dictionary = world_map.map_data["tiles"][hex]
+		if not tile.has("supply_id"):
+			continue
+		var center: Vector2 = to_local(world_map.hex_to_world(hex))
+		var remaining: float = float(tile.get("supply_remaining", 0.0))
+		var capacity: float = maxf(float(tile.get("supply_capacity", 1.0)), 1.0)
+		if remaining <= 0.0:
+			draw_circle(center, 9.0, Color("3d4650"))
+			draw_line(center + Vector2(-6, -6), center + Vector2(6, 6), Color("a9b0b5"), 2.0, true)
+			draw_line(center + Vector2(6, -6), center + Vector2(-6, 6), Color("a9b0b5"), 2.0, true)
+			continue
+		var radius: float = 7.0 + 5.0 * sqrt(remaining / capacity)
+		draw_circle(center, radius, Color("17222a"))
+		draw_arc(center, radius, -PI / 2.0, -PI / 2.0 + TAU * remaining / capacity, 24, Color("e5c76b"), 3.0, true)
+		draw_string(ThemeDB.fallback_font, center + Vector2(-7, 4), "S", HORIZONTAL_ALIGNMENT_CENTER, 14, 10, Color("fff0ad"))
 
 
 func _draw_construction(center: Vector2, building: Dictionary, color: Color) -> void:
