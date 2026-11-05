@@ -27,7 +27,7 @@ func _draw() -> void:
 	else:
 		_write(font, "HEX FRONTLINES", Vector2(18, 20), 17, Color("e9f4fc"), scale)
 		_write(font, "WORLD CONQUEST", Vector2(18, 34), 10, Color("a6c4d4"), scale)
-		var entries: Array = [[221, "CREDITS", values.get("credits", "0")], [346, "INCOME", values.get("income", "+0/min")]]
+		var entries: Array = [[221, "CREDITS", values.get("credits", "0")], [346, "INCOME", values.get("income", "60s +0")]]
 		for entry in entries:
 			_write(font, entry[1], Vector2(entry[0], 12), 10, Color("a6c4d4"), scale)
 			_write(font, entry[2], Vector2(entry[0], 33), 17, CommandTheme.TEXT, scale)

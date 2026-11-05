@@ -40,7 +40,7 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 		if EconomyState.is_complete(site):
 			var repair: bool = economy.credits > REPAIR_RESERVE and site["health"] < EconomyState.BUILD_HEALTH[kind] and not territory.is_contested(hex)
 			economy.set_repair(hex, territory, site, repair)
-	# Without an HQ, cities cannot fund recovery. Re-establish supply first.
+	# Re-establish command infrastructure first. Slice A provides no passive bailout.
 	if counts.get("headquarters", 0) == 0 and _build(economy, "headquarters", tiles, territory, other_buildings, home):
 		return
 	# Recover recruitment using existing assets, never free credits or free buildings.
@@ -56,18 +56,10 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 	if counts.get("headquarters", 0) == 0 and economy.credits >= EconomyState.BUILD_COSTS["headquarters"]:
 		if _build(economy, "headquarters", tiles, territory, other_buildings, home):
 			return
-	var deposit: bool = false
-	for hex in territory.owners:
-		if territory.owner_at(hex) == economy.faction and tiles.has(hex) and tiles[hex].get("terrain", "") == "resource" and not economy.buildings.has(hex) and not other_buildings.has(hex) and not territory.is_contested(hex):
-			deposit = true
-			break
-	var needed_power: int = demand + (10 if deposit else 0)
+	var needed_power: int = demand
 	if needed_power > supply:
 		# Power recovery has priority over optional spending, but not the last scout.
 		if _build(economy, "power_plant", tiles, territory, other_buildings, home):
-			return
-	if deposit and needed_power <= supply:
-		if _build(economy, "extractor", tiles, territory, other_buildings, home):
 			return
 	if living >= 3 and counts.get("factory", 0) == 0 and economy.credits >= EconomyState.BUILD_COSTS["factory"] + 50:
 		if supply < demand + 20:
@@ -89,8 +81,6 @@ static func plan(economy: EconomyState, tiles: Dictionary, territory: TerritoryS
 			kind = "gunner"
 	var reserve: float = 150.0 if needed_power > supply and living + queued > 0 else 0.0
 	if living + queued > 0:
-		if deposit:
-			reserve = maxf(reserve, EconomyState.BUILD_COSTS["extractor"])
 		if counts.get("headquarters", 0) == 0:
 			reserve = maxf(reserve, EconomyState.BUILD_COSTS["headquarters"])
 		if living + queued >= 3 and counts.get("factory", 0) == 0:

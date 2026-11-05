@@ -30,8 +30,9 @@ func run() -> void:
 	for hex in tiles:
 		territory.set_owner(hex, 1)
 	var economies: Array[EconomyState] = [economy, enemy_economy]
-	check(UnitCatalog.TYPES.size() == 13, "Exactly thirteen military roles")
-	for kind in UnitCatalog.TYPES:
+	check(UnitCatalog.COSTS.size() == 13, "Exactly thirteen paid military roles")
+	check(UnitCatalog.TYPES.has("supply_truck") and not UnitCatalog.COSTS.has("supply_truck") and not UnitCatalog.TRAIN_SECONDS.has("supply_truck"), "Supply truck remains free starting-state scaffolding")
+	for kind in UnitCatalog.COSTS:
 		var hex: Vector2i = Vector2i(0, 2 if UnitCatalog.is_naval(kind) else 0)
 		var unit: UnitState = make(kind, hex)
 		check(UnitCatalog.COSTS.has(kind) and UnitCatalog.TRAIN_SECONDS.has(kind), kind + " paid production configured")
@@ -94,12 +95,13 @@ func run() -> void:
 	var start: int = Time.get_ticks_usec()
 	presentation.refresh(army)
 	var elapsed: int = Time.get_ticks_usec() - start
-	check(presentation.batches.size() == 26 and presentation.offsets.size() == 520, "Large army retains 26 exact role/faction batches and 520 independent units")
+	var expected_army_size: int = UnitCatalog.TYPES.size() * 40
+	check(presentation.batches.size() == 2 and presentation.offsets.size() == expected_army_size, "Large army condenses to one marker per faction while retaining every independent unit")
 	var total: int = 0
 	for batch in presentation.batches:
 		total += batch["members"].size()
-	check(total == 520, "Presentation never changes actual counts")
-	print("520-unit grouping rebuild: %d microseconds (local measurement, not a frame-rate guarantee)" % elapsed)
+	check(total == expected_army_size, "Presentation never changes actual counts")
+	print("%d-unit grouping rebuild: %d microseconds (local measurement, not a frame-rate guarantee)" % [expected_army_size, elapsed])
 	await process_frame
 	var game: Node2D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
@@ -125,7 +127,10 @@ func run() -> void:
 	game._issue_tactical(game.world_map.hex_to_world(game.units.units[0].hex))
 	check(game.units.units[0].tactical_order.get("mode") == "patrol", "HUD command destination dispatch works")
 	for zoom in [0.45, 1.0, 2.3]:
-		check(game.units.individual_view(zoom, Vector2i.ZERO, 2) == (zoom >= game.units.close_zoom_threshold), "Automatic tactical selection tier %.2f" % zoom)
+		check(not game.units.individual_view(zoom, Vector2i.ZERO, 2), "Enemy stacks remain condensed at zoom %.2f" % zoom)
+		check(not game.units.individual_view(zoom, Vector2i.ZERO, 1), "Friendly stacks remain condensed until expanded at zoom %.2f" % zoom)
+	game.units.expanded_hex = Vector2i.ZERO
+	check(game.units.individual_view(2.3, Vector2i.ZERO, 1), "Explicit expansion reveals friendly stack members")
 	game.free()
 	_test_ai(tiles)
 	print("Combined arms: %d passed, %d failed" % [passed, failed])

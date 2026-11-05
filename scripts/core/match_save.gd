@@ -4,6 +4,7 @@ class_name MatchSave
 const PATH: String = "user://quicksave.hds"
 const SAVE_DIRECTORY: String = "user://saves"
 const MAP_ID: String = "earth-120x70-v1"
+const SAVE_VERSION: int = 2
 
 static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vector2, inspected: Vector2i) -> Dictionary:
 	var roster: Array = []
@@ -17,17 +18,34 @@ static func capture(layer: UnitLayer, camera_position: Vector2, camera_zoom: Vec
 			"attack_hex": unit.attack_hex, "attack_target": layer.units.find(unit.attack_target.get_ref()) if unit.attack_target != null else -1,
 			"tactical_order": unit.tactical_order.duplicate(true), "guard_target": layer.units.find(unit.guard_target.get_ref()) if unit.guard_target != null else -1})
 	var match_state: MatchState = layer.match_state
-	return {"version": 1, "map": MAP_ID, "units": roster,
+	var deposits: Array[Dictionary] = []
+	for hex in layer.world_map.map_data["tiles"]:
+		var tile: Dictionary = layer.world_map.map_data["tiles"][hex]
+		if tile.has("supply_capacity"):
+			deposits.append({"hex": hex, "capacity": tile["supply_capacity"], "remaining": tile.get("supply_remaining", 0.0), "original_terrain": tile.get("supply_original_terrain", "resource")})
+	return {"version": SAVE_VERSION, "map": MAP_ID, "units": roster,
 		"owners": layer.territory.owners.duplicate(true), "captures": layer.territory.captures.duplicate(true),
 		"contested": layer.territory.contested.duplicate(true),
-		"roads": RoadRules.snapshot(layer.world_map.map_data["tiles"]),
+		"roads": RoadRules.snapshot(layer.world_map.map_data["tiles"]), "supply_deposits": deposits,
 		"economy": _economy_data(layer.economy), "rival_economy": _economy_data(match_state.rival_economy),
 		"player_hq": match_state.player_hq, "rival_hq": match_state.rival_hq,
 		"result": match_state.result, "ai_countdown": match_state.ai_countdown,
 		"camera_position": camera_position, "camera_zoom": camera_zoom, "inspected": inspected}
 
 static func _economy_data(economy: EconomyState) -> Dictionary:
-	return {"credits": economy.credits, "account": economy.account.snapshot(), "buildings": economy.buildings.duplicate(true)}
+	return {"credits": economy.credits, "account": economy.account.snapshot(), "buildings": economy.buildings.duplicate(true), "activity": economy.activity_snapshot()}
+
+static func migrate(data: Variant) -> Dictionary:
+	if not data is Dictionary:
+		return {}
+	var migrated: Dictionary = data.duplicate(true)
+	if migrated.get("version") == 1:
+		migrated["version"] = SAVE_VERSION
+		migrated["supply_deposits"] = []
+		for key in ["economy", "rival_economy"]:
+			if migrated.get(key) is Dictionary:
+				migrated[key]["activity"] = {"time": 0.0, "income_events": [], "oil_derrick_count": 0}
+	return migrated
 
 static func _number(value: Variant, minimum: float, maximum: float) -> bool:
 	return (value is int or value is float) and is_finite(float(value)) and value >= minimum and value <= maximum
@@ -36,7 +54,8 @@ static func _land(value: Variant, tiles: Dictionary) -> bool:
 	return value is Vector2i and HexPathfinding.is_walkable(tiles, value)
 
 static func validate(data: Variant, tiles: Dictionary) -> bool:
-	if not data is Dictionary or data.get("version") != 1 or data.get("map") != MAP_ID:
+	data = migrate(data)
+	if data.is_empty() or data.get("version") != SAVE_VERSION or data.get("map") != MAP_ID:
 		return false
 	if data.has("save_name") and (not data["save_name"] is String or data["save_name"].strip_edges().is_empty() or data["save_name"].length() > 80):
 		return false
@@ -62,6 +81,17 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 	for hex in data.get("roads", {}):
 		if not hex is Vector2i or not tiles.has(hex) or not RoadRules.supports(tiles[hex]) or data["roads"][hex] != true:
 			return false
+	if not data.get("supply_deposits", []) is Array or data["supply_deposits"].size() > 2:
+		return false
+	var deposit_hexes: Dictionary = {}
+	for deposit in data["supply_deposits"]:
+		if not deposit is Dictionary or not _land(deposit.get("hex"), tiles) or deposit_hexes.has(deposit["hex"]):
+			return false
+		if not _number(deposit.get("capacity"), 0.001, 1.0e12) or not _number(deposit.get("remaining"), 0.0, deposit["capacity"]):
+			return false
+		if deposit.get("original_terrain", "") not in WorldMapData.TERRAIN_TYPES:
+			return false
+		deposit_hexes[deposit["hex"]] = true
 	if data.has("contested"):
 		if not data["contested"] is Dictionary:
 			return false
@@ -96,9 +126,9 @@ static func validate(data: Variant, tiles: Dictionary) -> bool:
 			return false
 		if not _number(unit.get("health"), 0.001, UnitCatalog.TYPES[unit["kind"]]["health"]) or not _number(unit.get("progress"), 0, 0.999999999):
 			return false
-		if not _number(unit.get("weapon_elapsed", 0.0), 0, UnitCatalog.TYPES[unit["kind"]]["cooldown"]) or not _number(unit.get("facing", 0.0), -PI, PI):
+		if not _number(unit.get("weapon_elapsed", 0.0), 0, UnitCatalog.TYPES[unit["kind"]]["cooldown"]) or not _number(unit.get("facing", 0.0), -PI - 0.00001, PI + 0.00001):
 			return false
-		if not _number(unit.get("turret_facing", unit.get("facing", 0.0)), -PI, PI) or not unit.get("carrier", -1) is int:
+		if not _number(unit.get("turret_facing", unit.get("facing", 0.0)), -PI - 0.00001, PI + 0.00001) or not unit.get("carrier", -1) is int:
 			return false
 		var carrier_index: int = unit.get("carrier", -1)
 		if carrier_index < -1 or carrier_index >= data["units"].size():
@@ -179,6 +209,8 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 	if data.has("account"):
 		if not CreditsAccount.valid_snapshot(data["account"]) or data["account"]["balance"] != data["credits"]:
 			return false
+	if not _valid_activity(data.get("activity", {})):
+		return false
 	var headquarters: int = 0
 	for hex in data["buildings"]:
 		var building: Variant = data["buildings"][hex]
@@ -222,7 +254,23 @@ static func _valid_economy(data: Variant, tiles: Dictionary) -> bool:
 			return false
 	return headquarters <= 1
 
+static func _valid_activity(data: Variant) -> bool:
+	if not data is Dictionary or not _number(data.get("time"), 0.0, 1.0e15) or not data.get("income_events") is Array:
+		return false
+	if not data.get("oil_derrick_count") is int or data["oil_derrick_count"] < 0 or data["oil_derrick_count"] > 10000:
+		return false
+	for event in data["income_events"]:
+		if not event is Dictionary or event.get("source") not in [EconomyState.SOURCE_DELIVERY, EconomyState.SOURCE_OIL_DERRICK]:
+			return false
+		for key in ["time", "base", "road_bonus", "continent_bonus", "amount"]:
+			if not _number(event.get(key), 0.0, 1.0e15):
+				return false
+		if event["time"] > data["time"] or event["road_bonus"] > EconomyState.ROAD_DELIVERY_BONUS or event["continent_bonus"] > 1000.0:
+			return false
+	return true
+
 static func restore(layer: UnitLayer, data: Dictionary) -> bool:
+	data = migrate(data)
 	if not validate(data, layer.world_map.map_data["tiles"]):
 		return false # Never mutate the live match before the entire snapshot validates.
 	var roster: Array[UnitState] = []
@@ -260,9 +308,21 @@ static func restore(layer: UnitLayer, data: Dictionary) -> bool:
 	layer.building_wrecks.clear()
 	layer.shell_effects.clear()
 	for hex in layer.world_map.map_data["tiles"]:
-		layer.world_map.map_data["tiles"][hex].erase("road")
+		var tile: Dictionary = layer.world_map.map_data["tiles"][hex]
+		tile.erase("road")
+		if tile.has("supply_capacity"):
+			tile["terrain"] = tile.get("supply_original_terrain", tile.get("terrain", "plains"))
+			tile.erase("supply_capacity")
+			tile.erase("supply_remaining")
+			tile.erase("supply_original_terrain")
 	for hex in data.get("roads", {}):
 		layer.world_map.map_data["tiles"][hex]["road"] = true
+	for deposit in data.get("supply_deposits", []):
+		var tile: Dictionary = layer.world_map.map_data["tiles"][deposit["hex"]]
+		tile["supply_original_terrain"] = deposit["original_terrain"]
+		tile["terrain"] = "resource"
+		tile["supply_capacity"] = deposit["capacity"]
+		tile["supply_remaining"] = deposit["remaining"]
 	layer.select_one(null)
 	layer.expanded_hex = Vector2i(-99999, -99999)
 	layer.build_kind = ""
@@ -289,6 +349,7 @@ static func _restore_economy(data: Dictionary, faction: int) -> EconomyState:
 	if data.has("account"):
 		economy.account.restore(data["account"])
 	economy.buildings = data["buildings"].duplicate(true)
+	economy.restore_activity(data.get("activity", {}))
 	return economy
 
 static func write(data: Dictionary, tiles: Dictionary, path: String = PATH) -> Error:
@@ -369,4 +430,5 @@ static func _read_candidate(tiles: Dictionary, path: String) -> Dictionary:
 	file.seek(0)
 	var data: Variant = file.get_var(false)
 	file.close()
-	return data if validate(data, tiles) else {}
+	var migrated: Dictionary = migrate(data)
+	return migrated if validate(migrated, tiles) else {}

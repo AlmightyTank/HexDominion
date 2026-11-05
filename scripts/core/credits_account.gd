@@ -1,7 +1,7 @@
 extends RefCounted
 class_name CreditsAccount
 ## Shared, synchronous money authority for every faction. Never debit via UI checks.
-const DEFAULT_STARTING_FUNDS: float = 400.0
+const DEFAULT_STARTING_FUNDS: float = 2000.0
 const MAX_CREDITS: float = 1.0e15
 var _balance: float = 0.0
 var _starting_funds: float = 0.0
@@ -56,8 +56,8 @@ func set_balance(amount: float, reason: String = "Balance adjustment") -> bool:
 	return true
 
 func _record(type: String, before: float, reason: String) -> void:
-	# Continuous passive income is one ledger entry until another transaction occurs.
-	# This keeps full history without producing 60 rows per second per faction.
+	# Repeated credits with the same cause share one ledger entry until another
+	# transaction occurs. This preserves the balance trail without noisy rows.
 	if type == "income" and not _history.is_empty() and _history[-1]["type"] == type and _history[-1]["reason"] == reason:
 		_history[-1]["balance"] = _balance
 		_history[-1]["amount"] = _balance - _history[-1]["before"]

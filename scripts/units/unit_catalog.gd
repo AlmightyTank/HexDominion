@@ -17,7 +17,8 @@ const TYPES: Dictionary = {
 	"fighter": {"name": "Fighter Jet", "health": 120.0, "speed": 0.16, "damage": 70.0, "range": 2, "cooldown": 0.5, "mission_cooldown": 8.0, "infantry": 0.8, "armor": 1.5, "structure": 1.5, "capture": false, "marker": "JET", "appearance": "jet"},
 	"patrol_boat": {"name": "Patrol Boat", "health": 130.0, "speed": 0.30, "damage": 12.0, "range": 2, "cooldown": 0.5, "infantry": 0.5, "armor": 0.5, "light_naval": 1.5, "capture": false, "marker": "PB", "appearance": "patrol"},
 	"destroyer": {"name": "Destroyer", "health": 400.0, "speed": 0.65, "damage": 40.0, "range": 3, "cooldown": 1.5, "infantry": 1.0, "armor": 1.5, "capture": false, "marker": "DD", "appearance": "warship"},
-	"landing_transport": {"name": "Landing Transport", "health": 280.0, "speed": 0.55, "damage": 0.0, "range": 0, "cooldown": 1.0, "infantry": 0.0, "armor": 0.0, "capacity": 8, "capture": false, "marker": "LC", "appearance": "landing"}
+	"landing_transport": {"name": "Landing Transport", "health": 280.0, "speed": 0.55, "damage": 0.0, "range": 0, "cooldown": 1.0, "infantry": 0.0, "armor": 0.0, "capacity": 8, "capture": false, "marker": "LC", "appearance": "landing"},
+	"supply_truck": {"name": "Supply Truck", "health": 90.0, "speed": 0.35, "damage": 0.0, "range": 0, "cooldown": 1.0, "infantry": 0.0, "armor": 0.0, "capture": false, "marker": "SUP", "appearance": "wheeled"}
 }
 
 static func is_air(kind: String) -> bool:
@@ -38,6 +39,6 @@ static func counter(attacker: String, target: String) -> float:
 	return TYPES[attacker]["infantry" if is_infantry(target) else "armor"]
 
 static func can_target(attacker: UnitState, target: UnitState) -> bool:
-	if attacker.kind == "landing_transport" or (attacker.kind == "patrol_boat" and target.domain != "naval"):
+	if attacker.kind in ["landing_transport", "supply_truck"] or (attacker.kind == "patrol_boat" and target.domain != "naval"):
 		return false
 	return target.domain in ["ground", "naval"] or ((attacker.kind == "anti_air" or attacker.kind == "fighter") and target.domain == "air")

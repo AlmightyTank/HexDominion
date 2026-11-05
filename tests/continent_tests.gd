@@ -28,14 +28,18 @@ static func run(check: Callable) -> void:
 		manager.bonus(1)
 	check.call(manager.revision == revision, "Repeated capture and income queries do not recount or duplicate rewards")
 	var economy: EconomyState = EconomyState.new()
+	economy.faction = 1
 	economy.add_building(Vector2i.ZERO, "headquarters")
 	for x in range(4):
 		tiles[Vector2i(x, 0)]["road"] = true
-	check.call(is_equal_approx(economy.income_rate(tiles, territory), 7.3), "HQ and city continent income combines additively with road bonus against base")
+	check.call(economy.income_rate(tiles, territory) == 0 and economy.credits == CreditsAccount.DEFAULT_STARTING_FUNDS, "Continent control, roads, HQ and city mint no passive income")
+	var delivery: float = economy.credit_approved_income(100.0, EconomyState.SOURCE_DELIVERY, territory, true)
+	check.call(is_equal_approx(delivery, 130.0), "Delivery payout adds one road bonus and two continent bonuses against base")
 	tiles[Vector2i(1, 0)].erase("road")
-	check.call(is_equal_approx(economy.income_rate(tiles, territory), 7.2) and is_equal_approx(manager.bonus(1), 0.2), "Broken roads remove only road bonus, not continent control")
+	var oil: float = economy.credit_approved_income(100.0, EconomyState.SOURCE_OIL_DERRICK, territory, true)
+	check.call(is_equal_approx(oil, 120.0) and is_equal_approx(manager.bonus(1), 0.2), "Oil income receives continent bonuses but never a road bonus")
 	territory.contested[Vector2i(1, 0)] = true
-	check.call(is_equal_approx(economy.income_rate(tiles, territory), 6.0) and is_equal_approx(manager.bonus(1), 0.2), "Isolation earns no city income while owned continent bonus remains")
+	check.call(economy.income_rate(tiles, territory) == 0 and is_equal_approx(economy.income_last_seconds(), 250.0), "Connectivity changes do not mint or duplicate approved payouts")
 	territory.contested.clear()
 	var saved: Dictionary = territory.owners.duplicate(true)
 	for x in range(4):

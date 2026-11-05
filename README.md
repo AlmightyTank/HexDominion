@@ -2,7 +2,7 @@
 
 **Conquer the world. Hold the line.**
 
-> **Status:** Pre-alpha. v0.4 Slice F completes the military expansion: all thirteen roles are integrated, Attack-Move, Guard and Patrol orders exist alongside Move, Attack and Hold, the world map presents armies in three zoom tiers, factories can rally new units as attack-moves, and the enemy AI fights as a combined force. Physical touchscreen acceptance, visual review of the new zoom tiers and balance playtesting remain pending.
+> **Status:** Pre-alpha. v0.5 Slice A replaces passive territory income with a logistics-ready economy foundation. Both factions start with 2,000 credits, a headquarters, a Supply Center, an unarmed Supply Truck and equivalent finite supply access. Supply deliveries are not active until Slice B, so recurring income is currently zero.
 
 **Hex Frontlines** is a real-time, hex-based world-conquest strategy game built with **Godot 4** and **GDScript**. It combines the territorial warfare of *Risk*, terrain and strategic depth inspired by *Civilization V*, and unit production, base building, and tactical combat inspired by *Command & Conquer: Generals Zero Hour*.
 
@@ -25,7 +25,7 @@ Every hex matters. A rapidly expanding empire can become difficult to defend, wh
 1. Start with a headquarters, a small force, and a few controlled hexes.
 2. Explore and capture neighboring territories using ground troops.
 3. Secure strategic hexes with garrisons and defenses.
-4. Use captured cities and resource locations to fund expansion.
+4. Protect supply routes and capture approved income locations to fund expansion.
 5. Construct barracks, factories, and support buildings.
 6. Produce troops and vehicles, set rally points, and launch coordinated assaults.
 7. Defeat enemy armies, cut off their positions, and take their headquarters.
@@ -56,8 +56,8 @@ Static terrain is rendered once into a cached texture; camera movement and hex s
 | Forest | Defensive advantage for infantry |
 | Mountains | Restricted movement and strong defensive positions |
 | Desert | Open terrain favorable to mobile vehicles |
-| Cities | Economic centers and objectives |
-| Resource areas | Additional income or supplies |
+| Cities | Strategic objectives; no automatic income |
+| Resource areas | Finite supply locations; delivery collection arrives in v0.5 Slice B |
 | Ocean | Naval travel and amphibious operations (later milestone) |
 
 Terrain bonuses and penalties will be tuned through playtesting.
@@ -97,10 +97,11 @@ Every order accepts a multi-unit selection and each unit is validated independen
 Implemented structures:
 
 - **Headquarters:** critical command and defeat objective.
+- **Supply Center:** starting logistics structure; active truck collection arrives in v0.5 Slice B.
 - **Barracks:** train infantry and deploy reinforcements.
 - **Vehicle factory:** produce armored units.
 - **Power plant:** supply power to your infrastructure.
-- **Resource collector / economy building:** generate or process income.
+- **Legacy extractor:** strategic structure retained for compatibility; it no longer generates passive income.
 - **Bunker and defensive turret:** fortify contested front lines.
 - **Airfield:** produce aircraft that fly strike missions.
 - **Shipyard:** produce naval units and stage amphibious landings.
@@ -208,7 +209,11 @@ Expanded infantry and armor, artillery, air units, naval units, transports, expa
 
 ### v0.5 — Cities and technology
 
-Cities, research, upgrades, radar, scouting, and fog of war.
+The v0.5 economy transition begins with physical logistics and captured oil income. Research, upgrades, radar, scouting and fog of war remain later v0.5 work.
+
+- [x] **Slice A: Economy Foundation & Starting Funds:** 2,000-credit starts, deterministic free logistics scaffolding, finite nearby deposits, zero passive HQ/city/extractor income, approved payout API, 60-second HUD accounting and save v2 migration. Supply collection is not playable yet. ([Rules, migration and verification](docs/V0.5-SLICE-A.md).)
+- [ ] **Slice B: Supply Deliveries:** Supply Trucks collect from finite deposits and complete physical deliveries to Supply Centers.
+- [ ] **Slice C: Oil Derricks:** Captured operational derricks provide the second approved recurring income source.
 
 ### v0.6 — Factions
 

@@ -115,7 +115,12 @@ func integration() -> void:
 	game.camera.restore_view(game.world_map.hex_to_world(home), Vector2.ONE * 2)
 	# Use the shared map command handler used by mouse and touch.
 	var stacks: Array[Dictionary] = UnitVisuals.stacks(game.units.units)
-	game._transport_at(game.units.to_global(game.units.group_position(stacks[0], stacks, game.camera.zoom.x)))
+	var home_stack: Dictionary = {}
+	for stack in stacks:
+		if stack["faction"] == 1 and stack["hex"] == home:
+			home_stack = stack
+			break
+	game._transport_at(game.units.to_global(game.units.group_position(home_stack, stacks, game.camera.zoom.x)))
 	check(passenger.is_embarked() and game.units.selected == apc, "HUD load command boards infantry and selects APC")
 	game._process(0)
 	check(game.hud.selection_info.text.contains("Passengers: 1/4"), "APC selection reports actual passenger count")
@@ -166,7 +171,13 @@ func integration() -> void:
 	for stack in UnitVisuals.stacks(reversed):
 		if stack["faction"] == 1:
 			check(stack["kind"] == representative, "Representative ties do not depend on roster order")
-	game._select_at(game.units.to_global(game.units.group_position(mixed[0], mixed, game.camera.zoom.x)))
+	var rendered_batches: Array[Dictionary] = game.units.military_batches()
+	var friendly_batch: Dictionary = {}
+	for batch in rendered_batches:
+		if batch["faction"] == 1 and batch["hex"] == home:
+			friendly_batch = batch
+			break
+	game._select_at(game.units.to_global(game.units.group_position(friendly_batch, rendered_batches, game.camera.zoom.x)))
 	game._process(0)
 	check(game.hud.stack_panel.visible and game.hud.stack_rows["scout"].visible, "Stack click exposes mixed-role breakdown in existing panel")
 	game.hud.stack_rows["scout"].pressed.emit()

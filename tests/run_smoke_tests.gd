@@ -107,8 +107,13 @@ func _test_infantry_integration() -> void:
 	_check(game.units.economy.buildings[home]["queue"] == ["rifle", "rocket", "gunner"], "All three HUD production actions use pinned barracks")
 	game.units.select_one(game.units.units[0])
 	game.hud.add_selection_button.button_pressed = true
-	var stacks: Array[Dictionary] = UnitVisuals.stacks(game.units.units)
-	var position: Vector2 = game.units.to_global(game.units.group_position(stacks[0], stacks, game.camera.zoom.x))
+	var rendered_batches: Array[Dictionary] = game.units.military_batches()
+	var friendly_batch: Dictionary = {}
+	for batch in rendered_batches:
+		if batch["faction"] == 1 and batch["hex"] == home:
+			friendly_batch = batch
+			break
+	var position: Vector2 = game.units.to_global(game.units.group_position(friendly_batch, rendered_batches, game.camera.zoom.x))
 	game._select_at(position)
 	_check(game.units.selected_units.size() == 3, "Touch additive selection adds remaining members of the hex stack")
 	game.hud.defensive_order_requested.emit("hold")
@@ -121,16 +126,34 @@ func _test_supply_ui_and_save() -> void:
 	game.units.set_physics_process(false)
 	var tiles: Dictionary = game.world_map.map_data["tiles"]
 	var home: Vector2i = game.units.match_state.player_hq
+	var truck_counts: Dictionary = {1: 0, 2: 0}
+	for unit in game.units.units:
+		if unit.kind == "supply_truck":
+			truck_counts[unit.faction] += 1
+	var center_counts: Dictionary = {1: 0, 2: 0}
+	for site in game.units.economy.buildings.values():
+		center_counts[1] += 1 if site["kind"] == "supply_center" else 0
+	for site in game.units.match_state.rival_economy.buildings.values():
+		center_counts[2] += 1 if site["kind"] == "supply_center" else 0
+	var deposits: Array[Vector2i] = []
+	for hex in tiles:
+		if tiles[hex].has("supply_capacity"):
+			deposits.append(hex)
+	var player_distance: int = mini(HexMath.distance(home, deposits[0]), HexMath.distance(home, deposits[1])) if deposits.size() == 2 else -1
+	var rival_distance: int = mini(HexMath.distance(game.units.match_state.rival_hq, deposits[0]), HexMath.distance(game.units.match_state.rival_hq, deposits[1])) if deposits.size() == 2 else -2
+	_check(game.units.economy.credits == 2000 and game.units.match_state.rival_economy.credits == 2000, "Both factions start with exactly 2,000 credits")
+	_check(truck_counts == {1: 1, 2: 1} and center_counts == {1: 1, 2: 1}, "New match creates exactly one free Supply Center and Supply Truck per faction")
+	_check(deposits.size() == 2 and player_distance == rival_distance and tiles[deposits[0]]["supply_remaining"] == 5000.0 and tiles[deposits[1]]["supply_remaining"] == 5000.0, "Both factions receive equivalent nearby finite supply deposits")
 	game.world_map.inspect_at_world(game.world_map.hex_to_world(home))
 	game._process(0)
-	_check(game.hud.supply_info.visible and "SUPPLIED" in game.hud.supply_info.text and "360 CR/min" in game.hud.supply_info.text, "Selected HQ city displays live supplied income per minute")
+	_check(game.hud.supply_info.visible and "SUPPLIED" in game.hud.supply_info.text and "No automatic income" in game.hud.supply_info.text, "Selected HQ city reports connectivity without passive income")
 	var snapshot: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home)
 	game.units.economy.damage_building(home, 10000)
 	game._process(0)
-	_check("NO SUPPLY" in game.hud.supply_info.text and "0 CR/min" in game.hud.supply_info.text and game.units.economy.income_rate(tiles, game.units.territory) == 0, "HQ destruction updates inspected city and faction income immediately")
+	_check("NO SUPPLY" in game.hud.supply_info.text and "No automatic income" in game.hud.supply_info.text and game.units.economy.income_rate(tiles, game.units.territory) == 0, "HQ destruction updates inspected supply state without creating income")
 	_check(MatchSave.restore(game.units, snapshot), "Supply state snapshot restores without serializing a graph")
 	game._process(0)
-	_check("SUPPLIED" in game.hud.supply_info.text and game.units.economy.income_status(home, tiles, game.units.territory)["income"] == 6, "Load rebuilds supply without stale isolation")
+	_check("SUPPLIED" in game.hud.supply_info.text and game.units.economy.income_status(home, tiles, game.units.territory)["income"] == 0, "Load rebuilds supply without stale isolation or passive income")
 	_check(snapshot == MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home), "Derived supply caches do not alter saved authoritative state")
 	for hex in game.units.territory.continents.membership:
 		game.units.territory.set_owner(hex, 1)
@@ -141,6 +164,24 @@ func _test_supply_ui_and_save() -> void:
 	_check(MatchSave.restore(game.units, snapshot) and game.units.territory.continents.bonus(1) == 0, "Real match restore removes stale continent rewards")
 	_check(MatchSave.restore(game.units, complete_save) and game.units.territory.continents.bonus(1) == bonus, "Real match save restores completed continents exactly once")
 	_check(MatchSave.restore(game.units, complete_save) and game.units.territory.continents.bonus(1) == bonus, "Repeated load cannot duplicate continent rewards")
+	game.units.economy.account.add_income(75.0, "Legacy earned credits")
+	var legacy: Dictionary = MatchSave.capture(game.units, game.camera.position, game.camera.zoom, home)
+	legacy["version"] = 1
+	legacy.erase("supply_deposits")
+	legacy["economy"].erase("activity")
+	legacy["rival_economy"].erase("activity")
+	legacy["units"] = legacy["units"].filter(func(entry: Dictionary) -> bool: return entry["kind"] != "supply_truck")
+	for key in ["economy", "rival_economy"]:
+		for hex in legacy[key]["buildings"].keys():
+			if legacy[key]["buildings"][hex]["kind"] == "supply_center":
+				legacy[key]["buildings"].erase(hex)
+	_check(MatchSave.restore(game.units, legacy) and game.units.economy.credits == 2075.0, "Version 1 migration preserves earned credits under the zero-income rules")
+	var migrated_trucks: int = game.units.units.filter(func(unit: UnitState) -> bool: return unit.kind == "supply_truck").size()
+	var migrated_centers: int = 0
+	for owner_economy in [game.units.economy, game.units.match_state.rival_economy]:
+		for site in owner_economy.buildings.values():
+			migrated_centers += 1 if site["kind"] == "supply_center" else 0
+	_check(migrated_trucks == 0 and migrated_centers == 0, "Legacy save migration does not inject or duplicate starting logistics assets")
 	game.free()
 
 
@@ -538,11 +579,11 @@ func _run_tests() -> void:
 	game._set_menu_open(true)
 	game._match_action("resume")
 	_check(not game.hud.pause_overlay.visible, "Resume action closes menu")
-	_check(game.units.units.size() == 4, "Three starter squads and a mobile AI rival on the live map")
+	_check(game.units.units.size() == 6, "Both factions receive their military start and one free supply truck")
 	_check(HexPathfinding.find_path(tiles, game.units.match_state.player_hq, game.units.match_state.rival_hq).size() > 1, "Opposing HQs have a playable land route")
 	_test_match_save(game)
 	game.units.select_box(Rect2(-100000, -100000, 200000, 200000), Transform2D.IDENTITY)
-	_check(game.units.selected_units.size() == 3, "Box selects friendly units only")
+	_check(game.units.selected_units.size() == 4, "Box selects friendly military units and the player's supply truck only")
 	game.units.select_one(game.units.units[0])
 	_check(game.units.selected_units.size() == 1, "Click replaces group selection")
 	game.units.select_box(Rect2(-100000, -100000, 1, 1), Transform2D.IDENTITY)
@@ -588,7 +629,11 @@ func _run_tests() -> void:
 	_check(game.units.build_kind.is_empty(), "Placement can be cancelled")
 	for unit in game.units.units:
 		_check(HexPathfinding.is_walkable(tiles, unit.hex), "Starter squad on land")
-	var victim: UnitState = game.units.units[-1]
+	var victim: UnitState = null
+	for candidate in game.units.units:
+		if candidate.faction == 2 and candidate.hex == game.units.match_state.rival_hq:
+			victim = candidate
+			break
 	var attacker: UnitState = game.units.units[0]
 	attacker.hex = victim.hex
 	attacker.health = 100.0
@@ -615,10 +660,10 @@ func _run_tests() -> void:
 	var restarted: Node = current_scene
 	_check(restarted != null and restarted.units.match_state.result == "playing", "Restart reloads a playing match")
 	if restarted != null:
-		_check(restarted.units.units.size() == 4 and restarted.units.economy.credits >= 400 and restarted.units.economy.credits < 410 and restarted.units.selected == null, "Restart resets roster, economy and selection (allowing initial income ticks)")
+		_check(restarted.units.units.size() == 6 and restarted.units.economy.credits == 2000 and restarted.units.match_state.rival_economy.credits == 2000 and restarted.units.selected == null, "Restart resets both factions to exact Slice A funds and starter assets")
 		restarted.free()
 	current_scene = null
-	print("Hex Frontlines v0.4 Slice A: %d passed, %d failed" % [_successes, _failures])
+	print("Hex Frontlines v0.5 Slice A: %d passed, %d failed" % [_successes, _failures])
 	quit(1 if _failures > 0 else 0)
 
 
@@ -695,7 +740,7 @@ func _test_match_ai() -> void:
 	_check(rival.path.is_empty(), "AI opening grace period")
 	match_state.advance_ai(1.0, tiles, territory, roster)
 	_check(rival.path == [Vector2i(7, 0)], "AI follows a walkable route toward player HQ")
-	_check(match_state.rival_economy.credits == 350, "AI production pays normal training costs")
+	_check(match_state.rival_economy.credits == 1950, "AI production pays normal training costs from its 2,000-credit start")
 	var recruits: Array[UnitState] = match_state.rival_economy.advance(4, tiles, territory)
 	_check(recruits.size() == 1 and recruits[0].faction == 2, "Rival production creates rival units")
 	rival.hex = Vector2i(6, 0)
@@ -1084,13 +1129,13 @@ func _test_city_income() -> void:
 	rival.advance(0.25, tiles, territory)
 	_check(rival.credits == 0, "AI obeys identical HQ supply requirement")
 	rival.add_building(city, "headquarters")
-	_check(rival.income_rate(tiles, territory) == 6, "HQ bonus remains explicit building income separate from city income")
+	_check(rival.income_rate(tiles, territory) == 0, "Completed HQ and captured city still produce no passive income")
 	roster.append(squad)
 	territory.advance(0.1, tiles, roster)
 	_check(rival.income_rate(tiles, territory) == 0, "Hostile occupation also interrupts the HQ bonus")
 	squad.health = 0
 	territory.advance(0.1, tiles, roster)
-	_check(rival.income_rate(tiles, territory) == 6, "Dead hostile units cannot suppress city income")
+	_check(rival.income_rate(tiles, territory) == 0, "Dead hostile units do not create city or HQ income")
 
 
 func _test_economy() -> void:
@@ -1103,14 +1148,14 @@ func _test_economy() -> void:
 	territory.owners[yard] = 1
 	var economy: EconomyState = EconomyState.new()
 	economy.add_building(home, "headquarters")
-	_check(not economy.build(yard, "headquarters", tiles, territory) and economy.credits == 400.0, "Second HQ rejected without charge")
+	_check(not economy.build(yard, "headquarters", tiles, territory) and economy.credits == 2000.0, "Second HQ rejected without charge")
 	territory.owners[home] = 2
 	_check(not economy.build(yard, "headquarters", tiles, territory), "Lost HQ still counts toward one-HQ limit")
 	territory.owners[home] = 1
-	_check(economy.income_rate(tiles, territory) == 6.0, "HQ and city income only; resource tiles have no passive income")
-	_check(economy.can_build(yard, "barracks", tiles, territory) and economy.credits == 400.0 and not economy.buildings.has(yard), "Placement preview validates without spending or constructing")
+	_check(economy.income_rate(tiles, territory) == 0.0, "HQ, city and resource tiles have no passive income")
+	_check(economy.can_build(yard, "barracks", tiles, territory) and economy.credits == 2000.0 and not economy.buildings.has(yard), "Placement preview validates without spending or constructing")
 	_check(not economy.build(goal, "factory", tiles, territory), "Cannot build on neutral land")
-	_check(economy.build(yard, "barracks", tiles, territory) and economy.credits == 300.0, "Construction charges credits")
+	_check(economy.build(yard, "barracks", tiles, territory) and economy.credits == 1900.0, "Construction charges credits")
 	_check(not economy.build(yard, "factory", tiles, territory), "One building per hex")
 	_check(not economy.train(yard, "tank", territory), "Barracks cannot train tanks")
 	economy.advance(EconomyState.BUILD_SECONDS["barracks"], tiles, territory)

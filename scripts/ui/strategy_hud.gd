@@ -291,6 +291,8 @@ func _layout_for_viewport() -> void:
 				item.custom_minimum_size.y = 66
 	for grid in [structure_grid, defense_grid, infantry_grid, vehicle_grid]:
 		grid.columns = 1
+	if match_panel != null and match_panel.visible and match_panel.get_parent() == self:
+		_layout_match_result()
 
 
 func _layout_allied_desktop(viewport_size: Vector2) -> void:
@@ -771,9 +773,19 @@ func show_match_status(match_state: MatchState) -> void:
 	if match_state.result != "playing":
 		if match_panel.get_parent() != self:
 			match_panel.reparent(self)
-		match_panel.position = Vector2(20, 20)
-		match_panel.size = Vector2(field_command_panel.size.x - 40, 80)
+		_layout_match_result()
 		build_panel.hide()
+
+
+func _layout_match_result() -> void:
+	var viewport_size: Vector2 = get_viewport_rect().size
+	var panel_size: Vector2 = Vector2(minf(480.0, viewport_size.x - 24.0), 80.0)
+	match_panel.position = (viewport_size - panel_size) * 0.5
+	match_panel.size = panel_size
+	match_panel.z_index = 20
+	match_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	match_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	match_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 
 func _create_build_menu() -> void:
@@ -983,7 +995,7 @@ func _create_build_menu() -> void:
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.custom_minimum_size = Vector2(0, 128)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.tooltip_text = {"headquarters": "Command center • +5 credits/sec • 20 power • Limit: one", "barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "10 power • Disabled under low power • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP", "bunker": "Two infantry • G assigns garrison • J holds • 40% less incoming damage; passable", "airfield": "Aircraft production and fighter rearming. Plains, desert or city. 20 power; offline under low power.", "shipyard": "Naval production. Owned coastal land adjoining navigable ocean. 220 CR; 10 seconds."}[kind]
+		button.tooltip_text = {"barracks": "Train rifle squads • 50 credits • 4 seconds", "factory": "20 power • Half speed under low power", "extractor": "Legacy strategic structure • No passive income • Resource deposit only", "power_plant": "40 power • 8 seconds to construct • 250 HP", "bunker": "Two infantry • G assigns garrison • J holds • 40% less incoming damage; passable", "airfield": "Aircraft production and fighter rearming. Plains, desert or city. 20 power; offline under low power.", "shipyard": "Naval production. Owned coastal land adjoining navigable ocean. 220 CR; 10 seconds."}[kind]
 		button.pressed.connect(func() -> void: build_requested.emit(kind))
 		(defense_grid if kind == "bunker" else structure_grid).add_child(button)
 		build_buttons[kind] = button
@@ -1120,7 +1132,7 @@ func _set_command_cursors(node: Node) -> void:
 		_set_command_cursors(child)
 
 
-func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: TerritoryState, tiles: Dictionary) -> void:
+func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: TerritoryState, tiles: Dictionary, roster: Array[UnitState] = []) -> void:
 	if command_alert == null and _camera != null:
 		command_alert = preload("res://scripts/ui/command_alert.gd").new()
 		add_child(command_alert)
@@ -1133,26 +1145,31 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 		primary_button.pressed.disconnect(connection["callable"])
 	primary_button.pressed.connect(func() -> void:
 		economy.set_primary(hex, territory)
-		show_tile_actions(hex, economy, territory, tiles)
+		show_tile_actions(hex, economy, territory, tiles, roster)
 	)
 	primary_button.visible = economy.buildings.has(hex) and territory.owner_at(hex) == economy.faction and EconomyState.is_complete(economy.buildings[hex]) and economy.buildings[hex]["kind"] in ["barracks", "factory", "airfield", "shipyard"]
 	primary_button.disabled = primary_button.visible and economy.buildings[hex].get("primary", false)
 	primary_button.text = "Primary production" if primary_button.disabled else "Set primary production"
 	_refresh_facilities(hex, economy, territory)
-	var income: float = economy.income_rate(tiles, territory) * 60.0
-	economy_summary.text = "%.2f CR  |  +%.0f /min" % [economy.credits, income]
-	economy_summary.tooltip_text = "Hex Frontlines | Credits and actual income per minute"
+	var income: float = economy.income_last_seconds(60.0)
+	var active_trucks: int = 0
+	for unit in roster:
+		if unit.faction == economy.faction and unit.kind == "supply_truck" and unit.is_alive() and unit.is_deployed():
+			active_trucks += 1
+	var source_status: String = "SOURCE ACTIVE" if economy.has_working_income_source() else "NO WORKING SOURCE"
+	economy_summary.text = "%.2f CR | 60s +%.0f | TRK %d | OIL %d | %s" % [economy.credits, income, active_trucks, economy.oil_derrick_count, source_status]
+	economy_summary.tooltip_text = "Available credits, actual approved income received in the last 60 seconds, active supply trucks and operational oil derricks. Supply delivery behavior arrives in Slice B."
 	economy_summary.add_theme_color_override("font_color", CommandTheme.POSITIVE if income > 0 else CommandTheme.WARNING)
 	var power: Dictionary = economy.power_balance(territory)
 	power_summary.text = "PWR %d / %d%s" % [power["supply"], power["demand"], " LOW" if economy.low_power(territory) else ""]
-	power_summary.tooltip_text = "Power generated / consumed. Low power halves factory speed and disables extractors."
+	power_summary.tooltip_text = "Power generated / consumed. Low power halves factory speed and pauses aircraft operations."
 	power_summary.add_theme_color_override("font_color", CommandTheme.WARNING if economy.low_power(territory) else CommandTheme.TEXT)
 	var continents: int = 0
 	for region in territory.continents.regions:
 		if territory.continents.controller(region) == economy.faction:
 			continents += 1
 	continent_summary.text = "CONTINENTS %d" % continents
-	tactical_header.update_values({"credits": "%.2f" % economy.credits, "income": "+%.0f/min" % income, "power": "%d / %d" % [power["demand"], power["supply"]], "continents": "%d / %d" % [continents, territory.continents.regions.size()], "low_power": economy.low_power(territory)})
+	tactical_header.update_values({"credits": "%.2f" % economy.credits, "income": "60s +%.0f" % income, "power": "%d / %d" % [power["demand"], power["supply"]], "continents": "%d / %d" % [continents, territory.continents.regions.size()], "low_power": economy.low_power(territory)})
 	rally_button.hide()
 	cancel_construction_button.hide()
 	repair_button.hide()
@@ -1239,9 +1256,11 @@ func show_tile_actions(hex: Vector2i, economy: EconomyState, territory: Territor
 		if not queue.is_empty():
 			build_status.text += "\n%s: %.1f / %.0fs" % [queue[0], building["elapsed"], EconomyState.TRAIN_SECONDS[queue[0]]]
 		elif building["kind"] == "headquarters":
-			build_status.text += "\nIncome: +5 credits/s\nBuild barracks to train rifles."
+			build_status.text += "\nCommand infrastructure only; no passive income.\nBuild barracks to train rifles."
+		elif building["kind"] == "supply_center":
+			build_status.text += "\nSupply-delivery scaffold ready. Active collection arrives in Slice B."
 		elif building["kind"] == "extractor":
-			build_status.text += "\nExtraction: %.2f CR/s%s" % [economy.income_status(hex, tiles, territory)["income"], " (low power)" if economy.low_power(territory) else ""]
+			build_status.text += "\nStrategic legacy structure; no passive income."
 		elif building["kind"] == "power_plant":
 			build_status.text += "\nSupply: 40 power\nHP: %.0f / 250" % building["health"]
 		if building["kind"] == "factory" and economy.low_power(territory):
@@ -1279,7 +1298,7 @@ func show_supply(hex: Vector2i, economy: EconomyState, territory: TerritoryState
 		supply_info.text = "%s | Bunker holds two infantry\nGarrison protection does not require supply" % ("SUPPLIED" if status["supplied"] else "ISOLATED")
 		return
 	var owner: int = territory.owner_at(hex)
-	supply_info.text = "%s | %s | +%.0f CR/min\n%s%s" % [{0: "Neutral", 1: "Player", 2: "Rival"}.get(owner, "Faction %d" % owner), "SUPPLIED" if status["supplied"] else "NO SUPPLY", status["income"] * 60, "Road present" if RoadRules.has_road(tiles, hex) else "No road", " | Road income +10%" if status["road_bonus"] else ""]
+	supply_info.text = "%s | %s | No automatic income\n%s%s" % [{0: "Neutral", 1: "Player", 2: "Rival"}.get(owner, "Faction %d" % owner), "SUPPLIED" if status["supplied"] else "NO SUPPLY", "Road present" if RoadRules.has_road(tiles, hex) else "No road", " | Route may qualify for +10% on a completed delivery" if status["road_route"] else ""]
 	supply_info.add_theme_color_override("font_color", CommandTheme.TEXT if status["supplied"] or owner == 0 else CommandTheme.WARNING)
 
 
@@ -1317,8 +1336,8 @@ func _refresh_facilities(selected_hex: Vector2i, economy: EconomyState, territor
 			status += " | Repair %.0f HP%s" % [site["health"], " (no funds)" if economy.credits <= 0 else ""]
 		if territory.is_contested(hex):
 			status += " | Contested"
-		if economy.low_power(territory) and kind in ["factory", "extractor"]:
-			status += " | " + ("50% speed" if kind == "factory" else "Offline")
+		if economy.low_power(territory) and kind == "factory":
+			status += " | 50% speed"
 		facility_buttons[hex].text = "%s (%d, %d)\n%s" % [kind.capitalize(), hex.x, hex.y, status]
 		facility_buttons[hex].set_pressed_no_signal(hex == selected_hex)
 	economy_summary.text = "%.2f CR" % economy.credits
@@ -1361,7 +1380,7 @@ func show_continents(manager: ContinentControl) -> void:
 		return
 	_continent_manager = manager
 	_continent_revision = manager.revision
-	var lines: PackedStringArray = ["CONTINENTS", "Player +%d%% | Rival +%d%% income" % [roundi(manager.bonus(1) * 100), roundi(manager.bonus(2) * 100)]]
+	var lines: PackedStringArray = ["CONTINENTS", "Player +%d%% | Rival +%d%% on qualifying delivery and oil payouts" % [roundi(manager.bonus(1) * 100), roundi(manager.bonus(2) * 100)]]
 	for name in manager.regions:
 		var region: Dictionary = manager.regions[name]
 		var total: int = region["total"]

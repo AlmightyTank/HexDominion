@@ -27,30 +27,18 @@ static func run(check: Callable) -> void:
 		unit.faction = 2
 		units.append(unit)
 	var saw_factory: bool = false
-	var saw_plant: bool = false
 	var saw_extractor: bool = false
 	var saw_tank: bool = false
-	for tick in range(2400):
+	for tick in range(1200):
 		_step(match_state, tiles, territory, units)
 		for site in economy.buildings.values():
 			saw_factory = saw_factory or site["kind"] == "factory" and EconomyState.is_complete(site)
-			saw_plant = saw_plant or site["kind"] == "power_plant" and EconomyState.is_complete(site)
 			saw_extractor = saw_extractor or site["kind"] == "extractor" and EconomyState.is_complete(site)
 		for unit in units:
 			saw_tank = saw_tank or unit.kind == "tank"
-	check.call(saw_factory and saw_plant and saw_extractor and saw_tank, "AI funds and completes factory, power plant, extractor and armor through normal economy")
-	check.call(territory.owner_at(deposit) == 2 and economy.income_rate(tiles, territory) >= 8 and not economy.low_power(territory), "AI expands to a resource and earns powered extraction income")
+	check.call(saw_factory and saw_tank and not saw_extractor, "AI spends its finite starting funds on production and armor, not passive extractors")
+	check.call(economy.income_rate(tiles, territory) == 0 and economy.income_last_seconds() == 0, "AI receives no free HQ, city or resource income")
 	check.call(CreditsAccount.valid_snapshot(economy.account.snapshot()) and economy.credits >= 0 and units.size() <= RivalEconomyAI.ARMY_LIMIT, "Long-running AI keeps a valid ledger, no overdraft and bounded army")
-	var plant: Vector2i = home
-	for hex in economy.buildings:
-		if economy.buildings[hex]["kind"] == "power_plant":
-			plant = hex
-			break
-	economy.damage_building(plant, 10000)
-	check.call(economy.low_power(territory), "Destroying AI power plant interrupts extractor and factory grid")
-	for tick in range(300):
-		_step(match_state, tiles, territory, units)
-	check.call(not economy.low_power(territory) and economy.income_rate(tiles, territory) >= 8, "AI replaces lost power and recovers extraction without a credit grant")
 	economy.damage_building(home, 80)
 	economy.credits = 500
 	match_state.ai_countdown = 0
@@ -59,7 +47,7 @@ static func run(check: Callable) -> void:
 	for tick in range(100):
 		_step(match_state, tiles, territory, units)
 	check.call(economy.buildings[home]["health"] == EconomyState.BUILD_HEALTH["headquarters"] and not economy.buildings[home].get("repairing", false), "AI repairs finish without exceeding maximum health")
-	# Cities alone cannot fund recovery when the last HQ has been destroyed.
+	# Territory alone cannot fund recovery when the last HQ has been destroyed.
 	economy.buildings.clear()
 	economy.credits = 0
 	units.clear()
@@ -71,7 +59,7 @@ static func run(check: Callable) -> void:
 		recovered_hq = recovered_hq or building["kind"] == "headquarters" and EconomyState.is_complete(building)
 		recovered_barracks = recovered_barracks or building["kind"] == "barracks" and EconomyState.is_complete(building)
 	check.call(not recovered_barracks and units.is_empty() and economy.credits == 0, "Zero-cash HQ-less AI cannot bypass supply rules or receive a bailout")
-	economy.credits = 300 # Scenario funds sufficient to rebuild the lost supply root.
+	economy.credits = 500 # Scenario funds sufficient to rebuild command and production.
 	for tick in range(3000):
 		_step(match_state, tiles, territory, units)
 	for building in economy.buildings.values():
@@ -118,7 +106,7 @@ static func _test_exploits(check: Callable, tiles: Dictionary) -> void:
 	opponent.add_building(hex, "factory")
 	var rival: EconomyState = EconomyState.new()
 	rival.faction = 2
-	check.call(not rival.build(hex, "barracks", tiles, territory, 0, opponent.buildings) and rival.credits == 400, "AI cannot overlap player infrastructure or debit on rejected placement")
+	check.call(not rival.build(hex, "barracks", tiles, territory, 0, opponent.buildings) and rival.credits == 2000, "AI cannot overlap player infrastructure or debit on rejected placement")
 
 static func _test_military(check: Callable, tiles: Dictionary) -> void:
 	var match_state: MatchState = MatchState.new()

@@ -12,7 +12,7 @@ func refresh(roster: Array[UnitState]) -> void:
 	if signature == _signature:
 		return
 	_signature = signature
-	batches = UnitVisuals.groups(roster)
+	batches = UnitVisuals.stacks(roster)
 	var by_hex: Dictionary = {}
 	offsets.clear()
 	for unit in roster:
@@ -23,5 +23,3 @@ func refresh(roster: Array[UnitState]) -> void:
 	for members in by_hex.values():
 		for index in members.size():
 			offsets[members[index]] = Vector2.ZERO if members.size() == 1 else Vector2.from_angle(index * TAU / mini(members.size(), 8)) * (26.0 + floorf(index / 8.0) * 26.0)
-	for batch in batches:
-		batch["domain"] = batch["members"][0].domain

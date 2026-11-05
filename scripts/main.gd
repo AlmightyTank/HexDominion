@@ -429,7 +429,7 @@ func _process(_delta: float) -> void:
 		if units.selected != null:
 			stack_members = _hex_members(units.selected.hex)
 		hud.show_stack(stack_members, units.units, units.expanded_hex, units.selected_units)
-		hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"])
+		hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"], units.units)
 		var inspected: Vector2i = world_map.selected_hex
 		var income_economy: EconomyState = units.match_state.rival_economy if units.territory.owner_at(inspected) == 2 else units.economy
 		hud.show_supply(inspected, income_economy, units.territory, world_map.map_data["tiles"])
@@ -443,7 +443,11 @@ func _process(_delta: float) -> void:
 			if units.build_kind == "road":
 				hud.build_status.text = "ROAD | 100 CR / hex\n%s\nClick consecutive hexes. Esc cancels." % ("VALID: controlled road terrain" if units.can_place(units.build_hex, "road") else "BLOCKED: terrain / owner / road / credits")
 			units.queue_redraw()
-		hud.world_stats_label.text = "%d CR   |   +%.0f / SEC" % [int(units.economy.credits), units.economy.income_rate(world_map.map_data["tiles"], units.territory)]
+		var trucks: int = 0
+		for unit in units.units:
+			if unit.faction == 1 and unit.kind == "supply_truck" and unit.is_alive() and unit.is_deployed():
+				trucks += 1
+		hud.world_stats_label.text = "%d CR | 60s +%.0f | TRK %d | OIL %d\n%s" % [int(units.economy.credits), units.economy.income_last_seconds(60.0), trucks, units.economy.oil_derrick_count, "WORKING INCOME SOURCE" if units.economy.has_working_income_source() else "NO WORKING INCOME SOURCE"]
 		var power: Dictionary = units.economy.power_balance(units.territory)
 		hud.world_stats_label.text += "\nPOWER %d / %d used%s" % [power["demand"], power["supply"], " • LOW" if units.economy.low_power(units.territory) else " • OK"]
 
@@ -477,7 +481,7 @@ func _building_action(action: String, hex: Vector2i, site: Dictionary) -> void:
 	elif action == "repair":
 		accepted = units.economy.set_repair(hex, units.territory, site, not site.get("repairing", false))
 	hud.show_command_info("Building order accepted" if accepted else "Building order rejected: site changed, unfinished or no longer controlled")
-	hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"])
+	hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"], units.units)
 	units.queue_redraw()
 
 
@@ -486,7 +490,7 @@ func _cancel_construction(hex: Vector2i, site: Dictionary) -> void:
 		return
 	var accepted: bool = units.economy.cancel_construction(hex, units.territory, site)
 	hud.show_command_info("Construction cancelled: 50% refunded" if accepted else "Cancellation unavailable: site changed, completed or no longer controlled")
-	hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"])
+	hud.show_tile_actions(_economy_hex(), units.economy, units.territory, world_map.map_data["tiles"], units.units)
 	units.queue_redraw()
 
 
@@ -514,7 +518,7 @@ func _select_facility(hex: Vector2i) -> void:
 	_facility_site = units.economy.buildings[hex]
 	units.select_one(null)
 	world_map.inspect_at_world(world_map.hex_to_world(hex))
-	hud.show_tile_actions(hex, units.economy, units.territory, world_map.map_data["tiles"])
+	hud.show_tile_actions(hex, units.economy, units.territory, world_map.map_data["tiles"], units.units)
 	units.queue_redraw()
 
 

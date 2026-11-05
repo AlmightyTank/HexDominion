@@ -6,6 +6,7 @@ class_name WorldMap
 const HEX_RADIUS: float = 18.0
 const COLUMNS: int = 120
 const ROWS: int = 70
+const TERRAIN_CACHE_SCALE: float = 2.0
 
 const COLOR_OUTER: Color = Color("243a3a")
 const COLOR_GRID: Color = Color("86afa1", 0.25)
@@ -54,10 +55,16 @@ func _ready() -> void:
 
 func _create_terrain_cache() -> void:
 	# The static map used tens of thousands of draw calls every frame. Bake it
-	# at world resolution (~28 MB) once, not again when the camera moves.
+	# once at 2x resolution so camera zoom does not magnify a low-DPI grid.
 	_terrain_viewport = SubViewport.new()
 	_terrain_viewport.name = "TerrainCache"
-	_terrain_viewport.size = Vector2i(ceili(_bounds.size.x), ceili(_bounds.size.y))
+	var cache_size: Vector2i = Vector2i(
+		ceili(_bounds.size.x * TERRAIN_CACHE_SCALE),
+		ceili(_bounds.size.y * TERRAIN_CACHE_SCALE)
+	)
+	_terrain_viewport.size = cache_size
+	_terrain_viewport.size_2d_override = Vector2i(ceili(_bounds.size.x), ceili(_bounds.size.y))
+	_terrain_viewport.size_2d_override_stretch = true
 	_terrain_viewport.world_2d = World2D.new()
 	_terrain_viewport.disable_3d = true
 	_terrain_viewport.transparent_bg = true
@@ -71,6 +78,7 @@ func _create_terrain_cache() -> void:
 	terrain_sprite.name = "CachedTerrain"
 	terrain_sprite.centered = false
 	terrain_sprite.position = _bounds.position
+	terrain_sprite.scale = Vector2.ONE / TERRAIN_CACHE_SCALE
 	terrain_sprite.texture = _terrain_viewport.get_texture()
 	terrain_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	add_child(terrain_sprite)

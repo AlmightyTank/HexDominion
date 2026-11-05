@@ -127,8 +127,8 @@ func run() -> void:
 		territory.set_owner(independent.hex, 0)
 		territory.advance(5, tiles, stationary)
 		check(territory.owner_at(independent.hex) == 0, "Aircraft cannot capture neutral land")
-		var mixed: Array[UnitState] = [independent, jet, tank]
-		check(UnitVisuals.stacks(mixed).size() == 3, "Ground, helicopter and fighter stacks remain separate")
+		var mixed: Array[UnitState] = [unit("helicopter", Vector2i.ZERO, faction), unit("fighter", Vector2i.ZERO, faction), unit("tank", Vector2i.ZERO, faction)]
+		check(UnitVisuals.stacks(mixed).size() == 1 and UnitVisuals.stacks(mixed)[0]["members"].size() == 3, "Mixed-domain units share one hex marker without losing members")
 	await integration()
 	print("Aircraft: %d passed, %d failed" % [passed, failed])
 	quit(1 if failed else 0)

@@ -3,21 +3,21 @@ class_name EconomyState
 signal building_destroyed(hex: Vector2i, kind: String, rotation: int, owner: int)
 signal command_event(message: String, hex: Vector2i)
 ## Faction economy and production. All money mutations use the shared account.
-const BUILD_COSTS: Dictionary = {"headquarters": 300, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100, "airfield": 250, "shipyard": 220}
+const BUILD_COSTS: Dictionary = {"headquarters": 300, "supply_center": 200, "barracks": 100, "factory": 200, "extractor": 100, "power_plant": 150, "bunker": 100, "airfield": 250, "shipyard": 220}
 const EXTRACTOR_HEALTH: float = 200.0
-const BUILD_SECONDS: Dictionary = {"headquarters": 12.0, "barracks": 6.0, "factory": 10.0, "extractor": 5.0, "power_plant": 8.0, "bunker": 8.0, "airfield": 12.0, "shipyard": 10.0}
-const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0, "bunker": 400.0, "airfield": 350.0, "shipyard": 400.0}
+const BUILD_SECONDS: Dictionary = {"headquarters": 12.0, "supply_center": 8.0, "barracks": 6.0, "factory": 10.0, "extractor": 5.0, "power_plant": 8.0, "bunker": 8.0, "airfield": 12.0, "shipyard": 10.0}
+const BUILD_HEALTH: Dictionary = {"headquarters": 600.0, "supply_center": 350.0, "barracks": 300.0, "factory": 450.0, "extractor": 200.0, "power_plant": 250.0, "bunker": 400.0, "airfield": 350.0, "shipyard": 400.0}
 const POWER_SUPPLY: Dictionary = {"headquarters": 20, "power_plant": 40}
 const POWER_DEMAND: Dictionary = {"factory": 20, "extractor": 10, "airfield": 20}
 const CANCEL_REFUND_FRACTION: float = 0.5
 const SALVAGE_FRACTION: float = 0.5
 const REPAIR_HP_PER_SECOND: float = 20.0
 const REPAIR_COST_PER_HP: float = 1.0
-const EXTRACTION_PER_SECOND: float = 2.0
 const TRAIN_COSTS: Dictionary = UnitCatalog.COSTS
 const TRAIN_SECONDS: Dictionary = UnitCatalog.TRAIN_SECONDS
-const CITY_INCOME_PER_SECOND: float = 1.0
-const HQ_INCOME_PER_SECOND: float = 5.0
+const SOURCE_DELIVERY: String = "supply_delivery"
+const SOURCE_OIL_DERRICK: String = "oil_derrick"
+const ROAD_DELIVERY_BONUS: float = 0.1
 var account: CreditsAccount
 var credits: float:
 	get:
@@ -27,7 +27,9 @@ var credits: float:
 var buildings: Dictionary = {}
 var faction: int = 1
 var supply: SupplyNetwork = SupplyNetwork.new()
-const ROAD_INCOME_BONUS: float = 0.1
+var economy_time: float = 0.0
+var income_events: Array[Dictionary] = []
+var oil_derrick_count: int = 0
 
 func _init(starting_funds: float = CreditsAccount.DEFAULT_STARTING_FUNDS) -> void:
 	account = CreditsAccount.new(starting_funds)
@@ -154,32 +156,53 @@ func set_rally(hex: Vector2i, goal: Vector2i, tiles: Dictionary, territory: Terr
 
 func income_rate(tiles: Dictionary, territory: TerritoryState) -> float:
 	supply.refresh(tiles, territory, self)
-	var rate: float = 0.0
-	var powered: bool = not low_power(territory)
-	var continent_bonus: float = territory.continents.bonus(faction)
-	for hex in territory.owners:
-		rate += _location_income(hex, tiles, powered, continent_bonus)
-	return rate
+	return 0.0
 
-func _location_income(hex: Vector2i, tiles: Dictionary, powered: bool, continent_bonus: float = 0.0) -> float:
-	if not supply.supplied.has(hex):
+func credit_approved_income(base_amount: float, source: String, territory: TerritoryState, road_route_qualified: bool = false) -> float:
+	if source not in [SOURCE_DELIVERY, SOURCE_OIL_DERRICK] or not is_finite(base_amount) or base_amount <= 0.0:
 		return 0.0
-	var base: float = CITY_INCOME_PER_SECOND if tiles[hex].get("terrain", "") == "city" else 0.0
-	var hq_income: float = 0.0
-	if buildings.has(hex) and is_complete(buildings[hex]):
-		var site: Dictionary = buildings[hex]
-		if site["kind"] == "headquarters":
-			hq_income = HQ_INCOME_PER_SECOND
-		elif site["kind"] == "extractor" and powered and site.get("health", 0.0) > 0 and tiles[hex].get("terrain", "") == "resource":
-			base += EXTRACTION_PER_SECOND
-	var road_bonus: float = ROAD_INCOME_BONUS if supply.road_supplied.has(hex) else 0.0
-	return hq_income * (1.0 + continent_bonus) + base * (1.0 + road_bonus + continent_bonus)
+	var road_bonus: float = ROAD_DELIVERY_BONUS if source == SOURCE_DELIVERY and road_route_qualified else 0.0
+	var continent_bonus: float = territory.continents.bonus(faction)
+	var payout: float = base_amount * (1.0 + road_bonus + continent_bonus)
+	if not account.add_income(payout, "Supply delivery" if source == SOURCE_DELIVERY else "Oil derrick income"):
+		return 0.0
+	income_events.append({"time": economy_time, "source": source, "base": base_amount,
+		"road_bonus": road_bonus, "continent_bonus": continent_bonus, "amount": payout})
+	_prune_income_events(60.0)
+	return payout
+
+func income_last_seconds(seconds: float = 60.0) -> float:
+	if not is_finite(seconds) or seconds <= 0.0:
+		return 0.0
+	_prune_income_events(seconds)
+	var total: float = 0.0
+	for event in income_events:
+		if event["time"] >= economy_time - seconds:
+			total += event["amount"]
+	return total
+
+func has_working_income_source() -> bool:
+	# Supply trucks become working sources when Slice B adds delivery behavior.
+	return oil_derrick_count > 0
+
+func activity_snapshot() -> Dictionary:
+	return {"time": economy_time, "income_events": income_events.duplicate(true), "oil_derrick_count": oil_derrick_count}
+
+func restore_activity(data: Dictionary) -> void:
+	economy_time = float(data.get("time", 0.0))
+	income_events.assign(data.get("income_events", []).duplicate(true))
+	oil_derrick_count = int(data.get("oil_derrick_count", 0))
+	_prune_income_events(60.0)
+
+func _prune_income_events(window: float) -> void:
+	var cutoff: float = economy_time - maxf(window, 60.0)
+	income_events = income_events.filter(func(event: Dictionary) -> bool: return event.get("time", -INF) >= cutoff)
 
 func income_status(hex: Vector2i, tiles: Dictionary, territory: TerritoryState) -> Dictionary:
 	supply.refresh(tiles, territory, self)
 	var connected: bool = supply.supplied.has(hex)
 	var road: bool = connected and supply.road_supplied.has(hex)
-	return {"supplied": connected, "road_bonus": road, "income": _location_income(hex, tiles, not low_power(territory), territory.continents.bonus(faction))}
+	return {"supplied": connected, "road_route": road, "road_bonus": false, "income": 0.0}
 
 func power_balance(territory: TerritoryState) -> Dictionary:
 	var supply: int = 0
@@ -216,6 +239,8 @@ func advance(delta: float, tiles: Dictionary, territory: TerritoryState) -> Arra
 	var recruits: Array[UnitState] = []
 	if not is_finite(delta) or delta <= 0.0:
 		return recruits
+	economy_time += delta
+	_prune_income_events(60.0)
 	var remaining: float = delta
 	while remaining > 0.0:
 		var step: float = remaining
@@ -230,7 +255,7 @@ func advance(delta: float, tiles: Dictionary, territory: TerritoryState) -> Arra
 func _advance_interval(delta: float, tiles: Dictionary, territory: TerritoryState) -> Array[UnitState]:
 	var recruits: Array[UnitState] = []
 	var factory_speed: float = 0.5 if low_power(territory) else 1.0
-	account.add_income(income_rate(tiles, territory) * delta, "Territory and HQ income")
+	income_rate(tiles, territory)
 	for hex in buildings:
 		var building: Dictionary = buildings[hex]
 		if not is_complete(building):

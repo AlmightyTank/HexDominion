@@ -44,8 +44,8 @@ func refresh(tiles: Dictionary, territory: TerritoryState, economy: EconomyState
 			if _eligible(cells, neighbor) and not supplied.has(neighbor):
 				supplied[neighbor] = true
 				frontier.append(neighbor)
-	# Only road cells can carry road supply between endpoints. An unroaded city
-	# may receive a bonus, but cannot bridge two otherwise separate highways.
+	# Keep the derived road graph for route inspection. It never credits money;
+	# Slice B must submit an actual completed route before a delivery is paid.
 	frontier.clear()
 	var roads: Dictionary = {}
 	for hex in roots:
@@ -79,3 +79,15 @@ func refresh(tiles: Dictionary, territory: TerritoryState, economy: EconomyState
 
 static func _eligible(cells: Dictionary, hex: Vector2i) -> bool:
 	return cells.has(hex) and not cells[hex][0] and cells[hex][1]
+
+static func qualifies_delivery_route(route: Array[Vector2i], tiles: Dictionary, territory: TerritoryState, faction: int) -> bool:
+	if route.is_empty():
+		return false
+	var previous: Variant = null
+	for hex in route:
+		if not tiles.has(hex) or territory.owner_at(hex) != faction or territory.is_contested(hex) or not HexPathfinding.is_walkable(tiles, hex) or not RoadRules.has_road(tiles, hex):
+			return false
+		if previous != null and HexMath.distance(previous, hex) != 1:
+			return false
+		previous = hex
+	return true

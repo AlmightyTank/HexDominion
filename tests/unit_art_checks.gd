@@ -13,7 +13,7 @@ func _init() -> void:
 	call_deferred("run")
 
 func run() -> void:
-	check(UnitArt.CATEGORIES.size() == 13, "Full visual roster")
+	check(UnitArt.CATEGORIES.size() == UnitCatalog.TYPES.size(), "Full visual roster including supply scaffold")
 	for kind in UnitArt.CATEGORIES:
 		var faction_images: Array[PackedByteArray] = []
 		for faction in range(1, 4):

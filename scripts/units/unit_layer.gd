@@ -13,15 +13,16 @@ var wrecks: Array[Dictionary] = []
 var building_wrecks: Array[Dictionary] = []
 var shell_effects: Array[Dictionary] = []
 @export var far_zoom_threshold: float = UnitVisuals.FAR_ZOOM
-@export var close_zoom_threshold: float = UnitVisuals.CLOSE_ZOOM
 var army_presentation: ArmyPresentation = ArmyPresentation.new()
 
 func military_batches() -> Array[Dictionary]:
 	army_presentation.refresh(units)
 	return army_presentation.batches
 
-func individual_view(zoom_factor: float, hex: Vector2i, faction: int) -> bool:
-	return zoom_factor >= close_zoom_threshold or (hex == expanded_hex and faction == 1)
+func individual_view(_zoom_factor: float, hex: Vector2i, faction: int) -> bool:
+	# Each faction gets one representative marker per hex at every zoom. Friendly
+	# armies only fan out when the player explicitly uses the Expand action.
+	return hex == expanded_hex and faction == 1
 var _stack_units: Array[UnitState] = []
 var _stack_hexes: Array[Vector2i] = []
 var _stack_factions: Array[int] = []
@@ -138,11 +139,67 @@ func configure(map: WorldMap) -> void:
 			territory.owners[route[1]] = 2
 			match_state.rival_economy.add_building(route[1], "barracks")
 			break
+	_add_starting_economy_assets()
 	var starts: Array[Vector2i] = []
 	for unit in units:
 		starts.append(unit.hex)
 	territory.continents.configure(map.map_data["tiles"], starts, territory.owners)
 	queue_redraw()
+
+
+func _add_starting_economy_assets() -> void:
+	var tiles: Dictionary = world_map.map_data["tiles"]
+	var occupied: Dictionary = {}
+	for hex in economy.buildings:
+		occupied[hex] = true
+	for hex in match_state.rival_economy.buildings:
+		occupied[hex] = true
+	for unit in units:
+		occupied[unit.hex] = true
+	var player_center: Variant = _starting_tile(match_state.player_hq, 1, 1, occupied)
+	var rival_center: Variant = _starting_tile(match_state.rival_hq, 1, 1, occupied)
+	if player_center == null or rival_center == null:
+		push_error("Starting economy requires one free walkable tile beside each headquarters")
+		return
+	_add_supply_center_and_truck(player_center, 1, economy)
+	occupied[player_center] = true
+	_add_supply_center_and_truck(rival_center, 2, match_state.rival_economy)
+	occupied[rival_center] = true
+	var deposit_distance: int = 0
+	for distance in range(2, 6):
+		if _starting_tile(match_state.player_hq, distance, distance, occupied) != null and _starting_tile(match_state.rival_hq, distance, distance, occupied) != null:
+			deposit_distance = distance
+			break
+	if deposit_distance == 0:
+		push_error("Starting economy requires equivalent supply-deposit access")
+		return
+	var player_deposit: Vector2i = _starting_tile(match_state.player_hq, deposit_distance, deposit_distance, occupied)
+	occupied[player_deposit] = true
+	var rival_deposit: Vector2i = _starting_tile(match_state.rival_hq, deposit_distance, deposit_distance, occupied)
+	for deposit in [player_deposit, rival_deposit]:
+		tiles[deposit]["supply_original_terrain"] = tiles[deposit].get("terrain", "plains")
+		tiles[deposit]["terrain"] = "resource"
+		tiles[deposit]["supply_capacity"] = 5000.0
+		tiles[deposit]["supply_remaining"] = 5000.0
+
+
+func _add_supply_center_and_truck(hex: Vector2i, owner: int, owner_economy: EconomyState) -> void:
+	owner_economy.add_building(hex, "supply_center")
+	territory.owners[hex] = owner
+	var truck: UnitState = UnitState.new(hex, "Supply Truck")
+	truck.configure_kind("supply_truck")
+	truck.faction = owner
+	units.append(truck)
+
+
+func _starting_tile(home: Vector2i, minimum_distance: int, maximum_distance: int, occupied: Dictionary) -> Variant:
+	var candidates: Array[Vector2i] = []
+	for hex in world_map.map_data["tiles"]:
+		var distance: int = HexMath.distance(home, hex)
+		if distance >= minimum_distance and distance <= maximum_distance and not occupied.has(hex) and HexPathfinding.is_walkable(world_map.map_data["tiles"], hex):
+			candidates.append(hex)
+	candidates.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.x < b.x or (a.x == b.x and a.y < b.y))
+	return null if candidates.is_empty() else candidates[0]
 
 
 func _base_position(unit: UnitState) -> Vector2:
@@ -393,10 +450,14 @@ func _draw_units() -> void:
 					draw_string(ThemeDB.fallback_font, unit_position(member) + Vector2(-9, 21), "%d/%d" % [TransportRules.used(member, units), TransportRules.capacity(member)], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("fff0ad"))
 			continue
 		if zoom_factor >= far_zoom_threshold:
-			# Army view: one readable sprite per role with the true unit count.
+			# Army view: one representative sprite for the whole hex stack.
 			var box: float = UnitVisuals.sprite_box(zoom_factor)
 			var scale_factor: float = box / UnitVisuals.UNIT_BOX
 			var representative: UnitState = members[0]
+			for member in members:
+				if member.kind == batch["kind"]:
+					representative = member
+					break
 			for member in members:
 				if member.attack_flash > 0:
 					representative = member

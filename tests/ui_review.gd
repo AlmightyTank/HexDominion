@@ -90,11 +90,14 @@ func _run() -> void:
 	if not hud.production_open:
 		hud.production_toggle.pressed.emit()
 	await _capture("phone-production")
-	var match_state: MatchState = MatchState.new()
+	var match_state: MatchState = current_scene.units.match_state
 	match_state.result = "victory"
 	hud.show_match_status(match_state)
+	await process_frame
 	assert(hud.match_panel.is_visible_in_tree())
 	assert(hud.match_label.text.begins_with("VICTORY"))
+	assert(hud.match_panel.get_rect().get_center().is_equal_approx(Vector2(root.size) * 0.5))
 	await _capture("victory")
+	assert(hud.match_panel.is_visible_in_tree())
 	print("UI review passed: production-only sidebar and four categories, pause/resume, empty saves, save-name validation, power states, compact capture, visible victory banner")
 	quit()

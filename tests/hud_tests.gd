@@ -157,5 +157,10 @@ func _run() -> void:
 	assert(hud.context_expanded)
 	assert(not hud.command_tabs.tabs_visible and not hud.sidebar_options.visible)
 	assert(hud.production_tabs.get_tab_bar().get_tab_rect(3).end.x <= hud.production_tabs.size.x)
-	print("HUD tests passed: reference resource bar, production lists, bottom minimap/deck, real orders/repair/sell, persistent queues, radar touch and phone sheet")
+	var victory: MatchState = MatchState.new()
+	victory.result = "victory"
+	hud.show_match_status(victory)
+	assert(hud.match_panel.get_rect().get_center().is_equal_approx(Vector2(root.size) * 0.5))
+	assert(hud.match_panel.size.x <= root.size.x - 24)
+	print("HUD tests passed: reference resource bar, production lists, bottom minimap/deck, real orders/repair/sell, persistent queues, radar touch, phone sheet and centered victory")
 	quit()
